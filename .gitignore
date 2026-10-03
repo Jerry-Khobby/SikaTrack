@@ -1,2 +1,6 @@
 data-engineering/data/**/*.xml
 .venv
+__init__.py
+data-engineering/data/momo_sms.csv
+__pycache__ 
+/__pycache__ 
