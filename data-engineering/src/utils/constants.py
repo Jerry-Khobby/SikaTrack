@@ -16,3 +16,9 @@ MOMO_KEYWORDS=[
     "transaction",
     "new balance",
 ]
+
+
+MOMO_SENDERS = {
+    "MobileMoney",
+    "GhanaPay"
+}
