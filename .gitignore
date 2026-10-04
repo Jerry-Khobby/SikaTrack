@@ -4,3 +4,5 @@ __init__.py
 data-engineering/data/momo_sms.csv
 __pycache__ 
 /__pycache__ 
+
+data-engineering/data/
