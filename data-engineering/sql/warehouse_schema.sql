@@ -1,20 +1,3 @@
--- =====================================================================
--- SikaTrack warehouse: star schema for Power BI
---
--- Grain of fact_transaction: ONE MoMo transaction (= one parsed SMS).
---
---                 dim_date      dim_time
---                      \          /
---   dim_provider --- fact_transaction --- dim_counterparty
---                      /          \
---      dim_transaction_type      dim_category
---
--- Every dimension has an "Unknown" member with key -1, so fact rows
--- never carry NULL foreign keys (Power BI relationships stay clean).
---
--- Runs automatically on the warehouse container's first start.
--- =====================================================================
-
 CREATE SCHEMA IF NOT EXISTS dw;
 SET search_path TO dw;
 
@@ -122,14 +105,15 @@ INSERT INTO dim_transaction_type VALUES (-1, 'unknown', 'unknown', 'n/a', 'Unkno
 CREATE TABLE dim_counterparty (
     counterparty_key    SERIAL PRIMARY KEY,
     counterparty_name   VARCHAR(200) NOT NULL UNIQUE, -- normalised (trimmed, upper-cased)
-    counterparty_kind   VARCHAR(30)  NOT NULL DEFAULT 'unclassified',
-                        -- person | merchant | bank | telco | agent | own_wallet | unclassified
+    counterparty_phone  VARCHAR(15),                  -- local format, e.g. 0241234567
+    counterparty_kind   VARCHAR(30)  NOT NULL DEFAULT 'unknown',
+                        -- person | merchant | telco | agent | bank | own_wallet | provider | unknown
     first_seen_at       TIMESTAMPTZ,
     last_seen_at        TIMESTAMPTZ
 );
 
 INSERT INTO dim_counterparty (counterparty_key, counterparty_name, counterparty_kind)
-VALUES (-1, 'UNKNOWN', 'unclassified');
+VALUES (-1, 'UNKNOWN', 'unknown');
 
 -- ---------------------------------------------------------------------
 -- dim_category: seed list from the Data Engineering Layer spec
@@ -159,8 +143,10 @@ CREATE TABLE fact_transaction (
     transaction_key         BIGSERIAL PRIMARY KEY,
 
     -- Natural / degenerate keys
-    message_id              CHAR(16)    NOT NULL UNIQUE,   -- sha256 prefix from filter_sms: idempotent upsert key
+    transaction_nk          VARCHAR(80) NOT NULL UNIQUE,   -- upsert key: "provider:txn_id", or "provider:msg:<message_id>"
     provider_txn_id         VARCHAR(40),                   -- "Financial Transaction Id" from the SMS
+    message_id              CHAR(16)    NOT NULL,          -- SMS kept after dedupe (filter_sms hash)
+    sms_count               SMALLINT    NOT NULL DEFAULT 1,-- SMS that reported this transaction
     reference               VARCHAR(255),                  -- user-entered reference/message
 
     -- Dimension foreign keys
@@ -179,6 +165,15 @@ CREATE TABLE fact_transaction (
     total_cost              NUMERIC(14, 2) GENERATED ALWAYS AS (fee + tax) STORED,
     balance_after           NUMERIC(14, 2),                -- semi-additive: use LASTNONBLANK in DAX, never SUM
 
+    -- Flags
+    is_internal_transfer    BOOLEAN  NOT NULL DEFAULT FALSE,   -- between your own wallets: exclude from income/spend
+
+    -- Data quality: running-balance continuity check
+    has_balance_gap         BOOLEAN  NOT NULL DEFAULT FALSE,
+    balance_gap_amount      NUMERIC(14, 2),                    -- NULL = row couldn't be checked (no balance)
+    balance_gap_reason      VARCHAR(30)
+                            CHECK (balance_gap_reason IN ('own_transfer_leg_missing', 'unexplained')),
+
     -- Recurring detection (Sub-Phase C) output
     is_recurring            BOOLEAN  NOT NULL DEFAULT FALSE,
     recurring_interval_days SMALLINT,
@@ -194,3 +189,5 @@ CREATE INDEX ix_fact_txn_date         ON fact_transaction (date_key);
 CREATE INDEX ix_fact_txn_counterparty ON fact_transaction (counterparty_key);
 CREATE INDEX ix_fact_txn_category     ON fact_transaction (category_key);
 CREATE INDEX ix_fact_txn_occurred_at  ON fact_transaction (occurred_at);
+CREATE UNIQUE INDEX ux_fact_txn_provider_txn
+    ON fact_transaction (provider_key, provider_txn_id) WHERE provider_txn_id IS NOT NULL;
