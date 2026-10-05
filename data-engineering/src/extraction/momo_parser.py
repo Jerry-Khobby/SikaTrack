@@ -136,12 +136,18 @@ def parse_message(raw_text: str, sender: str = "", received_at: str = "", messag
     return result
 
 
-def main() -> None:
-    base = Path(__file__).resolve().parents[2]
-    input_file = base / "data" / "momo_sms.csv"
-    parsed_file = base / "data" / "parsed_transactions.json"
-    unparsed_file = base / "data" / "unparsed_sms.csv"
+BASE_DIR = Path(__file__).resolve().parents[2]
+DEFAULT_INPUT = BASE_DIR / "data" / "momo_sms.csv"
+DEFAULT_PARSED = BASE_DIR / "data" / "parsed_transactions.json"
+DEFAULT_UNPARSED = BASE_DIR / "data" / "unparsed_sms.csv"
 
+
+def parse_file(
+    input_file: Path = DEFAULT_INPUT,
+    parsed_file: Path = DEFAULT_PARSED,
+    unparsed_file: Path = DEFAULT_UNPARSED,
+) -> dict:
+    """Parse every message in the filtered CSV; write parsed JSON + unparsed CSV; return stats."""
     with open(input_file, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
 
@@ -153,6 +159,7 @@ def main() -> None:
     attempted = counts["parsed"] + counts["unparsed"]  # ignored messages don't count against you
 
     parsed = [r for r in results if r["parse_status"] == "parsed"]
+    parsed_file.parent.mkdir(parents=True, exist_ok=True)
     with open(parsed_file, "w", encoding="utf-8") as f:
         json.dump(parsed, f, indent=2)
 
@@ -163,18 +170,33 @@ def main() -> None:
         for r in unparsed:
             w.writerow([r["message_id"], ",".join(r.get("missing_fields", [])), r["raw_text"]])
 
-    ignored = Counter(r["ignore_reason"] for r in results if r["parse_status"] == "ignored")
-    print(f"Total messages:   {len(results)}")
-    print(f"Parsed:           {counts['parsed']}  ({sum('warnings' in r for r in parsed)} with warnings)")
-    print(f"Ignored:          {counts['ignored']}  {dict(ignored)}")
-    print(f"Unparsed:         {counts['unparsed']}")
-    if attempted:
-        print(f"Parse success rate: {counts['parsed'] / attempted:.1%}  (parsed / (parsed + unparsed))")
+    return {
+        "total": len(results),
+        "parsed": counts["parsed"],
+        "parsed_with_warnings": sum("warnings" in r for r in parsed),
+        "ignored": counts["ignored"],
+        "ignored_by_reason": dict(Counter(r["ignore_reason"] for r in results if r["parse_status"] == "ignored")),
+        "unparsed": counts["unparsed"],
+        "parse_success_rate": counts["parsed"] / attempted if attempted else None,
+        "parsed_by_template": dict(Counter(r["template"] for r in parsed).most_common()),
+        "parsed_file": str(parsed_file),
+        "unparsed_file": str(unparsed_file),
+    }
+
+
+def main() -> None:
+    stats = parse_file()
+    print(f"Total messages:   {stats['total']}")
+    print(f"Parsed:           {stats['parsed']}  ({stats['parsed_with_warnings']} with warnings)")
+    print(f"Ignored:          {stats['ignored']}  {stats['ignored_by_reason']}")
+    print(f"Unparsed:         {stats['unparsed']}")
+    if stats["parse_success_rate"] is not None:
+        print(f"Parse success rate: {stats['parse_success_rate']:.1%}  (parsed / (parsed + unparsed))")
     print("\nParsed by template:")
-    for name, n in Counter(r["template"] for r in parsed).most_common():
+    for name, n in stats["parsed_by_template"].items():
         print(f"  {n:>5}  {name}")
-    print(f"\nParsed   -> {parsed_file}")
-    print(f"Unparsed -> {unparsed_file}")
+    print(f"\nParsed   -> {stats['parsed_file']}")
+    print(f"Unparsed -> {stats['unparsed_file']}")
 
 
 if __name__ == "__main__":

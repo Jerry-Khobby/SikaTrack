@@ -85,7 +85,7 @@ def discover_senders(xml_path: Path) -> None:
         log.info(f"  {n:>5}  {sender}")
 
 
-def filter_momo_sms(xml_path: Path, output_path: Path = OUTPUT_FILE) -> None:
+def filter_momo_sms(xml_path: Path, output_path: Path = OUTPUT_FILE) -> dict:
     if not xml_path.exists():
         raise FileNotFoundError(f"XML file not found: {xml_path}")
     if not _SENDER_ALLOWLIST:
@@ -149,6 +149,15 @@ def filter_momo_sms(xml_path: Path, output_path: Path = OUTPUT_FILE) -> None:
     log.info(f"Empty bodies skipped: {skipped_empty}")
     log.info(f"Bad dates skipped:    {skipped_bad_date}")
     log.info(f"Output:               {output_path}")
+
+    return {
+        "scanned": total,
+        "kept": len(ordered),
+        "duplicates": duplicates,
+        "empty_bodies": skipped_empty,
+        "bad_dates": skipped_bad_date,
+        "output_file": str(output_path),
+    }
 
 
 # ---------------------------------------------------------
