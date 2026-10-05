@@ -18,8 +18,10 @@ from src.extraction.filter_sms import DEFAULT_XML_FILE, filter_momo_sms
 from src.extraction.momo_parser import parse_file
 from src.transform.config import BASE_DIR, Owner, TransformConfig
 from src.transform.run import run as run_transform
+from src.utils.logging_config import setup_logging
 
-log = logging.getLogger(__name__)
+# __spec__.name keeps the module path in log lines even when run with `python -m`.
+log = logging.getLogger(__spec__.name if __spec__ else __name__)
 
 
 @dataclass(frozen=True)
@@ -79,7 +81,6 @@ def run_pipeline(
 
 def summarise(results: dict[str, dict]) -> None:
     extract, parse, transform = results["extract"], results["parse"], results["transform"]
-    log.info("")
     log.info("Pipeline summary")
     log.info("SMS scanned:        %d", extract["scanned"])
     log.info("MoMo SMS kept:      %d", extract["kept"])
@@ -92,8 +93,9 @@ def summarise(results: dict[str, dict]) -> None:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
     load_dotenv()
+    log_file = setup_logging()
+    log.info("Logging to %s", log_file)
 
     parser = argparse.ArgumentParser(description="Run extraction -> parsing -> transform.")
     parser.add_argument("xml_file", nargs="?", type=Path, default=DEFAULT_XML_FILE)
