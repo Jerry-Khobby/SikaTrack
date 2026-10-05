@@ -7,6 +7,25 @@ import pytest
 from src.extraction.momo_parser import parse_message
 
 
+ISOLATED_ENV = [
+    "OWNER_NAMES", "OWNER_NUMBERS", "LAKE_BACKEND", "LAKE_LOCAL_ROOT", "RAW_BUCKET", "PROCESSED_BUCKET",
+    "WAREHOUSE_URL", "GATE_MIN_PARSE_RATE", "GATE_MIN_BALANCE_CONTINUITY", "GATE_MAX_UNEXPLAINED_GAPS",
+]
+
+
+@pytest.fixture(autouse=True)
+def isolated_env(monkeypatch, tmp_path):
+    """Tests never see your .env or write to the real data/lake."""
+    for name in ISOLATED_ENV:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("LAKE_BACKEND", "local")
+    monkeypatch.setenv("LAKE_LOCAL_ROOT", str(tmp_path / "lake"))
+    # Sample SMS aren't one continuous ledger, so balance gates would always trip.
+    # Gate tests pass their own Thresholds explicitly.
+    monkeypatch.setenv("GATE_MIN_BALANCE_CONTINUITY", "0")
+    monkeypatch.setenv("GATE_MAX_UNEXPLAINED_GAPS", "1000")
+
+
 def to_epoch_ms(iso: str) -> str:
     dt = datetime.fromisoformat(iso).replace(tzinfo=timezone.utc)
     return str(int(dt.timestamp() * 1000))

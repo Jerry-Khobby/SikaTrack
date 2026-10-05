@@ -6,6 +6,8 @@ import pandas as pd
 import pytest
 
 import samples as s
+from src.lake.store import get_store
+from src.orchestration.gates import QualityGateError, Thresholds
 from src.orchestration.pipeline import run_pipeline
 from src.transform.config import Owner
 from src.transform.run import OUTPUT_COLUMNS
@@ -33,7 +35,8 @@ def result(make_xml, tmp_path):
 
 def test_every_step_reports_stats(result):
     stats, _, _ = result
-    assert list(stats) == ["extract", "parse", "transform"]
+    assert list(stats) == ["stage", "extract", "parse", "transform", "publish", "run_id"]
+    assert stats["stage"]["backups"] == 1
     assert stats["extract"]["kept"] == 8  # CalBank isn't a MoMo sender
     assert (stats["parse"]["parsed"], stats["parse"]["ignored"]) == (5, 3)
     assert stats["transform"]["removed"] == {"duplicate_sms": 1, "cross_provider_receipts": 0}
@@ -78,3 +81,38 @@ def test_failure_stops_the_pipeline(tmp_path):
     with pytest.raises(FileNotFoundError):
         run_pipeline(tmp_path / "missing.xml", tmp_path / "data", owner=Owner())
     assert not (tmp_path / "data" / "parsed_transactions.json").exists()
+
+
+def test_history_survives_a_newer_backup_that_lost_old_sms(make_xml, tmp_path):
+    jan = make_xml([(s.MTN, "2025-11-18T09:00:00", s.PAYMENT_RECEIVED)], name="jan.xml")
+    # Months later the phone has deleted that SMS; the new backup only has newer ones.
+    jun = make_xml([(s.MTN, "2026-06-01T09:00:00", s.PAYMENT_MADE)], name="jun.xml")
+
+    run_pipeline(jan, tmp_path / "data", owner=Owner())
+    stats = run_pipeline(jun, tmp_path / "data", owner=Owner())
+
+    df = pd.read_parquet(tmp_path / "data" / "processed" / "transactions.parquet")
+    assert stats["stage"]["backups"] == 2
+    assert sorted(df["template"]) == ["payment_received", "payment_sent"]  # nothing lost
+
+
+def test_each_run_publishes_its_own_report(make_xml, tmp_path):
+    xml = make_xml(BACKUP)
+    first = run_pipeline(xml, tmp_path / "data", owner=Owner())
+    second = run_pipeline(xml, tmp_path / "data", owner=Owner())
+
+    processed = get_store("PROCESSED_BUCKET")
+    assert processed.exists("transactions/transactions.parquet")
+    reports = processed.list("reports/")
+    assert reports == sorted(f"reports/run_id={r['run_id']}/quality_report.json" for r in (first, second))
+    report = json.loads(processed.open(reports[0]).read())
+    assert report["config"]["run_id"] in (first["run_id"], second["run_id"])
+
+
+def test_quality_gate_stops_the_pipeline_before_publishing(make_xml, tmp_path):
+    xml = make_xml([(s.MTN, "2026-01-01T09:00:00", s.PAYMENT_MADE),
+                    (s.MTN, "2026-01-01T10:00:00", "Payment received from KOFI. Current Balance: GHS 5.00")])
+
+    with pytest.raises(QualityGateError, match="parse rate 50.0%"):
+        run_pipeline(xml, tmp_path / "data", owner=Owner(), limits=Thresholds(min_parse_rate=0.95))
+    assert get_store("PROCESSED_BUCKET").list() == []

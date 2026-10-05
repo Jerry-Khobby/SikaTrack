@@ -1,2 +1,4 @@
 -r requirements.txt
 pytest>=8,<9
+moto[s3]>=5,<6     # in-memory S3, stands in for MinIO in tests
+pgserver>=0.1      # real Postgres via pip, stands in for the warehouse container in tests
