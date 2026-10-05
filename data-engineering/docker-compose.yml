@@ -1,0 +1,233 @@
+# SikaTrack data-engineering stack
+#
+#                         Airflow (orchestrates every step)
+#   SMS backup XML ──► MinIO raw ──► pandas transform ──► MinIO processed (Parquet)
+#                                                              │
+#                                  Power BI ◄── Postgres star schema (warehouse) ◄┘
+#
+# Usage:
+#   cp .env.example .env            # then fill in the secrets
+#   docker compose up -d --build
+#
+# Airflow UI:    http://localhost:8080   (user/pass from .env)
+# MinIO console: http://localhost:9001
+# Power BI:      Get Data -> PostgreSQL -> localhost:5434, database sikatrack_dw
+
+x-minio-env: &minio-env
+  MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+  MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+
+# ---------------------------------------------------------------------
+# Shared Airflow config (Airflow 3: api-server + scheduler + dag-processor)
+# ---------------------------------------------------------------------
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    args:
+      AIRFLOW_VERSION: ${AIRFLOW_VERSION:-3.0.6}
+  image: sikatrack-airflow:${AIRFLOW_VERSION:-3.0.6}
+  user: "${AIRFLOW_UID:-50000}:0"
+  env_file:
+    - .env
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD}@airflow-db/airflow
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-}
+    # Must be identical on every component, or task runs fail JWT validation
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET}
+    AIRFLOW__API__SECRET_KEY: ${AIRFLOW_API_SECRET_KEY}
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    # Pipeline code reads these; in-network values override the host ones in .env
+    MINIO_ENDPOINT: http://minio:9000
+    WAREHOUSE_HOST: warehouse
+    WAREHOUSE_PORT: "5432"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs/airflow:/opt/airflow/logs
+    - ./src:/opt/sikatrack/src
+    - ./data:/opt/sikatrack/data
+  networks:
+    - sikatrack
+
+x-airflow-depends: &airflow-depends
+  airflow-db:
+    condition: service_healthy
+  airflow-init:
+    condition: service_completed_successfully
+
+services:
+  # ===================================================================
+  # Data platform
+  # ===================================================================
+
+  # Object storage: the data lake (raw XML + processed Parquet)
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: sikatrack-minio
+    command: server /data --console-address ":9001"
+    environment:
+      <<: *minio-env
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]   # image ships mc, not curl
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sikatrack
+
+  # One-shot: create the lake buckets (idempotent, safe to re-run)
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    container_name: sikatrack-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      <<: *minio-env
+      RAW_BUCKET: ${RAW_BUCKET}
+      PROCESSED_BUCKET: ${PROCESSED_BUCKET}
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+      mc mb --ignore-existing local/$${RAW_BUCKET} &&
+      mc mb --ignore-existing local/$${PROCESSED_BUCKET} &&
+      mc version enable local/$${RAW_BUCKET} &&
+      echo 'Buckets ready'
+      "
+    restart: "no"
+    networks:
+      - sikatrack
+
+  # OLAP warehouse: star schema that Power BI reads from
+  warehouse:
+    image: postgres:16-alpine
+    container_name: sikatrack-warehouse
+    environment:
+      POSTGRES_DB: ${WAREHOUSE_DB}
+      POSTGRES_USER: ${WAREHOUSE_USER}
+      POSTGRES_PASSWORD: ${WAREHOUSE_PASSWORD}
+    ports:
+      - "${WAREHOUSE_HOST_PORT:-5434}:5432"
+    volumes:
+      - warehouse_data:/var/lib/postgresql/data
+      # Runs only on first start (empty volume). To re-apply: docker compose down -v
+      - ./sql/warehouse_schema.sql:/docker-entrypoint-initdb.d/01_warehouse_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${WAREHOUSE_USER} -d ${WAREHOUSE_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sikatrack
+
+  # ===================================================================
+  # Airflow (orchestration)
+  # ===================================================================
+
+  # Airflow's own metadata DB, kept separate from the warehouse
+  airflow-db:
+    image: postgres:16-alpine
+    container_name: sikatrack-airflow-db
+    environment:
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+    volumes:
+      - airflow_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sikatrack
+
+  # One-shot: migrate the metadata DB and create the admin user
+  airflow-init:
+    <<: *airflow-common
+    container_name: sikatrack-airflow-init
+    entrypoint: /bin/bash
+    command: ["-c", "exec /entrypoint airflow version"]
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER:-admin}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+    restart: "no"
+
+  # UI + REST API + the execution API that tasks report back to
+  airflow-apiserver:
+    <<: *airflow-common
+    container_name: sikatrack-airflow-apiserver
+    command: api-server
+    ports:
+      - "${AIRFLOW_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/version"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      <<: *airflow-depends
+    restart: unless-stopped
+
+  # Schedules DAG runs; with LocalExecutor the pipeline tasks execute here,
+  # so it also waits for MinIO buckets and the warehouse
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: sikatrack-airflow-scheduler
+    command: scheduler
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      <<: *airflow-depends
+      minio-init:
+        condition: service_completed_successfully
+      warehouse:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Parses files in dags/ (a separate process in Airflow 3)
+  airflow-dag-processor:
+    <<: *airflow-common
+    container_name: sikatrack-airflow-dag-processor
+    command: dag-processor
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      <<: *airflow-depends
+    restart: unless-stopped
+
+volumes:
+  minio_data:
+  warehouse_data:
+  airflow_db_data:
+
+networks:
+  sikatrack:
+    driver: bridge
