@@ -137,6 +137,22 @@ INSERT INTO dim_category (category_name) VALUES
     ('Income');
 
 -- ---------------------------------------------------------------------
+-- etl_run: one row per warehouse load (lineage + audit)
+-- ---------------------------------------------------------------------
+CREATE TABLE etl_run (
+    run_id          VARCHAR(40) PRIMARY KEY,
+    status          VARCHAR(10) NOT NULL CHECK (status IN ('running', 'succeeded', 'failed')),
+    started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    finished_at     TIMESTAMPTZ,
+    rows_in         INTEGER,
+    rows_inserted   INTEGER,
+    rows_updated    INTEGER,
+    rows_unchanged  INTEGER,
+    quality_report  JSONB,
+    error           TEXT
+);
+
+-- ---------------------------------------------------------------------
 -- fact_transaction
 -- ---------------------------------------------------------------------
 CREATE TABLE fact_transaction (
@@ -181,8 +197,10 @@ CREATE TABLE fact_transaction (
     -- Audit
     occurred_at             TIMESTAMPTZ NOT NULL,
     raw_text                TEXT        NOT NULL,
-    source_object           VARCHAR(500),                  -- MinIO key of the raw file this row came from
-    loaded_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    source_object           VARCHAR(500),                  -- raw-zone backup this row first came from
+    pipeline_run_id         VARCHAR(40) REFERENCES etl_run (run_id), -- run that last inserted/changed the row
+    loaded_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ
 );
 
 CREATE INDEX ix_fact_txn_date         ON fact_transaction (date_key);
@@ -191,3 +209,16 @@ CREATE INDEX ix_fact_txn_category     ON fact_transaction (category_key);
 CREATE INDEX ix_fact_txn_occurred_at  ON fact_transaction (occurred_at);
 CREATE UNIQUE INDEX ux_fact_txn_provider_txn
     ON fact_transaction (provider_key, provider_txn_id) WHERE provider_txn_id IS NOT NULL;
+
+-- ---------------------------------------------------------------------
+-- Power BI reads this view, not the table: same data minus the raw SMS text.
+-- ---------------------------------------------------------------------
+CREATE VIEW v_fact_transaction AS
+SELECT
+    transaction_key, transaction_nk, provider_txn_id, reference,
+    date_key, time_key, provider_key, transaction_type_key, counterparty_key, category_key,
+    amount, signed_amount, fee, tax, total_cost, balance_after,
+    is_internal_transfer, has_balance_gap, balance_gap_amount, balance_gap_reason,
+    is_recurring, recurring_interval_days, sms_count,
+    occurred_at, source_object, pipeline_run_id, loaded_at, updated_at
+FROM fact_transaction;
