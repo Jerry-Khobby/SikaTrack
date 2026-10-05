@@ -6,7 +6,7 @@ import pandas as pd
 
 from src.transform.config import Owner
 
-# "0243997081 on MTN MOBILE MONEY" | "0243997081 MTN MOBILE MONEY"
+# "0240000001 on MTN MOBILE MONEY" | "0240000001 MTN MOBILE MONEY"
 _WALLET_SUFFIX = re.compile(r"\s+(?:ON\s+)?MTN\s+MOBILE\s+MONEY$")
 # "EDWINY PHARMACY LIMITED 233558862616"
 _TRAILING_PHONE = re.compile(r"\s+(233\d{9})$")
