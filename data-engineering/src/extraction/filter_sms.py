@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from src.utils.constants import MOMO_KEYWORDS, MOMO_SENDERS
+from src.utils.logging_config import setup_logging
 
 # ---------------------------------------------------------
 # Configuration
@@ -24,8 +25,8 @@ FIELDNAMES = ["message_id", "raw_text", "sender", "received_at"]
 _SENDER_ALLOWLIST = {s.strip().lower() for s in MOMO_SENDERS}
 _KEYWORDS = [k.lower() for k in MOMO_KEYWORDS]
 
-logging.basicConfig(level=logging.INFO, format="%(message)s")
-log = logging.getLogger(__name__)
+# __spec__.name keeps the module path in log lines even when run with `python -m`.
+log = logging.getLogger(__spec__.name if __spec__ else __name__)
 
 
 # ---------------------------------------------------------
@@ -82,7 +83,7 @@ def discover_senders(xml_path: Path) -> None:
 
     log.info("Senders with MoMo-like content (add the real ones to MOMO_SENDERS):")
     for sender, n in counts.most_common():
-        log.info(f"  {n:>5}  {sender}")
+        log.info("  %5d  %s", n, sender)
 
 
 def filter_momo_sms(xml_path: Path, output_path: Path = OUTPUT_FILE) -> dict:
@@ -94,7 +95,7 @@ def filter_momo_sms(xml_path: Path, output_path: Path = OUTPUT_FILE) -> dict:
             "sender IDs to src/utils/constants.py."
         )
 
-    log.info(f"Reading: {xml_path}")
+    log.info("Reading %s", xml_path)
 
     total = skipped_empty = skipped_bad_date = duplicates = 0
     rows: dict[str, dict] = {}
@@ -114,11 +115,13 @@ def filter_momo_sms(xml_path: Path, output_path: Path = OUTPUT_FILE) -> dict:
         received_at = epoch_ms_to_iso(date_ms)
         if not received_at:
             skipped_bad_date += 1
+            log.warning("Skipped SMS from %s with unreadable date %r", sender, date_ms)
             continue
 
         message_id = make_message_id(sender, date_ms, body)
         if message_id in rows:
             duplicates += 1
+            log.debug("Duplicate SMS %s from %s skipped", message_id, sender)
             continue
 
         rows[message_id] = {
@@ -140,15 +143,10 @@ def filter_momo_sms(xml_path: Path, output_path: Path = OUTPUT_FILE) -> dict:
         writer.writerows(ordered)
     os.replace(tmp_path, output_path)
 
-    log.info("")
-    log.info("Filtering complete")
-    log.info("------------------")
-    log.info(f"Total SMS scanned:    {total}")
-    log.info(f"MoMo messages kept:   {len(ordered)}")
-    log.info(f"Duplicates removed:   {duplicates}")
-    log.info(f"Empty bodies skipped: {skipped_empty}")
-    log.info(f"Bad dates skipped:    {skipped_bad_date}")
-    log.info(f"Output:               {output_path}")
+    log.info(
+        "Filtered %d SMS: kept %d MoMo, %d duplicates, %d empty, %d bad dates -> %s",
+        total, len(ordered), duplicates, skipped_empty, skipped_bad_date, output_path,
+    )
 
     return {
         "scanned": total,
@@ -165,6 +163,7 @@ def filter_momo_sms(xml_path: Path, output_path: Path = OUTPUT_FILE) -> dict:
 # ---------------------------------------------------------
 
 def main() -> None:
+    setup_logging()
     parser = argparse.ArgumentParser(description="Extract MoMo SMS from a backup XML.")
     parser.add_argument("xml_file", nargs="?", type=Path, default=DEFAULT_XML_FILE)
     parser.add_argument("--discover", action="store_true",

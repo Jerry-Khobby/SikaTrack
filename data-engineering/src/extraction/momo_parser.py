@@ -16,6 +16,7 @@ Run:  python -m src.extraction.momo_parser
 
 import csv
 import json
+import logging
 from collections import Counter
 from pathlib import Path
 
@@ -24,6 +25,10 @@ from src.utils.constants import (
     _AIRTIME_WORDS, _AMOUNT, _BALANCE, _FAILED, _FEE, _OTP, _REFERENCE, _REFERENCE_ALT,
     _TAX, _TXN_ID, _TXN_ID_ALT,
 )
+from src.utils.logging_config import setup_logging
+
+# __spec__.name keeps the module path in log lines even when run with `python -m`.
+log = logging.getLogger(__spec__.name if __spec__ else __name__)
 
 
 def _to_float(value):
@@ -158,6 +163,15 @@ def parse_file(
     counts = Counter(r["parse_status"] for r in results)
     attempted = counts["parsed"] + counts["unparsed"]  # ignored messages don't count against you
 
+    for r in results:
+        if r["parse_status"] == "unparsed":
+            missing = ",".join(r.get("missing_fields", [])) or "unknown format"
+            log.warning("Unparsed %s (%s): %.100s", r["message_id"], missing, r["raw_text"])
+        elif r["parse_status"] == "ignored":
+            log.debug("Ignored %s as %s", r["message_id"], r["ignore_reason"])
+        elif "warnings" in r:
+            log.info("Parsed %s via %s without %s", r["message_id"], r["template"], ",".join(r["warnings"]))
+
     parsed = [r for r in results if r["parse_status"] == "parsed"]
     parsed_file.parent.mkdir(parents=True, exist_ok=True)
     with open(parsed_file, "w", encoding="utf-8") as f:
@@ -170,7 +184,7 @@ def parse_file(
         for r in unparsed:
             w.writerow([r["message_id"], ",".join(r.get("missing_fields", [])), r["raw_text"]])
 
-    return {
+    stats = {
         "total": len(results),
         "parsed": counts["parsed"],
         "parsed_with_warnings": sum("warnings" in r for r in parsed),
@@ -182,21 +196,19 @@ def parse_file(
         "parsed_file": str(parsed_file),
         "unparsed_file": str(unparsed_file),
     }
+    log.info(
+        "Parsed %d messages: %d parsed, %d ignored %s, %d unparsed (success rate %s)",
+        stats["total"], stats["parsed"], stats["ignored"], stats["ignored_by_reason"], stats["unparsed"],
+        f"{stats['parse_success_rate']:.1%}" if stats["parse_success_rate"] is not None else "n/a",
+    )
+    log.info("Parsed by template: %s", stats["parsed_by_template"])
+    log.info("Wrote %s and %s", parsed_file, unparsed_file)
+    return stats
 
 
 def main() -> None:
-    stats = parse_file()
-    print(f"Total messages:   {stats['total']}")
-    print(f"Parsed:           {stats['parsed']}  ({stats['parsed_with_warnings']} with warnings)")
-    print(f"Ignored:          {stats['ignored']}  {stats['ignored_by_reason']}")
-    print(f"Unparsed:         {stats['unparsed']}")
-    if stats["parse_success_rate"] is not None:
-        print(f"Parse success rate: {stats['parse_success_rate']:.1%}  (parsed / (parsed + unparsed))")
-    print("\nParsed by template:")
-    for name, n in stats["parsed_by_template"].items():
-        print(f"  {n:>5}  {name}")
-    print(f"\nParsed   -> {stats['parsed_file']}")
-    print(f"Unparsed -> {stats['unparsed_file']}")
+    setup_logging()
+    parse_file()
 
 
 if __name__ == "__main__":
