@@ -14,21 +14,12 @@ from src.transform.counterparty import normalise_counterparties
 from src.transform.dedupe import drop_cross_provider_receipts, drop_duplicate_transactions
 from src.transform.enrich import add_measures, add_natural_key, add_time_keys, flag_internal_transfers
 from src.transform.quality import build_report, explain_balance_gaps, flag_balance_gaps
+from src.transform.schema import OUTPUT_COLUMNS
 from src.transform.storage import read_parsed, write_processed
 from src.utils.logging_config import setup_logging
 
 # __spec__.name keeps the module path in log lines even when run with `python -m`.
 log = logging.getLogger(__spec__.name if __spec__ else __name__)
-
-OUTPUT_COLUMNS = [
-    "transaction_nk", "message_id", "transaction_id", "provider", "template", "transaction_type", "direction",
-    "occurred_at", "date_key", "hour",
-    "amount", "signed_amount", "fee", "tax", "total_cost", "balance_after",
-    "counterparty", "counterparty_phone", "counterparty_kind", "counterparty_raw",
-    "reference", "is_internal_transfer", "has_balance_gap", "balance_gap_amount", "balance_gap_reason",
-    "sms_count", "raw_text",
-]
-
 
 def transform(raw: pd.DataFrame, config: TransformConfig) -> tuple[pd.DataFrame, dict]:
     df = clean(raw)
@@ -51,7 +42,7 @@ def transform(raw: pd.DataFrame, config: TransformConfig) -> tuple[pd.DataFrame,
     _log_balance_gaps(df)
 
     removed = {"duplicate_sms": same_provider, "cross_provider_receipts": cross_provider}
-    report = build_report(len(raw), removed, df)
+    report = {"config": config.describe(), **build_report(len(raw), removed, df)}
     return df[OUTPUT_COLUMNS], report
 
 

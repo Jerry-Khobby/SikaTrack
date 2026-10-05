@@ -24,7 +24,10 @@ def drop_duplicate_transactions(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     unkeyed = df[df["transaction_id"].isna()].assign(sms_count=1)
 
     keyed["_richness"] = _richness(keyed)
-    keyed = keyed.sort_values(["_richness", "occurred_at"], ascending=[False, True])
+    # message_id last: a deterministic winner even when two copies tie on everything else.
+    keyed = keyed.sort_values(
+        ["_richness", "occurred_at", "message_id"], ascending=[False, True, True], kind="stable"
+    )
     groups = keyed.groupby(KEY, sort=False)
 
     best = groups.head(1).set_index(KEY)

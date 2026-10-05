@@ -1,5 +1,6 @@
 """Settings for the transform step, read from the environment (.env)."""
 
+import hashlib
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,6 +24,11 @@ class Owner:
     def from_env(cls) -> "Owner":
         return cls(names=_env_set("OWNER_NAMES"), numbers=_env_set("OWNER_NUMBERS"))
 
+    def fingerprint(self) -> str:
+        """Identifies the settings without revealing them (safe to store in reports)."""
+        raw = "|".join(sorted(self.names)) + "#" + "|".join(sorted(self.numbers))
+        return hashlib.sha256(raw.encode()).hexdigest()[:12]
+
 
 @dataclass(frozen=True)
 class TransformConfig:
@@ -30,7 +36,18 @@ class TransformConfig:
     output_dir: Path = BASE_DIR / "data" / "processed"
     owner: Owner = field(default_factory=Owner)
     balance_tolerance: float = 0.02  # GHS; rounding noise allowed in the balance check
+    run_id: str | None = None
 
     @classmethod
     def from_env(cls) -> "TransformConfig":
         return cls(owner=Owner.from_env())
+
+    def describe(self) -> dict:
+        """The settings that shape the output, for the run report."""
+        return {
+            "run_id": self.run_id,
+            "owner_names": len(self.owner.names),
+            "owner_numbers": len(self.owner.numbers),
+            "owner_fingerprint": self.owner.fingerprint(),
+            "balance_tolerance": self.balance_tolerance,
+        }

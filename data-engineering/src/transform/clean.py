@@ -25,6 +25,9 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     for col in TEXT_COLUMNS:
         df[col] = _strip_text(df[col])
 
+    if "source_object" not in df.columns:  # parser output from before lineage was added
+        df["source_object"] = None
+
     _validate(df)
     return df.drop(columns=[c for c in DROP_COLUMNS if c in df.columns])
 
