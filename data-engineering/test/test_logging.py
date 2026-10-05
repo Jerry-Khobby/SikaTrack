@@ -60,6 +60,7 @@ def test_parser_logs_each_problem_message(tmp_path, caplog):
         parse_file(source, tmp_path / "parsed.json", tmp_path / "unparsed.csv")
 
     messages = [(r.levelname, r.getMessage()) for r in caplog.records]
-    assert ("WARNING", "Unparsed new1 (unknown format): Brand new format.") in messages
+    assert ("WARNING", "Unparsed new1 (unknown format); see unparsed.csv") in messages
+    assert not any("Brand new format" in msg for _, msg in messages)  # no SMS text in logs
     assert ("DEBUG", "Ignored otp1 as otp") in messages
     assert any(level == "INFO" and msg.startswith("Parsed 2 messages") for level, msg in messages)

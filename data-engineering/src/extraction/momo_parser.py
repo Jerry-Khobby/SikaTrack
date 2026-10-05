@@ -25,6 +25,7 @@ from src.utils.constants import (
     _AIRTIME_WORDS, _AMOUNT, _BALANCE, _FAILED, _FEE, _OTP, _REFERENCE, _REFERENCE_ALT,
     _TAX, _TXN_ID, _TXN_ID_ALT,
 )
+from src.utils.fileio import atomic_write
 from src.utils.logging_config import setup_logging
 
 # __spec__.name keeps the module path in log lines even when run with `python -m`.
@@ -156,29 +157,30 @@ def parse_file(
     with open(input_file, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
 
-    results = [
-        parse_message(r["raw_text"], r["sender"], r["received_at"], r.get("message_id", ""))
-        for r in rows
-    ]
+    results = []
+    for r in rows:
+        result = parse_message(r["raw_text"], r["sender"], r["received_at"], r.get("message_id", ""))
+        result["source_object"] = r.get("source_object")  # lineage: which backup it came from
+        results.append(result)
     counts = Counter(r["parse_status"] for r in results)
     attempted = counts["parsed"] + counts["unparsed"]  # ignored messages don't count against you
 
     for r in results:
         if r["parse_status"] == "unparsed":
             missing = ",".join(r.get("missing_fields", [])) or "unknown format"
-            log.warning("Unparsed %s (%s): %.100s", r["message_id"], missing, r["raw_text"])
+            # No SMS text in logs: it's personal financial data. It's in the unparsed CSV.
+            log.warning("Unparsed %s (%s); see %s", r["message_id"], missing, unparsed_file.name)
         elif r["parse_status"] == "ignored":
             log.debug("Ignored %s as %s", r["message_id"], r["ignore_reason"])
         elif "warnings" in r:
             log.info("Parsed %s via %s without %s", r["message_id"], r["template"], ",".join(r["warnings"]))
 
     parsed = [r for r in results if r["parse_status"] == "parsed"]
-    parsed_file.parent.mkdir(parents=True, exist_ok=True)
-    with open(parsed_file, "w", encoding="utf-8") as f:
+    with atomic_write(parsed_file) as f:
         json.dump(parsed, f, indent=2)
 
     unparsed = [r for r in results if r["parse_status"] == "unparsed"]
-    with open(unparsed_file, "w", newline="", encoding="utf-8") as f:
+    with atomic_write(unparsed_file, newline="") as f:
         w = csv.writer(f)
         w.writerow(["message_id", "missing_fields", "raw_text"])
         for r in unparsed:
