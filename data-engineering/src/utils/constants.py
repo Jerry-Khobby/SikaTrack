@@ -186,7 +186,13 @@ TEMPLATES = [
      "start": re.compile(r"^you\s+have\s+(?:successfully\s+)?purchased", re.I),
      "direction": "debit", "type": "airtime", "counterparty": _FROM_PURCHASE},
 
-    {"name": "savings_transfer",
+    # The balance in this message is the SAVINGS wallet's, not the main wallet's.
+    {"name": "savings_withdrawal",
+     "start": re.compile(r"^your\s+instruction\s+to\s+transfer\b.*\bfrom\s+your\s+savings\s+wallet\b.*\bhonou?red", re.I),
+     "direction": "credit", "type": "savings", "counterparty": "Savings wallet",
+     "wallet_balance": False},
+
+    {"name": "savings_deposit",
      "start": re.compile(r"^your\s+instruction\s+to\s+transfer\b.*\bhonou?red", re.I),
      "direction": "debit", "type": "savings", "counterparty": "Savings wallet"},
 
@@ -202,6 +208,9 @@ TEMPLATES = [
 
 # Checked FIRST, for safety: these contain login codes.
 _OTP = re.compile(r"\botp\b|fraud alert|enter code|one\s+time\s+password", re.I)
+
+# "Your payment of GHS 5.00 to MTN AIRTIME has failed at ...": no money moved.
+_FAILED = re.compile(r"\bhas\s+failed\b", re.I)
 
 # Marketing text.
 _PROMO = re.compile(

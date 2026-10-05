@@ -1,12 +1,13 @@
 """
 MoMo SMS parser: template table + field-level extraction.
 
-Flow: raw text -> (OTP check) -> match a TEMPLATE row -> extract fields -> validate
+Flow: raw text -> (OTP / failed check) -> match a TEMPLATE row -> extract fields -> validate
 
 Statuses:
     parsed    template recognised and all REQUIRED fields found.
               Missing OPTIONAL fields are listed in 'warnings' (record is still kept).
-    ignored   not a transaction (otp / promo / customer_message); see 'ignore_reason'
+    ignored   not a transaction (otp / failed_transaction / promo / customer_message);
+              see 'ignore_reason'
     unparsed  unrecognised format (missing_fields empty), or a REQUIRED field
               missing (missing_fields lists which). Written to unparsed_sms.csv.
 
@@ -20,7 +21,7 @@ from pathlib import Path
 
 from src.utils.constants import (
     IGNORE_RULES, OPTIONAL_FIELDS, REQUIRED_FIELDS, SENDER_TO_PROVIDER, TEMPLATES,
-    _AIRTIME_WORDS, _AMOUNT, _BALANCE, _FEE, _OTP, _REFERENCE, _REFERENCE_ALT,
+    _AIRTIME_WORDS, _AMOUNT, _BALANCE, _FAILED, _FEE, _OTP, _REFERENCE, _REFERENCE_ALT,
     _TAX, _TXN_ID, _TXN_ID_ALT,
 )
 
@@ -72,7 +73,12 @@ def parse_message(raw_text: str, sender: str = "", received_at: str = "", messag
         result.update(parse_status="ignored", ignore_reason="otp")
         return result
 
-    # 2. Find the template this message belongs to
+    # 2. Failed transactions moved no money
+    if _FAILED.search(text):
+        result.update(parse_status="ignored", ignore_reason="failed_transaction")
+        return result
+
+    # 3. Find the template this message belongs to
     template = next((t for t in TEMPLATES if t["start"].match(text)), None)
 
     if template is None:
@@ -85,7 +91,7 @@ def parse_message(raw_text: str, sender: str = "", received_at: str = "", messag
                     return result
         return result  # stays 'unparsed' with no missing_fields = new format
 
-    # 3. Extract fields
+    # 4. Extract fields
     result["template"] = template["name"]
     result["direction"] = template["direction"]
 
@@ -102,7 +108,8 @@ def parse_message(raw_text: str, sender: str = "", received_at: str = "", messag
     limit = balance_match.start() if balance_match else len(text)
     amount_match = next((m for m in _AMOUNT.finditer(text) if m.start() < limit), None)
     result["amount"] = _to_float(amount_match.group(1)) if amount_match else None
-    result["balance_after"] = _to_float(balance_match.group(1)) if balance_match else None
+    if template.get("wallet_balance", True):  # some messages report another wallet's balance
+        result["balance_after"] = _to_float(balance_match.group(1)) if balance_match else None
     result["fee"] = _to_float(_first(_FEE, text))
     result["tax"] = _to_float(_first(_TAX, text))
     result["transaction_id"] = _first(_TXN_ID, text) or _first(_TXN_ID_ALT, text)
@@ -116,7 +123,7 @@ def parse_message(raw_text: str, sender: str = "", received_at: str = "", messag
         name = result["counterparty"] or ""
         result["transaction_type"] = "airtime" if _AIRTIME_WORDS.search(name) else "transfer"
 
-    # 4. Validate
+    # 5. Validate
     missing = [f for f in REQUIRED_FIELDS if result[f] is None]
     if missing:
         result["missing_fields"] = missing        # status stays 'unparsed'
