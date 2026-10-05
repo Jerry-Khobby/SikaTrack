@@ -1,0 +1,10 @@
+# Data is bind-mounted at runtime; never bake personal SMS into the image.
+data/
+logs/
+test/
+docs/
+dags/
+.env
+.venv/
+**/__pycache__/
+*.pyc
