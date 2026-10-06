@@ -57,7 +57,8 @@ def test_fingerprint_changes_with_backups_and_settings(make_xml, tmp_path):
     assert state.fingerprint(raw, Owner()) != before                                   # new backup
 
 
-def test_make_run_isolates_work_files_per_run(tmp_path):
-    run = make_run("run-1", tmp_path / "work" / "run-1", owner=Owner())
-    assert run.paths.parsed == tmp_path / "work" / "run-1" / "parsed_transactions.json"
-    assert run.run_id == "run-1" and run.load is False
+def test_make_run_isolates_work_files_per_run():
+    run = make_run("run-1", owner=Owner())
+    assert run.paths.data_dir.parts[-3:] == ("data", "work", "run-1")
+    assert run.paths.parsed == run.paths.data_dir / "parsed_transactions.json"
+    assert run.load is True  # Postgres is always part of the Docker stack

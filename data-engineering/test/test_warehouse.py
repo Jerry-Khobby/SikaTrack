@@ -1,34 +1,57 @@
-"""Warehouse schema + load, against a real Postgres started by pgserver (no Docker needed)."""
+"""Warehouse migrations + load, against the Postgres container from docker-compose.
 
-import itertools
+Each test gets a throwaway database (sikatrack_test_<id>) that's dropped afterwards, so the
+real sikatrack_dw is never touched. Skipped when the container isn't running.
+"""
+
+import uuid
+from pathlib import Path
 
 import pandas as pd
+import psycopg2
 import pytest
+from dotenv import dotenv_values
+from psycopg2 import sql as pgsql
 
-pgserver = pytest.importorskip("pgserver")
-psycopg2 = pytest.importorskip("psycopg2")
+import samples as s
+from src.load.warehouse import migrate, load_transactions
+from src.orchestration.pipeline import run_pipeline
+from src.transform.config import Owner
 
-import samples as s  # noqa: E402
-from src.load.warehouse import apply_schema, load_transactions  # noqa: E402
-from src.orchestration.pipeline import run_pipeline  # noqa: E402
-from src.transform.config import Owner  # noqa: E402
+ENV = dotenv_values(Path(__file__).parents[1] / ".env")
 
-_db_names = (f"test_{i}" for i in itertools.count())
+
+def _dsn(dbname: str) -> str:
+    return (f"host=localhost port={ENV.get('WAREHOUSE_PORT', '5434')} dbname={dbname} "
+            f"user={ENV.get('WAREHOUSE_USER')} password={ENV.get('WAREHOUSE_PASSWORD')} connect_timeout=3")
 
 
 @pytest.fixture(scope="session")
-def pg(tmp_path_factory):
-    server = pgserver.get_server(tmp_path_factory.mktemp("pg"), cleanup_mode="stop")
-    yield server
-    server.cleanup()
+def admin():
+    """Autocommit connection to the warehouse server, for creating and dropping test databases."""
+    try:
+        connection = psycopg2.connect(_dsn(ENV.get("WAREHOUSE_DB", "sikatrack_dw")))
+    except psycopg2.OperationalError as e:
+        pytest.skip(f"Postgres container not reachable (docker compose up -d): {e}")
+    connection.autocommit = True
+    yield connection
+    connection.close()
 
 
 @pytest.fixture
-def conn(pg):
-    """A fresh, empty database per test."""
-    name = next(_db_names)
-    pg.psql(f"CREATE DATABASE {name};")
-    connection = psycopg2.connect(pg.get_uri(name))
+def test_db(admin):
+    """Name of a fresh, empty database, dropped after the test."""
+    name = f"sikatrack_test_{uuid.uuid4().hex[:8]}"
+    with admin.cursor() as cur:
+        cur.execute(pgsql.SQL("CREATE DATABASE {}").format(pgsql.Identifier(name)))
+    yield name
+    with admin.cursor() as cur:
+        cur.execute(pgsql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(pgsql.Identifier(name)))
+
+
+@pytest.fixture
+def conn(test_db):
+    connection = psycopg2.connect(_dsn(test_db))
     yield connection
     connection.close()
 
@@ -42,7 +65,7 @@ def parquet(make_xml, tmp_path):
         (s.GHANAPAY, "2026-01-28T07:21:34", s.BANK_IN),
         (s.GHANAPAY, "2026-01-27T12:27:00", s.SAVINGS_WITHDRAWAL),
     ])
-    run_pipeline(xml, tmp_path / "data", owner=Owner())
+    run_pipeline(xml, tmp_path / "data", owner=Owner(), load=False)
     return tmp_path / "data" / "processed" / "transactions.parquet"
 
 
@@ -52,14 +75,14 @@ def query(conn, sql):
         return cur.fetchall()
 
 
-def test_schema_is_created_once(conn):
-    assert apply_schema(conn) is True
-    assert apply_schema(conn) is False
+def test_migrations_apply_once(conn):
+    assert migrate(conn) == ["001_star_schema", "002_categorisation"]
+    assert migrate(conn) == []
     assert query(conn, "SELECT count(*) FROM dw.dim_date")[0][0] > 4000
 
 
 def test_loading_twice_changes_nothing(conn, parquet):
-    apply_schema(conn)
+    migrate(conn)
 
     first = load_transactions(conn, parquet, "run-1")
     second = load_transactions(conn, parquet, "run-2")
@@ -72,7 +95,7 @@ def test_loading_twice_changes_nothing(conn, parquet):
 
 
 def test_changed_rows_are_updated_and_stamped(conn, parquet):
-    apply_schema(conn)
+    migrate(conn)
     load_transactions(conn, parquet, "run-1")
     df = pd.read_parquet(parquet)
     df.loc[0, "reference"] = "edited"
@@ -86,19 +109,19 @@ def test_changed_rows_are_updated_and_stamped(conn, parquet):
 
 
 def test_reload_keeps_columns_owned_by_later_steps(conn, parquet):
-    apply_schema(conn)
+    migrate(conn)
     load_transactions(conn, parquet, "run-1")
-    query_sql = "UPDATE dw.fact_transaction SET category_key = 2, is_recurring = TRUE RETURNING 1"
+    query_sql = "UPDATE dw.fact_transaction SET is_recurring = TRUE RETURNING 1"
     with conn, conn.cursor() as cur:
         cur.execute(query_sql)
 
     load_transactions(conn, parquet, "run-2")
 
-    assert query(conn, "SELECT DISTINCT category_key, is_recurring FROM dw.fact_transaction") == [(2, True)]
+    assert query(conn, "SELECT DISTINCT is_recurring FROM dw.fact_transaction") == [(True,)]
 
 
 def test_dimensions_are_filled(conn, parquet):
-    apply_schema(conn)
+    migrate(conn)
     load_transactions(conn, parquet, "run-1")
 
     assert query(conn, """
@@ -113,7 +136,7 @@ def test_dimensions_are_filled(conn, parquet):
 
 
 def test_power_bi_view_hides_raw_sms_text(conn):
-    apply_schema(conn)
+    migrate(conn)
     columns = [r[0] for r in query(conn, """
         SELECT column_name FROM information_schema.columns
         WHERE table_schema = 'dw' AND table_name = 'v_fact_transaction'""")]
@@ -121,7 +144,7 @@ def test_power_bi_view_hides_raw_sms_text(conn):
 
 
 def test_failed_load_rolls_back_and_is_recorded(conn, parquet):
-    apply_schema(conn)
+    migrate(conn)
     df = pd.read_parquet(parquet)
     df.loc[3, "date_key"] = 19000101  # not in dim_date: foreign key violation on the last row
     df.to_parquet(parquet, index=False)
@@ -135,13 +158,56 @@ def test_failed_load_rolls_back_and_is_recorded(conn, parquet):
     assert status == "failed" and "ForeignKeyViolation" in error
 
 
-def test_pipeline_loads_the_warehouse(pg, make_xml, tmp_path):
-    pg.psql("CREATE DATABASE pipeline_load;")
-    dsn = pg.get_uri("pipeline_load")
-    xml = make_xml([(s.MTN, "2025-11-18T09:00:00", s.PAYMENT_RECEIVED)])
+def test_migrations_upgrade_a_database_created_before_they_were_tracked(conn):
+    """The Docker warehouse was first created from the base schema alone, with no tracking table."""
+    with conn, conn.cursor() as cur:
+        cur.execute((Path(__file__).parents[1] / "sql/migrations/001_star_schema.sql").read_text(encoding="utf-8"))
 
-    first = run_pipeline(xml, tmp_path / "data", owner=Owner(), load=True, warehouse_dsn=dsn)
-    second = run_pipeline(xml, tmp_path / "data", owner=Owner(), load=True, warehouse_dsn=dsn)
+    assert migrate(conn) == ["002_categorisation"]
+    assert query(conn, "SELECT version FROM dw.schema_migration ORDER BY version") == [
+        ("001_star_schema",), ("002_categorisation",)]
+
+
+def test_missing_migrations_folder_fails_loudly(conn, monkeypatch, tmp_path):
+    import src.load.warehouse as warehouse
+
+    monkeypatch.setattr(warehouse, "MIGRATIONS_DIR", tmp_path / "missing")
+    with pytest.raises(FileNotFoundError, match="No schema migrations"):
+        migrate(conn)
+
+
+def test_categories_are_loaded(conn, parquet):
+    migrate(conn)
+    load_transactions(conn, parquet, "run-1")
+
+    rows = query(conn, """
+        SELECT c.category_name, c.category_group, f.category_rule
+        FROM dw.fact_transaction f JOIN dw.dim_category c USING (category_key)
+        ORDER BY f.occurred_at""")
+    assert ("Income", "Money In", "money_in:transfer") in rows
+    assert all(category != "Uncategorized" for category, _, _ in rows)
+    assert "category_rule" in [r[0] for r in query(conn, """
+        SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'dw' AND table_name = 'v_fact_transaction'""")]
+
+
+def test_unknown_category_fails_the_load(conn, parquet):
+    migrate(conn)
+    df = pd.read_parquet(parquet)
+    df.loc[0, "category"] = "Crypto"
+    df.to_parquet(parquet, index=False)
+
+    with pytest.raises(ValueError, match="Crypto"):
+        load_transactions(conn, parquet, "run-1")
+    assert query(conn, "SELECT count(*) FROM dw.fact_transaction") == [(0,)]
+
+
+def test_pipeline_loads_the_warehouse(test_db, make_xml, tmp_path):
+    xml = make_xml([(s.MTN, "2025-11-18T09:00:00", s.PAYMENT_RECEIVED)])
+    dsn = _dsn(test_db)
+
+    first = run_pipeline(xml, tmp_path / "data", owner=Owner(), warehouse_dsn=dsn)
+    second = run_pipeline(xml, tmp_path / "data", owner=Owner(), warehouse_dsn=dsn)
 
     assert first["load"]["rows_inserted"] == 1
     assert second["load"]["rows_unchanged"] == 1

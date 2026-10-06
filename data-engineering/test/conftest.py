@@ -1,29 +1,36 @@
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
+import boto3
 import pandas as pd
 import pytest
+from moto import mock_aws
 
 from src.extraction.momo_parser import parse_message
 
-
 ISOLATED_ENV = [
-    "OWNER_NAMES", "OWNER_NUMBERS", "LAKE_BACKEND", "LAKE_LOCAL_ROOT", "RAW_BUCKET", "PROCESSED_BUCKET",
-    "WAREHOUSE_URL", "GATE_MIN_PARSE_RATE", "GATE_MIN_BALANCE_CONTINUITY", "GATE_MAX_UNEXPLAINED_GAPS",
+    "OWNER_NAMES", "OWNER_NUMBERS", "RAW_BUCKET", "PROCESSED_BUCKET", "S3_ENDPOINT",
+    "GATE_MIN_PARSE_RATE", "GATE_MIN_BALANCE_CONTINUITY", "GATE_MAX_UNEXPLAINED_GAPS",
+    "GATE_MIN_CATEGORY_COVERAGE",
 ]
 
 
 @pytest.fixture(autouse=True)
-def isolated_env(monkeypatch, tmp_path):
-    """Tests never see your .env or write to the real data/lake."""
+def isolated_env(monkeypatch):
+    """Tests never see your .env, RustFS or real buckets: S3 is moto's in-memory fake."""
     for name in ISOLATED_ENV:
         monkeypatch.delenv(name, raising=False)
-    monkeypatch.setenv("LAKE_BACKEND", "local")
-    monkeypatch.setenv("LAKE_LOCAL_ROOT", str(tmp_path / "lake"))
+    monkeypatch.setenv("S3_ACCESS_KEY", "test")
+    monkeypatch.setenv("S3_SECRET_KEY", "test")
     # Sample SMS aren't one continuous ledger, so balance gates would always trip.
     # Gate tests pass their own Thresholds explicitly.
     monkeypatch.setenv("GATE_MIN_BALANCE_CONTINUITY", "0")
     monkeypatch.setenv("GATE_MAX_UNEXPLAINED_GAPS", "1000")
+    with mock_aws():
+        s3 = boto3.client("s3", region_name="us-east-1")
+        for bucket in ("sikatrack-raw", "sikatrack-processed"):
+            s3.create_bucket(Bucket=bucket)
+        yield
 
 
 def to_epoch_ms(iso: str) -> str:

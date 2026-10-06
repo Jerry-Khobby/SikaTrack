@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -14,9 +16,10 @@ def parse_stats(parsed=95, unparsed=5):
     return {"parsed": parsed, "unparsed": unparsed, "parse_success_rate": parsed / total if total else None}
 
 
-def transform_report(continuity=0.99, checked=100, unexplained=0):
+def transform_report(continuity=0.99, checked=100, unexplained=0, coverage=0.95):
     return {"providers": {"mtn_momo": {"continuity_rate": continuity, "balance_checked": checked}},
-            "balance_gap_reasons": {"unexplained": unexplained} if unexplained else {}}
+            "balance_gap_reasons": {"unexplained": unexplained} if unexplained else {},
+            "categories": {"spending_transactions": 100, "coverage": coverage}}
 
 
 def test_parse_gate_passes_at_the_limit():
@@ -44,6 +47,11 @@ def test_transform_gate_reports_every_failure():
     assert "3 unexplained balance gaps > 2" in str(e.value)
 
 
+def test_transform_gate_fails_on_low_category_coverage():
+    with pytest.raises(QualityGateError, match="category coverage 50.0% < 90.0%"):
+        check_transform(transform_report(coverage=0.5), Thresholds(min_category_coverage=0.9))
+
+
 def test_thresholds_from_env(monkeypatch):
     monkeypatch.delenv("GATE_MIN_BALANCE_CONTINUITY")  # unset: falls back to the default
     monkeypatch.setenv("GATE_MIN_PARSE_RATE", "0.5")
@@ -60,7 +68,8 @@ def valid_frame():
         "date_key": 20260101, "hour": 0, "amount": 5.0, "signed_amount": -5.0, "fee": 0.0,
         "tax": 0.0, "total_cost": 0.0, "balance_after": None, "counterparty": None,
         "counterparty_phone": None, "counterparty_kind": "unknown", "counterparty_raw": None,
-        "reference": None, "is_internal_transfer": False, "has_balance_gap": False,
+        "reference": None, "category": "Transfers-Personal", "category_rule": "default:person",
+        "is_internal_transfer": False, "has_balance_gap": False,
         "balance_gap_amount": None, "balance_gap_reason": None, "sms_count": 1,
         "raw_text": "sms", "source_object": None,
     }
@@ -105,9 +114,10 @@ def test_duplicate_tie_is_broken_by_message_id():
 
 def test_report_config_identifies_owner_settings_without_revealing_them():
     owner = Owner(names=frozenset({"KWAME OWUSU"}), numbers=frozenset({"0240000001"}))
-    described = TransformConfig(owner=owner, run_id="r1").describe()
+    config = TransformConfig(Path("in.json"), Path("out"), owner=owner, run_id="r1")
+    described = config.describe()
 
     assert described["run_id"] == "r1"
     assert (described["owner_names"], described["owner_numbers"]) == (1, 1)
     assert "KWAME" not in str(described) and "0240000001" not in str(described)
-    assert described["owner_fingerprint"] != TransformConfig().describe()["owner_fingerprint"]
+    assert described["owner_fingerprint"] != TransformConfig(Path("in.json"), Path("out")).describe()["owner_fingerprint"]

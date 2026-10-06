@@ -1,4 +1,6 @@
-"""End to end: SMS backup XML -> processed Parquet, using only sample data."""
+"""End to end: SMS backup XML -> processed Parquet, using only sample data.
+
+Loading into Postgres is covered in test_warehouse.py."""
 
 import json
 
@@ -28,7 +30,7 @@ BACKUP = [
 @pytest.fixture
 def result(make_xml, tmp_path):
     owner = Owner(names=frozenset({"KWAME OWUSU"}), numbers=frozenset({"0240000001"}))
-    stats = run_pipeline(make_xml(BACKUP), tmp_path / "data", owner=owner)
+    stats = run_pipeline(make_xml(BACKUP), tmp_path / "data", owner=owner, load=False)
     transactions = pd.read_parquet(tmp_path / "data" / "processed" / "transactions.parquet")
     return stats, transactions, tmp_path / "data"
 
@@ -70,8 +72,8 @@ def test_intermediate_files_are_written(result):
 
 def test_rerunning_gives_the_same_output(make_xml, tmp_path):
     xml = make_xml(BACKUP)
-    run_pipeline(xml, tmp_path / "a", owner=Owner())
-    run_pipeline(xml, tmp_path / "b", owner=Owner())
+    run_pipeline(xml, tmp_path / "a", owner=Owner(), load=False)
+    run_pipeline(xml, tmp_path / "b", owner=Owner(), load=False)
     first = pd.read_parquet(tmp_path / "a" / "processed" / "transactions.parquet")
     second = pd.read_parquet(tmp_path / "b" / "processed" / "transactions.parquet")
     pd.testing.assert_frame_equal(first, second)
@@ -79,7 +81,7 @@ def test_rerunning_gives_the_same_output(make_xml, tmp_path):
 
 def test_failure_stops_the_pipeline(tmp_path):
     with pytest.raises(FileNotFoundError):
-        run_pipeline(tmp_path / "missing.xml", tmp_path / "data", owner=Owner())
+        run_pipeline(tmp_path / "missing.xml", tmp_path / "data", owner=Owner(), load=False)
     assert not (tmp_path / "data" / "parsed_transactions.json").exists()
 
 
@@ -88,8 +90,8 @@ def test_history_survives_a_newer_backup_that_lost_old_sms(make_xml, tmp_path):
     # Months later the phone has deleted that SMS; the new backup only has newer ones.
     jun = make_xml([(s.MTN, "2026-06-01T09:00:00", s.PAYMENT_MADE)], name="jun.xml")
 
-    run_pipeline(jan, tmp_path / "data", owner=Owner())
-    stats = run_pipeline(jun, tmp_path / "data", owner=Owner())
+    run_pipeline(jan, tmp_path / "data", owner=Owner(), load=False)
+    stats = run_pipeline(jun, tmp_path / "data", owner=Owner(), load=False)
 
     df = pd.read_parquet(tmp_path / "data" / "processed" / "transactions.parquet")
     assert stats["stage"]["backups"] == 2
@@ -98,8 +100,8 @@ def test_history_survives_a_newer_backup_that_lost_old_sms(make_xml, tmp_path):
 
 def test_each_run_publishes_its_own_report(make_xml, tmp_path):
     xml = make_xml(BACKUP)
-    first = run_pipeline(xml, tmp_path / "data", owner=Owner())
-    second = run_pipeline(xml, tmp_path / "data", owner=Owner())
+    first = run_pipeline(xml, tmp_path / "data", owner=Owner(), load=False)
+    second = run_pipeline(xml, tmp_path / "data", owner=Owner(), load=False)
 
     processed = get_store("PROCESSED_BUCKET")
     assert processed.exists("transactions/transactions.parquet")
@@ -114,5 +116,5 @@ def test_quality_gate_stops_the_pipeline_before_publishing(make_xml, tmp_path):
                     (s.MTN, "2026-01-01T10:00:00", "Payment received from KOFI. Current Balance: GHS 5.00")])
 
     with pytest.raises(QualityGateError, match="parse rate 50.0%"):
-        run_pipeline(xml, tmp_path / "data", owner=Owner(), limits=Thresholds(min_parse_rate=0.95))
+        run_pipeline(xml, tmp_path / "data", owner=Owner(), load=False, limits=Thresholds(min_parse_rate=0.95))
     assert get_store("PROCESSED_BUCKET").list() == []
