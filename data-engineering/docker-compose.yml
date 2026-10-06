@@ -36,7 +36,6 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
     # Pipeline code reads these; in-network values override the host ones in .env
-    LAKE_BACKEND: s3
     S3_ENDPOINT: http://rustfs:9000
     WAREHOUSE_HOST: warehouse
     WAREHOUSE_PORT: "5432"
@@ -44,6 +43,7 @@ x-airflow-common: &airflow-common
     - ./dags:/opt/airflow/dags
     - ./logs/airflow:/opt/airflow/logs
     - ./src:/opt/sikatrack/src
+    - ./sql:/opt/sikatrack/sql:ro   # schema migrations, applied by the load step
     - ./data:/opt/sikatrack/data
   networks:
     - sikatrack
@@ -107,8 +107,7 @@ services:
       - "${WAREHOUSE_HOST_PORT:-5434}:5432"
     volumes:
       - warehouse_data:/var/lib/postgresql/data
-      # Runs only on first start (empty volume). To re-apply: docker compose down -v
-      - ./sql/warehouse_schema.sql:/docker-entrypoint-initdb.d/01_warehouse_schema.sql:ro
+      # The dw schema is created and evolved by the load step (sql/migrations/), not on first start.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${WAREHOUSE_USER} -d ${WAREHOUSE_DB}"]
       interval: 10s

@@ -22,3 +22,4 @@ RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}" -r /tmp/requ
 # Pipeline code lives outside AIRFLOW_HOME, importable as `src.*` (same as locally).
 ENV PYTHONPATH=/opt/sikatrack
 COPY --chown=airflow:root src /opt/sikatrack/src
+COPY --chown=airflow:root sql /opt/sikatrack/sql
