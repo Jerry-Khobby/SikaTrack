@@ -8,7 +8,7 @@ from src.transform.config import Owner
 
 # "0240000001 on MTN MOBILE MONEY" | "0240000001 MTN MOBILE MONEY"
 _WALLET_SUFFIX = re.compile(r"\s+(?:ON\s+)?MTN\s+MOBILE\s+MONEY$")
-# "EDWINY PHARMACY LIMITED 233558862616"
+# "EXAMPLE PHARMACY LIMITED 233550000000"
 _TRAILING_PHONE = re.compile(r"\s+(233\d{9})$")
 _LOCAL_PHONE = re.compile(r"^0\d{9}$")
 _MERCHANT_ID = re.compile(r"^MERCHANT\s+\d+$")

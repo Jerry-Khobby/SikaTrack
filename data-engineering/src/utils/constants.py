@@ -98,7 +98,7 @@ _TO_MERCHANT = re.compile(r"\bto\s+(.+?)\s+on\s+your\s+mobile\s+money\s+account"
 # "...transferred GHS 10.00 to CalBank PLC account number 0009536789******789."
 _TO_BANK = re.compile(r"\bto\s+(.+?)\s+account\s+number", re.I)
 
-# "...transferred GHS 144.00 to 0241154464 on MTN MOBILE MONEY. Reference: Tithes."
+# "...transferred GHS 144.00 to 0240000001 on MTN MOBILE MONEY. Reference: Tithes."
 _TO_BEFORE_REF = re.compile(r"\bto\s+(.+?)\s*\.\s*(?:reference|ref)\b", re.I)
 
 # "...received GHS 2.00 from: 1400****789, CalBank PLC. Reference:..."
