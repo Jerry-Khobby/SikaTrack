@@ -11,6 +11,7 @@ from src.transform.counterparty import normalise_counterparties
 from src.transform.dedupe import drop_cross_provider_receipts, drop_duplicate_transactions
 from src.transform.enrich import add_measures, add_natural_key, add_time_keys, flag_internal_transfers
 from src.transform.quality import build_report, explain_balance_gaps, flag_balance_gaps
+from src.transform.recurring import flag_recurring, recurring_report
 from src.transform.schema import OUTPUT_COLUMNS
 from src.transform.storage import read_parsed, write_processed
 
@@ -35,13 +36,15 @@ def transform(raw: pd.DataFrame, config: TransformConfig) -> tuple[pd.DataFrame,
         log.warning("OWNER_NAMES / OWNER_NUMBERS not set: transfers between your own wallets count as income/spend")
     df = categorise(df)
     _log_categories(df)
+    df, series = flag_recurring(df)
+    _log_recurring(df, series)
     df = flag_balance_gaps(df, config.balance_tolerance)
     df = explain_balance_gaps(df, config.balance_tolerance)
     _log_balance_gaps(df)
 
     removed = {"duplicate_sms": same_provider, "cross_provider_receipts": cross_provider}
     report = {"config": config.describe(), **build_report(len(raw), removed, df),
-              "categories": category_report(df)}
+              "categories": category_report(df), "recurring": recurring_report(df, series)}
     return df[OUTPUT_COLUMNS], report
 
 
@@ -52,6 +55,13 @@ def _log_categories(df: pd.DataFrame) -> None:
         # Message ID and kind only: references can hold names and phone numbers.
         log.info("Uncategorized %s (%s %s, counterparty kind %s)",
                  row["message_id"], row["direction"], row["transaction_type"], row["counterparty_kind"])
+
+
+def _log_recurring(df: pd.DataFrame, series: pd.DataFrame) -> None:
+    stats = recurring_report(df, series)
+    log.info("Recurring: %d series (%d active, ~GHS %.2f/month), %d transactions flagged, by rhythm %s",
+             stats["series"], stats["active_series"], stats["active_monthly_cost"],
+             stats["transactions_flagged"], stats["by_interval"])
 
 
 def _log_balance_gaps(df: pd.DataFrame) -> None:

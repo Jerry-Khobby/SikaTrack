@@ -117,7 +117,8 @@ def sikatrack_pipeline():
 
         report = _without_retries(step, _run(pipeline_run_id))
         summary = {k: report[k] for k in ("rows_in", "rows_out", "removed", "balance_gaps", "internal_transfers")}
-        return {**summary, "category_coverage": report["categories"]["coverage"]}
+        return {**summary, "category_coverage": report["categories"]["coverage"],
+                "recurring_series": report["recurring"]["series"]}
 
     @task(outlets=[PROCESSED_DATASET])
     def publish(pipeline_run_id: str) -> dict:

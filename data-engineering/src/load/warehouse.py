@@ -23,14 +23,14 @@ log = logging.getLogger(__spec__.name if __spec__ else __name__)
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "sql" / "migrations"
 BASELINE = "001_star_schema"  # databases created before migrations were tracked already have it
 
-# Fact columns written by this loader. is_recurring belongs to the recurring-detection
-# step, so a reload never overwrites it.
+# Fact columns written by this loader (everything except keys and audit timestamps).
 FACT_COLUMNS = [
     "transaction_nk", "provider_txn_id", "message_id", "sms_count", "reference",
     "date_key", "time_key", "provider_key", "transaction_type_key", "counterparty_key",
     "category_key", "category_rule",
     "amount", "signed_amount", "fee", "tax", "balance_after",
     "is_internal_transfer", "has_balance_gap", "balance_gap_amount", "balance_gap_reason",
+    "is_recurring", "recurring_interval_days", "recurring_series",
     "occurred_at", "raw_text", "source_object",
 ]
 _DATA_COLUMNS = [c for c in FACT_COLUMNS if c != "transaction_nk"]

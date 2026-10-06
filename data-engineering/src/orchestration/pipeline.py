@@ -193,6 +193,9 @@ def summarise(results: dict) -> None:
     log.info("Internal transfers:  %d", transform_["internal_transfers"])
     log.info("Balance gaps:        %s", transform_["balance_gap_reasons"] or "none")
     log.info("Category coverage:   %.1f%% of spending", transform_["categories"]["coverage"] * 100)
+    recurring = transform_["recurring"]
+    log.info("Recurring payments:  %d series (%d active, ~GHS %.2f/month)",
+             recurring["series"], recurring["active_series"], recurring["active_monthly_cost"])
     if "load" in results:
         log.info("Warehouse:           %s", results["load"])
 
