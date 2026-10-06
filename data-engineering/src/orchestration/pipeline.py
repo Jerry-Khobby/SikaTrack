@@ -124,6 +124,30 @@ def build_steps(run: PipelineRun, results: dict) -> list[tuple[str, Callable[[],
     return steps
 
 
+def make_run(
+    run_id: str,
+    data_dir: Path = BASE_DIR / "data",
+    *,
+    xml_path: Path | None = None,
+    owner: Owner | None = None,
+    load: bool = False,
+    warehouse_dsn: str | None = None,
+    limits: Thresholds | None = None,
+) -> PipelineRun:
+    """Everything a step needs. Settings not passed in come from the environment."""
+    return PipelineRun(
+        run_id=run_id,
+        xml_path=Path(xml_path) if xml_path else None,
+        paths=PipelinePaths(Path(data_dir)),
+        owner=owner if owner is not None else Owner.from_env(),
+        raw=get_store("RAW_BUCKET"),
+        processed=get_store("PROCESSED_BUCKET"),
+        limits=limits or Thresholds.from_env(),
+        load=load,
+        warehouse_dsn=warehouse_dsn,
+    )
+
+
 def run_pipeline(
     xml_path: Path | None = None,
     data_dir: Path = BASE_DIR / "data",
@@ -135,17 +159,8 @@ def run_pipeline(
     run_id: str | None = None,
 ) -> dict[str, dict]:
     """Run every step in order; stop at the first failure. Returns each step's stats."""
-    run = PipelineRun(
-        run_id=run_id or new_run_id(),
-        xml_path=Path(xml_path) if xml_path else None,
-        paths=PipelinePaths(Path(data_dir)),
-        owner=owner if owner is not None else Owner.from_env(),
-        raw=get_store("RAW_BUCKET"),
-        processed=get_store("PROCESSED_BUCKET"),
-        limits=limits or Thresholds.from_env(),
-        load=load,
-        warehouse_dsn=warehouse_dsn,
-    )
+    run = make_run(run_id or new_run_id(), data_dir, xml_path=xml_path, owner=owner, load=load,
+                   warehouse_dsn=warehouse_dsn, limits=limits)
     log.info("Pipeline run %s", run.run_id)
 
     results: dict[str, dict] = {}

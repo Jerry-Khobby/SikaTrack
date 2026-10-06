@@ -46,6 +46,13 @@ def stage_backup(xml_path: Path, store: ObjectStore, ingest_date: date | None = 
     return key
 
 
+def stage_inbox(inbox: Path, store: ObjectStore) -> list[str]:
+    """Stage every .xml in an inbox folder. Files stay where they are; re-staging is a no-op."""
+    inbox = Path(inbox)
+    inbox.mkdir(parents=True, exist_ok=True)
+    return [stage_backup(path, store) for path in sorted(inbox.glob("*.xml"))]
+
+
 def list_backups(store: ObjectStore) -> list[str]:
     """All staged backups, oldest ingest date first."""
     return [k for k in store.list(PREFIX) if k.endswith(".xml")]
