@@ -1,7 +1,7 @@
 # SikaTrack data-engineering stack
 #
 #                         Airflow (orchestrates every step)
-#   SMS backup XML ──► MinIO raw ──► pandas transform ──► MinIO processed (Parquet)
+#   SMS backup XML ──► RustFS raw ──► pandas transform ──► RustFS processed (Parquet)
 #                                                              │
 #                                  Power BI ◄── Postgres star schema (warehouse) ◄┘
 #
@@ -10,12 +10,8 @@
 #   docker compose up -d --build
 #
 # Airflow UI:    http://localhost:8080   (user/pass from .env)
-# MinIO console: http://localhost:9001
+# RustFS console: http://localhost:9001   (S3-compatible storage; MinIO no longer ships images)
 # Power BI:      Get Data -> PostgreSQL -> localhost:5434, database sikatrack_dw
-
-x-minio-env: &minio-env
-  MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-  MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
 
 # ---------------------------------------------------------------------
 # Shared Airflow config (Airflow 3: api-server + scheduler + dag-processor)
@@ -43,7 +39,7 @@ x-airflow-common: &airflow-common
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
     # Pipeline code reads these; in-network values override the host ones in .env
     LAKE_BACKEND: s3
-    MINIO_ENDPOINT: http://minio:9000
+    S3_ENDPOINT: http://rustfs:9000
     WAREHOUSE_HOST: warehouse
     WAREHOUSE_PORT: "5432"
   volumes:
@@ -65,20 +61,23 @@ services:
   # Data platform
   # ===================================================================
 
-  # Object storage: the data lake (raw XML + processed Parquet)
-  minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
-    container_name: sikatrack-minio
-    command: server /data --console-address ":9001"
+  # Object storage: the data lake (raw XML + processed Parquet), S3-compatible
+  rustfs:
+    image: rustfs/rustfs:1.0.1
+    container_name: sikatrack-rustfs
     environment:
-      <<: *minio-env
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY}
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "${S3_API_PORT:-9000}:9000"
+      - "${S3_CONSOLE_PORT:-9001}:9001"
     volumes:
-      - minio_data:/data
+      - rustfs_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]   # image ships mc, not curl
+      test: ["CMD", "curl", "-fs", "http://localhost:9000/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -86,28 +85,17 @@ services:
     networks:
       - sikatrack
 
-  # One-shot: create the lake buckets (idempotent, safe to re-run)
-  minio-init:
-    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
-    container_name: sikatrack-minio-init
+  # One-shot: create the lake buckets with boto3 (idempotent, safe to re-run)
+  lake-init:
+    <<: *airflow-common
+    container_name: sikatrack-lake-init
+    entrypoint: ["python", "-m", "src.lake.init_buckets"]
+    command: []
+    working_dir: /opt/sikatrack
     depends_on:
-      minio:
+      rustfs:
         condition: service_healthy
-    environment:
-      <<: *minio-env
-      RAW_BUCKET: ${RAW_BUCKET}
-      PROCESSED_BUCKET: ${PROCESSED_BUCKET}
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
-      mc mb --ignore-existing local/$${RAW_BUCKET} &&
-      mc mb --ignore-existing local/$${PROCESSED_BUCKET} &&
-      mc version enable local/$${RAW_BUCKET} &&
-      echo 'Buckets ready'
-      "
     restart: "no"
-    networks:
-      - sikatrack
 
   # OLAP warehouse: star schema that Power BI reads from
   warehouse:
@@ -190,7 +178,7 @@ services:
     restart: unless-stopped
 
   # Schedules DAG runs; with LocalExecutor the pipeline tasks execute here,
-  # so it also waits for MinIO buckets and the warehouse
+  # so it also waits for the lake buckets and the warehouse
   airflow-scheduler:
     <<: *airflow-common
     container_name: sikatrack-airflow-scheduler
@@ -203,7 +191,7 @@ services:
       start_period: 30s
     depends_on:
       <<: *airflow-depends
-      minio-init:
+      lake-init:
         condition: service_completed_successfully
       warehouse:
         condition: service_healthy
@@ -225,7 +213,7 @@ services:
     restart: unless-stopped
 
 volumes:
-  minio_data:
+  rustfs_data:
   warehouse_data:
   airflow_db_data:
 
