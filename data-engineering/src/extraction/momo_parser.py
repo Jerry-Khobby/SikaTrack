@@ -10,8 +10,6 @@ Statuses:
               see 'ignore_reason'
     unparsed  unrecognised format (missing_fields empty), or a REQUIRED field
               missing (missing_fields lists which). Written to unparsed_sms.csv.
-
-Run:  python -m src.extraction.momo_parser
 """
 
 import csv
@@ -26,7 +24,6 @@ from src.utils.constants import (
     _TAX, _TXN_ID, _TXN_ID_ALT,
 )
 from src.utils.fileio import atomic_write
-from src.utils.logging_config import setup_logging
 
 # __spec__.name keeps the module path in log lines even when run with `python -m`.
 log = logging.getLogger(__spec__.name if __spec__ else __name__)
@@ -142,17 +139,7 @@ def parse_message(raw_text: str, sender: str = "", received_at: str = "", messag
     return result
 
 
-BASE_DIR = Path(__file__).resolve().parents[2]
-DEFAULT_INPUT = BASE_DIR / "data" / "momo_sms.csv"
-DEFAULT_PARSED = BASE_DIR / "data" / "parsed_transactions.json"
-DEFAULT_UNPARSED = BASE_DIR / "data" / "unparsed_sms.csv"
-
-
-def parse_file(
-    input_file: Path = DEFAULT_INPUT,
-    parsed_file: Path = DEFAULT_PARSED,
-    unparsed_file: Path = DEFAULT_UNPARSED,
-) -> dict:
+def parse_file(input_file: Path, parsed_file: Path, unparsed_file: Path) -> dict:
     """Parse every message in the filtered CSV; write parsed JSON + unparsed CSV; return stats."""
     with open(input_file, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
@@ -206,12 +193,3 @@ def parse_file(
     log.info("Parsed by template: %s", stats["parsed_by_template"])
     log.info("Wrote %s and %s", parsed_file, unparsed_file)
     return stats
-
-
-def main() -> None:
-    setup_logging()
-    parse_file()
-
-
-if __name__ == "__main__":
-    main()

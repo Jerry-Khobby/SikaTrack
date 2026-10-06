@@ -32,15 +32,11 @@ class Owner:
 
 @dataclass(frozen=True)
 class TransformConfig:
-    input_path: Path = BASE_DIR / "data" / "parsed_transactions.json"
-    output_dir: Path = BASE_DIR / "data" / "processed"
+    input_path: Path
+    output_dir: Path
     owner: Owner = field(default_factory=Owner)
     balance_tolerance: float = 0.02  # GHS; rounding noise allowed in the balance check
     run_id: str | None = None
-
-    @classmethod
-    def from_env(cls) -> "TransformConfig":
-        return cls(owner=Owner.from_env())
 
     def describe(self) -> dict:
         """The settings that shape the output, for the run report."""

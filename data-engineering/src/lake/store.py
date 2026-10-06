@@ -1,17 +1,11 @@
-"""Object storage for the data lake: a local folder, or any S3-compatible server (RustFS in Docker).
+"""Object storage for the data lake: buckets on an S3-compatible server (RustFS in Docker).
 
-Pick the backend with LAKE_BACKEND=local|s3. Both expose the same small interface,
-so nothing else in the pipeline knows which one is in use.
+The ObjectStore interface keeps the rest of the pipeline independent of the S3 client.
 """
 
 import os
-import shutil
 from pathlib import Path
 from typing import BinaryIO, Protocol
-
-from src.utils.fileio import atomic_path
-
-BASE_DIR = Path(__file__).resolve().parents[2]
 
 
 class ObjectStore(Protocol):
@@ -21,36 +15,6 @@ class ObjectStore(Protocol):
     def open(self, key: str) -> BinaryIO: ...
     def exists(self, key: str) -> bool: ...
     def list(self, prefix: str = "") -> list[str]: ...
-
-
-class LocalObjectStore:
-    """A bucket as a folder: <root>/<bucket>/<key>."""
-
-    def __init__(self, root: Path, bucket: str):
-        self.name = bucket
-        self.root = Path(root) / bucket
-
-    def _path(self, key: str) -> Path:
-        path = (self.root / key).resolve()
-        if self.root.resolve() not in path.parents:
-            raise ValueError(f"Key escapes the bucket: {key}")
-        return path
-
-    def put_file(self, key: str, path: Path) -> None:
-        with atomic_path(self._path(key)) as tmp:
-            shutil.copyfile(path, tmp)
-
-    def open(self, key: str) -> BinaryIO:
-        return open(self._path(key), "rb")
-
-    def exists(self, key: str) -> bool:
-        return self._path(key).is_file()
-
-    def list(self, prefix: str = "") -> list[str]:
-        if not self.root.exists():
-            return []
-        keys = (p.relative_to(self.root).as_posix() for p in self.root.rglob("*") if p.is_file())
-        return sorted(k for k in keys if k.startswith(prefix) and not k.endswith(".tmp"))
 
 
 class S3ObjectStore:
@@ -90,7 +54,7 @@ def s3_client():
     import boto3
     return boto3.client(
         "s3",
-        endpoint_url=os.getenv("S3_ENDPOINT", "http://localhost:9000"),
+        endpoint_url=os.getenv("S3_ENDPOINT"),
         aws_access_key_id=os.getenv("S3_ACCESS_KEY"),
         aws_secret_access_key=os.getenv("S3_SECRET_KEY"),
         region_name="us-east-1",
@@ -100,12 +64,4 @@ def s3_client():
 def get_store(bucket_env: str) -> ObjectStore:
     """bucket_env: RAW_BUCKET or PROCESSED_BUCKET (env var holding the bucket name)."""
     defaults = {"RAW_BUCKET": "sikatrack-raw", "PROCESSED_BUCKET": "sikatrack-processed"}
-    bucket = os.getenv(bucket_env, defaults[bucket_env])
-    backend = os.getenv("LAKE_BACKEND", "local").lower()
-
-    if backend == "local":
-        root = Path(os.getenv("LAKE_LOCAL_ROOT") or BASE_DIR / "data" / "lake")
-        return LocalObjectStore(root, bucket)
-    if backend == "s3":
-        return S3ObjectStore(bucket, s3_client())
-    raise ValueError(f"LAKE_BACKEND must be 'local' or 's3', got {backend!r}")
+    return S3ObjectStore(os.getenv(bucket_env, defaults[bucket_env]), s3_client())

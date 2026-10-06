@@ -20,10 +20,6 @@ from src.utils.logging_config import setup_logging
 # Configuration
 # ---------------------------------------------------------
 
-BASE_DIR = Path(__file__).resolve().parents[2]
-DEFAULT_XML_FILE = BASE_DIR / "data" / "sms-20261003215510.xml"
-OUTPUT_FILE = BASE_DIR / "data" / "momo_sms.csv"
-
 FIELDNAMES = ["message_id", "raw_text", "sender", "received_at", "source_object"]
 
 # (name, path or zero-arg function returning an open binary file)
@@ -98,7 +94,7 @@ def _open(source) -> BinaryIO:
     return open(source, "rb") if isinstance(source, (str, Path)) else closing(source())
 
 
-def filter_momo_sms(sources: Union[Path, Sequence[Source]], output_path: Path = OUTPUT_FILE) -> dict:
+def filter_momo_sms(sources: Union[Path, Sequence[Source]], output_path: Path) -> dict:
     """Merge the MoMo SMS from one or more backups into one CSV.
 
     A message found in several backups is kept once and credited to the first source
@@ -177,7 +173,7 @@ def filter_momo_sms(sources: Union[Path, Sequence[Source]], output_path: Path = 
     }
 
 
-def filter_raw_zone(store: ObjectStore, output_path: Path = OUTPUT_FILE) -> dict:
+def filter_raw_zone(store: ObjectStore, output_path: Path) -> dict:
     """Extract from every backup in the raw zone, so history accumulates across backups."""
     keys = list_backups(store)
     if not keys:
@@ -191,17 +187,11 @@ def filter_raw_zone(store: ObjectStore, output_path: Path = OUTPUT_FILE) -> dict
 # ---------------------------------------------------------
 
 def main() -> None:
+    """Find sender IDs to add to MOMO_SENDERS. Extraction itself runs in the pipeline."""
     setup_logging()
-    parser = argparse.ArgumentParser(description="Extract MoMo SMS from a backup XML.")
-    parser.add_argument("xml_file", nargs="?", type=Path, default=DEFAULT_XML_FILE)
-    parser.add_argument("--discover", action="store_true",
-                        help="List senders matching MoMo keywords, then exit.")
-    args = parser.parse_args()
-
-    if args.discover:
-        discover_senders(args.xml_file)
-    else:
-        filter_momo_sms(args.xml_file)
+    parser = argparse.ArgumentParser(description="List senders whose SMS look like mobile money.")
+    parser.add_argument("xml_file", type=Path, help="An SMS Backup & Restore export")
+    discover_senders(parser.parse_args().xml_file)
 
 
 if __name__ == "__main__":
