@@ -8,9 +8,9 @@
 
 # Transform
 pandas>=2.1,<2.3
-pyarrow>=14,<20          # Parquet for the processed zone in MinIO
+pyarrow>=14,<20          # Parquet for the processed zone of the lake
 
-# Object storage (MinIO speaks the S3 API)
+# Object storage (S3 API: RustFS in Docker)
 boto3>=1.34,<2
 
 # Warehouse load

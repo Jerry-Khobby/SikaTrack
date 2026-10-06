@@ -20,7 +20,7 @@ On the current dataset (8,059 SMS, Nov 2025 – Oct 2026), a full run takes abou
 
 | Stage | Status |
 |---|---|
-| Stage to raw zone | Done (local folder now, MinIO later) |
+| Stage to raw zone | Done (local folder, or RustFS in Docker) |
 | Extract, parse, transform | Done |
 | Quality gates, lineage, run reports | Done |
 | Warehouse load | Code done and tested against real Postgres; runs for real once Docker is installed |
@@ -66,7 +66,7 @@ Everything is set in `.env`; `.env.example` documents every variable. The ones y
 | Variable | Default | Purpose |
 |---|---|---|
 | `OWNER_NAMES`, `OWNER_NUMBERS` | empty | Your own names and wallet numbers, so transfers between your wallets aren't counted as income or spending |
-| `LAKE_BACKEND` | `local` | `local` stores buckets as folders under `data/lake`; `s3` uses MinIO |
+| `LAKE_BACKEND` | `local` | `local` stores buckets as folders under `data/lake`; `s3` uses the S3 server at `S3_ENDPOINT` (RustFS in Docker) |
 | `LOG_LEVEL` | `INFO` | `DEBUG` also logs every ignored and duplicate SMS |
 | `GATE_MIN_PARSE_RATE` | `0.95` | Fail the run below this parse rate |
 | `GATE_MIN_BALANCE_CONTINUITY` | `0.98` | Fail the run below this continuity, per provider |
@@ -99,7 +99,7 @@ python -m pytest
 
 134 tests cover every step. They need no external services:
 
-- **S3 / MinIO** is simulated in memory by `moto`.
+- **S3 storage** (RustFS in Docker) is simulated in memory by `moto`.
 - **Postgres** is a real server started by `pgserver`, a pip package that ships Postgres binaries.
 - **SMS fixtures** in `test/samples.py` copy the real provider formats with made-up names and numbers.
 

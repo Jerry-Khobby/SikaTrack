@@ -18,7 +18,7 @@ def local_store(tmp_path):
 
 @pytest.fixture
 def s3_store():
-    """MinIO speaks the S3 API; moto fakes it in memory, so no server is needed."""
+    """RustFS speaks the S3 API; moto fakes it in memory, so no server is needed."""
     with mock_aws():
         client = boto3.client("s3", region_name="us-east-1")
         client.create_bucket(Bucket="raw")

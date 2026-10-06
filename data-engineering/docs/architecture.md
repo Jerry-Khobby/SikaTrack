@@ -130,10 +130,14 @@ Limits are set in `.env` (`GATE_*`). A failure lists every broken limit at once.
 | Backend | Where buckets live | Used for |
 |---|---|---|
 | `local` | Folders under `data/lake/` | Development without Docker (current) |
-| `s3` | MinIO buckets at `MINIO_ENDPOINT` | Docker / production |
+| `s3` | Buckets on the S3 server at `S3_ENDPOINT` (RustFS) | Docker / production |
 
 Both are covered by the same tests; the S3 backend is tested with `moto`, which simulates the
-S3 API that MinIO implements.
+S3 API that RustFS implements.
+
+The Docker stack uses **RustFS** rather than MinIO: MinIO stopped publishing community
+Docker images in 2025, and RustFS is an S3-compatible drop-in with the same ports and a web
+console. Any S3-compatible server works, since the pipeline only uses the standard S3 API.
 
 ## Personal data
 
@@ -158,7 +162,7 @@ This pipeline handles real financial data about real people.
 
 ## What's next
 
-1. Install Docker, then run MinIO, Postgres and Airflow from `docker-compose.yml`.
+1. Run RustFS, Postgres and Airflow from `docker-compose.yml`.
 2. Write the Airflow DAG: one task per pipeline step.
 3. Run the load step for real and build the Power BI dashboard on `dw.v_fact_transaction`.
 4. Categorisation and recurring-charge detection, writing `category_key` and `is_recurring`.
