@@ -37,11 +37,11 @@ default_args = {
 }
 
 
-def _run(pipeline_run_id: str, load: bool = False):
+def _run(pipeline_run_id: str):
+    """Each run works in data/work/<pipeline_run_id>/."""
     from src.orchestration.pipeline import make_run
-    from src.transform.config import BASE_DIR
 
-    return make_run(pipeline_run_id, BASE_DIR / "data" / "work" / pipeline_run_id, load=load)
+    return make_run(pipeline_run_id)
 
 
 def _without_retries(step, run):
@@ -80,12 +80,10 @@ def sikatrack_pipeline():
 
     @task
     def stage(pipeline_run_id: str) -> dict:
-        from src.lake.raw_zone import list_backups, stage_inbox
-        from src.transform.config import BASE_DIR
+        from src.orchestration.pipeline import stage as step
 
-        run = _run(pipeline_run_id)
-        staged = stage_inbox(BASE_DIR / "data" / "inbox", run.raw)
-        return {"inbox_files": len(staged), "backups": len(list_backups(run.raw))}
+        stats = step(_run(pipeline_run_id))
+        return {"inbox_files": len(stats["staged"]), "backups": stats["backups"]}
 
     @task.short_circuit
     def has_changes(pipeline_run_id: str) -> bool:
@@ -118,7 +116,8 @@ def sikatrack_pipeline():
         from src.orchestration.pipeline import transform as step
 
         report = _without_retries(step, _run(pipeline_run_id))
-        return {k: report[k] for k in ("rows_in", "rows_out", "removed", "balance_gaps", "internal_transfers")}
+        summary = {k: report[k] for k in ("rows_in", "rows_out", "removed", "balance_gaps", "internal_transfers")}
+        return {**summary, "category_coverage": report["categories"]["coverage"]}
 
     @task(outlets=[PROCESSED_DATASET])
     def publish(pipeline_run_id: str) -> dict:
@@ -134,7 +133,7 @@ def sikatrack_pipeline():
 
         if not get_current_context()["params"]["load"]:
             raise AirflowSkipException("load=false")
-        run = _run(pipeline_run_id, load=True)
+        run = _run(pipeline_run_id)
         report = json.loads((run.paths.processed / "quality_report.json").read_text(encoding="utf-8"))
         return step(run, report)
 
