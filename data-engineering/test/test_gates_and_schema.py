@@ -69,7 +69,8 @@ def valid_frame():
         "tax": 0.0, "total_cost": 0.0, "balance_after": None, "counterparty": None,
         "counterparty_phone": None, "counterparty_kind": "unknown", "counterparty_raw": None,
         "reference": None, "category": "Transfers-Personal", "category_rule": "default:person",
-        "is_internal_transfer": False, "has_balance_gap": False,
+        "is_internal_transfer": False, "is_recurring": False, "recurring_interval_days": None,
+        "recurring_series": None, "has_balance_gap": False,
         "balance_gap_amount": None, "balance_gap_reason": None, "sms_count": 1,
         "raw_text": "sms", "source_object": None,
     }

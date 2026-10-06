@@ -76,7 +76,7 @@ def query(conn, sql):
 
 
 def test_migrations_apply_once(conn):
-    assert migrate(conn) == ["001_star_schema", "002_categorisation"]
+    assert migrate(conn) == ["001_star_schema", "002_categorisation", "003_recurring"]
     assert migrate(conn) == []
     assert query(conn, "SELECT count(*) FROM dw.dim_date")[0][0] > 4000
 
@@ -108,16 +108,16 @@ def test_changed_rows_are_updated_and_stamped(conn, parquet):
                        "WHERE pipeline_run_id = 'run-2'") == [("edited", "run-2", True)]
 
 
-def test_reload_keeps_columns_owned_by_later_steps(conn, parquet):
+def test_recurring_flags_are_loaded(conn, make_xml, tmp_path):
+    weekly = [(s.MTN, f"2026-01-{day:02d}T09:00:00", s.PAYMENT_MADE.replace("69065381661", f"7{day:010d}"))
+              for day in (1, 8, 15, 22, 29)]
+    run_pipeline(make_xml(weekly), tmp_path / "data", owner=Owner(), load=False)
     migrate(conn)
-    load_transactions(conn, parquet, "run-1")
-    query_sql = "UPDATE dw.fact_transaction SET is_recurring = TRUE RETURNING 1"
-    with conn, conn.cursor() as cur:
-        cur.execute(query_sql)
+    load_transactions(conn, tmp_path / "data" / "processed" / "transactions.parquet", "run-1")
 
-    load_transactions(conn, parquet, "run-2")
-
-    assert query(conn, "SELECT DISTINCT is_recurring FROM dw.fact_transaction") == [(True,)]
+    assert query(conn, """
+        SELECT count(*), count(DISTINCT recurring_series), min(recurring_interval_days)
+        FROM dw.v_fact_transaction WHERE is_recurring""") == [(5, 1, 7)]
 
 
 def test_dimensions_are_filled(conn, parquet):
@@ -163,9 +163,9 @@ def test_migrations_upgrade_a_database_created_before_they_were_tracked(conn):
     with conn, conn.cursor() as cur:
         cur.execute((Path(__file__).parents[1] / "sql/migrations/001_star_schema.sql").read_text(encoding="utf-8"))
 
-    assert migrate(conn) == ["002_categorisation"]
+    assert migrate(conn) == ["002_categorisation", "003_recurring"]
     assert query(conn, "SELECT version FROM dw.schema_migration ORDER BY version") == [
-        ("001_star_schema",), ("002_categorisation",)]
+        ("001_star_schema",), ("002_categorisation",), ("003_recurring",)]
 
 
 def test_missing_migrations_folder_fails_loudly(conn, monkeypatch, tmp_path):
