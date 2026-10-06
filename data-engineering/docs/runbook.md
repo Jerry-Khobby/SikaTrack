@@ -1,26 +1,19 @@
 # Runbook
 
-## Run the pipeline
-
-```bash
-python -m src.orchestration.pipeline                 # default backup in data/
-python -m src.orchestration.pipeline path/to/new.xml # stage and process a newer backup
-python -m src.orchestration.pipeline --load          # also load the warehouse
-```
-
-Every run rebuilds the outputs from **all** backups in the raw zone, so re-running is always
-safe.
+All commands run from `data-engineering/`, with the stack up (`docker compose up -d`).
 
 ## Run with Airflow
 
-Start the stack from `data-engineering/` with `docker compose up -d`, then open
-http://localhost:8080 (login in `.env`: `AIRFLOW_ADMIN_USER` / `AIRFLOW_ADMIN_PASSWORD`).
+Open http://localhost:8080 (login in `.env`: `AIRFLOW_ADMIN_USER` / `AIRFLOW_ADMIN_PASSWORD`).
 
 1. Drop SMS Backup & Restore exports into `data/inbox/`.
 2. In the Airflow UI, open **sikatrack_pipeline**, switch it on (it's paused when created),
    and click **Trigger**. Set `force` to true to reprocess even if nothing changed.
 3. Once switched on, it also runs daily. A run with no new backup or settings change stops
    after `has_changes` and skips the rest (shown as skipped, not failed).
+
+Every run rebuilds the outputs from **all** backups in the raw zone, so re-running is always
+safe.
 
 | Task fails | Meaning |
 |---|---|
@@ -29,32 +22,55 @@ http://localhost:8080 (login in `.env`: `AIRFLOW_ADMIN_USER` / `AIRFLOW_ADMIN_PA
 | `stage`, `publish`, `load` | Storage or database unreachable; retried twice before failing |
 
 A failed run keeps its files in `data/work/<run_id>/` for debugging.
-Trigger with `force=true` after changing parser templates or transform rules: the change
-check only sees backups and settings, not code.
+Trigger with `force=true` after changing parser templates, category rules or other transform
+code: the change check only sees backups and settings, not code.
+
+For a one-off run without the scheduler:
+
+```bash
+docker compose exec airflow-scheduler python -m src.orchestration.pipeline
+```
 
 ## Add a new backup
 
 1. Export your SMS with SMS Backup & Restore.
-2. Run `python -m src.orchestration.pipeline path/to/the-export.xml`.
+2. Put the file in `data/inbox/` and trigger the DAG (or wait for the daily run).
 
 The backup is staged under today's date and merged with the earlier ones. SMS already seen in
-older backups are kept once; SMS your phone has since deleted stay in the history.
+older backups are kept once; SMS your phone has since deleted stay in the history. Files stay
+in the inbox; staging the same file again does nothing.
 
 ## A new SMS format appears
 
-Symptoms: the parse gate fails (`parse rate ... < 95%`), or `unparsed_sms.csv` has rows.
-Each unparsed SMS is also logged as a warning with its `message_id`.
+Symptoms: the parse gate fails (`parse rate ... < 95%`). Each unparsed SMS is logged as a
+warning with its `message_id`, and the failed run's `data/work/<run_id>/unparsed_sms.csv`
+holds the text.
 
-1. Open `data/unparsed_sms.csv` and look at the new format.
+1. Open that `unparsed_sms.csv` and look at the new format.
    `missing_fields` is empty for an unknown format and names the field otherwise.
 2. Add a row to `TEMPLATES` in `src/utils/constants.py`. Put specific templates before
    general ones: the first match wins.
 3. Add the SMS to `test/samples.py` **with made-up names and numbers**, and a case to
    `PARSED_CASES` in `test/test_momo_parser.py`.
-4. Run `python -m pytest`, then re-run the pipeline. The fix applies to every past backup too.
+4. Run `python -m pytest`, then trigger the DAG with `force=true`. The fix applies to every
+   past backup too.
 
 A new sender (e.g. another provider) also needs adding to `MOMO_SENDERS` and
-`SENDER_TO_PROVIDER`. Use `python -m src.extraction.filter_sms --discover` to find sender IDs.
+`SENDER_TO_PROVIDER`. To find sender IDs: `python -m src.extraction.filter_sms --discover path/to/backup.xml`.
+
+## Improve categorisation
+
+Uncategorized transactions are logged (by message ID) in each run, and every run report has
+the coverage and a breakdown by rule. To add a rule:
+
+1. Add a keyword to `PURPOSE_KEYWORDS` (what people type as a reference) or
+   `COUNTERPARTY_KEYWORDS` (business names) in `src/transform/categorise.py`.
+2. A **new category** also needs a migration: add `sql/migrations/003_….sql` inserting it into
+   `dw.dim_category`. The test suite fails until it exists, and so would the load.
+3. Add a case to `test/test_categorise.py`, run `python -m pytest`, then trigger with
+   `force=true`.
+
+To see why any transaction got its category, look at `category_rule` in the warehouse.
 
 ## A quality gate fails
 
@@ -67,8 +83,10 @@ The error lists every broken limit.
 | No transactions parsed | Wrong file, or sender allowlist doesn't match | Check the backup; run `--discover` |
 | Balance continuity below limit | Many missing SMS, or a parser bug in amounts | Check the balance-gap warnings in the log |
 | Too many unexplained gaps | Same as above | Same as above |
+| Category coverage below limit | New kinds of spending with no matching rule | See [Improve categorisation](#improve-categorisation) |
 
-If the data really is fine, adjust the limit in `.env` (`GATE_*`).
+If the data really is fine, adjust the limit in `.env` (`GATE_*`), then
+`docker compose up -d` so Airflow picks up the change.
 
 ## Balance gaps
 
@@ -86,8 +104,9 @@ never send a mobile-money SMS.
 
 ## Read the logs
 
-Logs go to the console and to `logs/pipeline.log`, which rotates at 5 MB and keeps 3 old
-files. Each line in the file names the module that wrote it:
+Each task's log is in the Airflow UI (click the task, then **Logs**), and on disk under
+`logs/airflow/`. A manual run logs to the console and to `logs/pipeline.log`. Each line names
+the module that wrote it:
 
 ```
 2026-10-05 15:08:26,301 | WARNING | src.transform.run | Balance gap +40.00 on mtn_momo at 2026-05-02 19:27 (payment_sent, own_transfer_leg_missing)
@@ -95,36 +114,27 @@ files. Each line in the file names the module that wrote it:
 
 | Level | What you'll see |
 |---|---|
-| INFO | Row counts per step, parse rate, files written, continuity per provider |
+| INFO | Row counts per step, parse rate, category coverage, files written, continuity per provider |
 | WARNING | Unparsed SMS, unreadable dates, balance gaps, missing owner settings |
 | DEBUG | Every ignored and duplicate SMS (`LOG_LEVEL=DEBUG` in `.env`) |
 
-Logs never contain SMS text.
+Logs never contain SMS text or references.
+
+## Check the warehouse
+
+Each load is recorded in `dw.etl_run`; loading again changes nothing unless the data changed:
+
+```bash
+docker compose exec warehouse sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT run_id, status, rows_inserted, rows_updated, rows_unchanged, error FROM dw.etl_run ORDER BY started_at DESC LIMIT 5"'
+```
+
+Applied schema migrations are in `dw.schema_migration`.
 
 ## Rebuild everything from scratch
 
-The raw zone is the source of truth; everything else can be deleted and rebuilt:
+The raw bucket is the source of truth; everything else can be rebuilt from it. Trigger the DAG
+with `force=true` and the processed zone and warehouse are recomputed from every backup.
 
-```bash
-rm -rf data/processed data/lake/sikatrack-processed data/momo_sms.csv data/parsed_transactions.json data/unparsed_sms.csv
-python -m src.orchestration.pipeline
-```
-
-Never delete `data/lake/sikatrack-raw`: it holds every backup, including SMS your phone no
-longer has.
-
-## Set up the warehouse without Docker
-
-Any Postgres 14+ works. Set `WAREHOUSE_URL` (or the `WAREHOUSE_*` parts) in `.env`, then:
-
-```bash
-python -m src.load.warehouse --init          # create the dw schema and load
-python -m src.orchestration.pipeline --load  # or as part of a full run
-```
-
-Loading again changes nothing unless the data changed. Each load is recorded in `dw.etl_run`:
-
-```sql
-SELECT run_id, status, rows_inserted, rows_updated, rows_unchanged, error
-FROM dw.etl_run ORDER BY started_at DESC;
-```
+Never delete the `sikatrack-raw` bucket or the `rustfs_data` Docker volume: they hold every
+backup, including SMS your phone no longer has. `docker compose down -v` deletes volumes;
+use `docker compose down` (or `stop`) instead.

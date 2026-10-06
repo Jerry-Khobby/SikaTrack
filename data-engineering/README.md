@@ -1,13 +1,14 @@
 # SikaTrack: Data Engineering Layer
 
-Turns an Android SMS backup into clean, deduplicated mobile-money transactions, ready for a
-Postgres star schema and a Power BI dashboard.
+Turns an Android SMS backup into clean, deduplicated, categorised mobile-money transactions in
+a Postgres star schema, ready for a Power BI dashboard. Runs on Docker, orchestrated by Airflow.
 
 ```
-SMS backup (.xml) → raw zone → extract → parse → transform → processed zone → warehouse → Power BI
+SMS backup (.xml) → raw zone → extract → parse → transform → processed zone → Postgres → Power BI
+                    (RustFS)                                   (RustFS)
 ```
 
-On the current dataset (8,059 SMS, Nov 2025 – Oct 2026), a full run takes about 2 seconds:
+On the current dataset (8,059 SMS, Nov 2025 – Oct 2026):
 
 | Metric | Value |
 |---|---|
@@ -15,48 +16,52 @@ On the current dataset (8,059 SMS, Nov 2025 – Oct 2026), a full run takes abou
 | Parse success rate | 100% (1,964 parsed, 619 non-transactions ignored, 0 unparsed) |
 | Transactions after dedup | 1,890 (73 duplicate SMS and 1 cross-provider receipt removed) |
 | Balance continuity | MTN MoMo 99.6%, GhanaPay 100% |
+| Category coverage | 99.9% of spending |
 
 ## Status
 
 | Stage | Status |
 |---|---|
-| Stage to raw zone | Done (local folder, or RustFS in Docker) |
-| Extract, parse, transform | Done |
+| Stage, extract, parse, transform | Done |
+| Categorisation | Done: rule-based, every category explained by the rule that chose it |
 | Quality gates, lineage, run reports | Done |
-| Warehouse load | Done (Postgres in Docker, or a local Postgres) |
-| Airflow orchestration | Done: `dags/sikatrack_pipeline.py` (see [Runbook](docs/runbook.md#run-with-airflow)) |
-| Categorisation, recurring-charge detection | Planned |
+| Postgres load with schema migrations | Done |
+| Airflow orchestration | Done: `dags/sikatrack_pipeline.py` |
+| Recurring-charge detection | Planned |
+| Power BI dashboard | Planned |
 
 ## Quick start
 
-Requires Python 3.11.
+Requires Docker Desktop.
 
 ```bash
 cd data-engineering
-python -m venv .venv && .venv\Scripts\activate      # Windows; on macOS/Linux: source .venv/bin/activate
-pip install -r requirements-dev.txt
-cp .env.example .env                                 # then set OWNER_NAMES / OWNER_NUMBERS
+cp .env.example .env          # set the passwords, secrets and OWNER_NAMES / OWNER_NUMBERS
+docker compose up -d --build  # RustFS, Postgres, Airflow
 ```
 
-Put an SMS Backup & Restore export in `data/` and run the pipeline:
+1. Drop an SMS Backup & Restore export into `data/inbox/`.
+2. Open Airflow at http://localhost:8080, switch on **sikatrack_pipeline** and click **Trigger**.
 
-```bash
-python -m src.orchestration.pipeline                  # uses data/sms-20261003215510.xml
-python -m src.orchestration.pipeline path/to/new.xml  # or stage a newer backup
-```
+The DAG stages the backup, processes every backup staged so far and loads Postgres. See the
+[Runbook](docs/runbook.md#run-with-airflow) for details.
 
-Outputs land in `data/processed/` (working copy) and `data/lake/` (raw and processed zones).
-Logs go to the console and `logs/pipeline.log`.
+| Service | Address | Login (in `.env`) |
+|---|---|---|
+| Airflow | http://localhost:8080 | `AIRFLOW_ADMIN_USER` / `AIRFLOW_ADMIN_PASSWORD` |
+| RustFS console (the lake) | http://localhost:9001/rustfs/console/ | `S3_ACCESS_KEY` / `S3_SECRET_KEY` |
+| Postgres (Power BI) | `localhost:5434`, database `sikatrack_dw`, view `dw.v_fact_transaction` | `WAREHOUSE_USER` / `WAREHOUSE_PASSWORD` |
 
 ## Commands
 
+Run from `data-engineering/`:
+
 | Command | What it does |
 |---|---|
-| `python -m src.orchestration.pipeline [xml] [--load]` | Full run: stage, extract, parse, transform, publish (and load with `--load`) |
-| `python -m src.extraction.filter_sms --discover` | List senders whose SMS look like mobile money, to grow the sender allowlist |
-| `python -m src.extraction.momo_parser` | Re-parse `data/momo_sms.csv` only |
-| `python -m src.transform.run` | Re-run the transform only |
-| `python -m src.load.warehouse --init` | Create the `dw` schema in an existing Postgres and load the latest Parquet |
+| `docker compose up -d` / `docker compose stop` | Start / stop the stack (data is kept) |
+| `docker compose ps` | Status of every service |
+| `docker compose exec airflow-scheduler python -m src.orchestration.pipeline` | Manual full run without Airflow's scheduler |
+| `python -m src.extraction.filter_sms --discover path/to/backup.xml` | List senders whose SMS look like mobile money, to grow the sender allowlist |
 | `python -m pytest` | Run the test suite |
 
 ## Configuration
@@ -66,47 +71,48 @@ Everything is set in `.env`; `.env.example` documents every variable. The ones y
 | Variable | Default | Purpose |
 |---|---|---|
 | `OWNER_NAMES`, `OWNER_NUMBERS` | empty | Your own names and wallet numbers, so transfers between your wallets aren't counted as income or spending |
-| `LAKE_BACKEND` | `local` | `local` stores buckets as folders under `data/lake`; `s3` uses the S3 server at `S3_ENDPOINT` (RustFS in Docker) |
 | `LOG_LEVEL` | `INFO` | `DEBUG` also logs every ignored and duplicate SMS |
 | `GATE_MIN_PARSE_RATE` | `0.95` | Fail the run below this parse rate |
 | `GATE_MIN_BALANCE_CONTINUITY` | `0.98` | Fail the run below this continuity, per provider |
 | `GATE_MAX_UNEXPLAINED_GAPS` | `20` | Fail the run above this many unexplained balance gaps |
-| `WAREHOUSE_URL` or `WAREHOUSE_*` | see example | Postgres connection for the load step |
+| `GATE_MIN_CATEGORY_COVERAGE` | `0.90` | Fail the run if less of your spending than this gets a category |
 
 ## Project layout
 
 ```
 data-engineering/
+├── dags/               sikatrack_pipeline.py (Airflow DAG: one task per step)
 ├── src/
 │   ├── extraction/     filter_sms.py (XML → MoMo CSV), momo_parser.py (CSV → parsed JSON)
-│   ├── transform/      clean, dedupe, counterparty, enrich, quality, schema, storage, run
-│   ├── lake/           store.py (local / S3 object store), raw_zone.py (staging backups)
-│   ├── load/           warehouse.py (idempotent Postgres load)
-│   ├── orchestration/  pipeline.py (runs every step), gates.py (quality gates), run_id.py
+│   ├── transform/      clean, dedupe, counterparty, enrich, categorise, quality, schema, storage, run
+│   ├── lake/           store.py (S3 object store), raw_zone.py (staging backups), init_buckets.py
+│   ├── load/           warehouse.py (schema migrations + idempotent Postgres load)
+│   ├── orchestration/  pipeline.py (the steps), gates.py, state.py (change detection), run_id.py
 │   └── utils/          constants.py (SMS templates), logging_config.py, fileio.py
-├── sql/                warehouse_schema.sql (star schema)
+├── sql/migrations/     numbered schema changes, applied by the load step
 ├── test/               pytest suite; samples.py holds SMS in real formats with fake data
 ├── docs/               architecture, data model, runbook
-├── data/               backups and outputs (gitignored: real financial data)
-└── logs/               pipeline.log (gitignored)
+├── data/               inbox/ for new backups, work/ for in-flight runs (gitignored)
+└── logs/               pipeline and Airflow logs (gitignored)
 ```
 
 ## Testing
+
+Run on Windows from `data-engineering/` (`pip install -r requirements-dev.txt` once):
 
 ```bash
 python -m pytest
 ```
 
-134 tests cover every step. They need no external services:
+164 tests cover every step:
 
-- **S3 storage** (RustFS in Docker) is simulated in memory by `moto`.
-- **Postgres** is a real server started by `pgserver`, a pip package that ships Postgres binaries.
+- **S3 storage** is simulated in memory by `moto`, so lake tests never touch RustFS.
+- **Postgres** tests use the Docker container, each in a throwaway database that's dropped
+  afterwards; your `sikatrack_dw` data is never touched. They're skipped if the stack is down.
 - **SMS fixtures** in `test/samples.py` copy the real provider formats with made-up names and numbers.
-
-The warehouse tests take most of the ~50 s, because Postgres starts once per session.
 
 ## Further reading
 
 - [Architecture](docs/architecture.md): how data flows, idempotency, quality gates, lineage, privacy, design decisions
-- [Data model](docs/data-model.md): the processed dataset and the warehouse star schema
-- [Runbook](docs/runbook.md): adding backups and SMS formats, handling gate failures, reading logs
+- [Data model](docs/data-model.md): the processed dataset, the star schema, categories, migrations
+- [Runbook](docs/runbook.md): running with Airflow, adding backups, SMS formats and category rules, handling failures

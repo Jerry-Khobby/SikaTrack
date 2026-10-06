@@ -28,12 +28,12 @@ order and stops at the first failure. An Airflow DAG will call the same function
 
 | Step | Module | Input → output |
 |---|---|---|
-| stage | `lake/raw_zone.py` | backup file → raw zone object (skipped if already staged) |
+| stage | `lake/raw_zone.py` | backups in `data/inbox/` → raw zone objects (already-staged ones skipped) |
 | extract | `extraction/filter_sms.py` | **every** staged backup → `momo_sms.csv` |
 | parse | `extraction/momo_parser.py` | CSV → `parsed_transactions.json` + `unparsed_sms.csv` |
-| transform | `transform/run.py` | parsed JSON → `transactions.parquet` + `quality_report.json` |
+| transform | `transform/run.py` | parsed JSON → categorised `transactions.parquet` + `quality_report.json` |
 | publish | `orchestration/pipeline.py` | Parquet + report → processed zone |
-| load | `load/warehouse.py` | Parquet → `dw.fact_transaction` and dimensions (with `--load`) |
+| load | `load/warehouse.py` | pending schema migrations, then Parquet → `dw.fact_transaction` and dimensions |
 
 ## Steps in detail
 
@@ -78,14 +78,36 @@ Runs these steps in order (`transform/run.py`):
 4. **Normalise counterparties**: clean names, split out phone numbers, classify each as
    person, merchant, telco, agent, bank, own wallet or provider.
 5. **Enrich**: natural key, signed amount, total cost, date and hour keys, internal-transfer flag.
-6. **Check balance continuity**: each reported balance should equal the previous balance plus
+6. **Categorise**: give every transaction a category and record the rule that chose it
+   (see [Categorisation](#categorisation)).
+7. **Check balance continuity**: each reported balance should equal the previous balance plus
    every flow since. A gap usually means an SMS is missing from the backup; each gap is flagged
    and labelled (see [Runbook](runbook.md#balance-gaps)).
-7. **Write**: validate against the schema in `transform/schema.py`, then write Parquet.
+8. **Write**: validate against the schema in `transform/schema.py`, then write Parquet.
+
+### Categorisation
+`transform/categorise.py` applies rules in order; the first match wins, and the rule is
+stored in `category_rule` so every category can be explained:
+
+| Order | Rule | Example → category | `category_rule` |
+|---|---|---|---|
+| 1 | Own money | savings move → Savings; transfer to your other wallet → Own Transfers | `own:savings`, `own:transfer` |
+| 2 | Money in, by type | cash-in → Cash Deposit; interest → Income; refund → Refunds | `money_in:cashin` |
+| 3 | Debit type | airtime → Airtime/Data; cash-out → Cash Withdrawal | `type:airtime` |
+| 4 | Reference purpose | "food", "friedrice" → Food; "tithesandoffering" → Giving | `reference:food` |
+| 5 | Counterparty name | "… PHARMACY LIMITED" → Health; "OTHER NETWORKS" → Airtime/Data | `counterparty:pharmacy` |
+| 6 | Default by kind | person → Transfers-Personal; merchant → Transfers-Business | `default:person` |
+| 7 | Nothing matched | → Uncategorized, logged by message ID | `none` |
+
+For references like "Name,233200000000,food", only the last part (the purpose) is used.
+The rules are data (keyword patterns), so better coverage means adding a keyword. Coverage
+(share of your own spending with a category) is in every run report and gated at 90%.
+Rule-based on purpose: it's auditable, and there's far too little labelled data for a model.
 
 ### Load
-Upserts dimensions and facts into the Postgres `dw` schema in one database transaction. See
-[Data model](data-model.md) for the tables.
+Applies pending schema migrations (`sql/migrations/`, tracked in `dw.schema_migration`),
+then upserts dimensions and facts into the Postgres `dw` schema in one database transaction.
+See [Data model](data-model.md) for the tables.
 
 ## Idempotency
 
@@ -123,17 +145,12 @@ Limits are set in `.env` (`GATE_*`). A failure lists every broken limit at once.
 - In the warehouse, each fact row records the run that last inserted or changed it
   (`pipeline_run_id`), and `dw.etl_run` records every load with its counts and report.
 
-## Storage backends
+## Storage
 
-`lake/store.py` has one small interface with two backends, chosen by `LAKE_BACKEND`:
-
-| Backend | Where buckets live | Used for |
-|---|---|---|
-| `local` | Folders under `data/lake/` | Development without Docker (current) |
-| `s3` | Buckets on the S3 server at `S3_ENDPOINT` (RustFS) | Docker / production |
-
-Both are covered by the same tests; the S3 backend is tested with `moto`, which simulates the
-S3 API that RustFS implements.
+The lake is two buckets on **RustFS**, an S3-compatible server in the Docker stack:
+`sikatrack-raw` (every backup, versioned) and `sikatrack-processed` (the latest dataset plus a
+report per run). `lake/init_buckets.py` creates them on startup. `lake/store.py` wraps the S3
+client in a small interface; tests run it against `moto`, an in-memory S3.
 
 The Docker stack uses **RustFS** rather than MinIO: MinIO stopped publishing community
 Docker images in 2025, and RustFS is an S3-compatible drop-in with the same ports and a web
@@ -183,6 +200,5 @@ start → stage → has_changes → extract → parse → transform → publish 
 
 ## What's next
 
-1. Build the Power BI dashboard on `dw.v_fact_transaction`.
-2. Categorisation and recurring-charge detection, writing `category_key` and `is_recurring`,
-   as downstream DAGs triggered by the warehouse asset.
+1. Recurring-charge detection, writing `is_recurring` and `recurring_interval_days`.
+2. The Power BI dashboard on `dw.v_fact_transaction`.

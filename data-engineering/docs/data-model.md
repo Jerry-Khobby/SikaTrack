@@ -26,6 +26,8 @@
 | `counterparty_kind` | string | no | `person`, `merchant`, `telco`, `agent`, `bank`, `own_wallet`, `provider`, `unknown` |
 | `counterparty_raw` | string | yes | Name exactly as it appeared in the SMS |
 | `reference` | string | yes | Reference or message entered by the sender |
+| `category` | string | no | Spending/income category, e.g. Food, Airtime/Data, Income ([rules](architecture.md#categorisation)) |
+| `category_rule` | string | no | Rule that chose the category, e.g. `reference:food`, `type:airtime`, `default:person` |
 | `is_internal_transfer` | bool | no | Money moved between your own wallets; exclude from income and spending |
 | `has_balance_gap` | bool | no | The reported balance doesn't match the expected one |
 | `balance_gap_amount` | float | yes | Size of the gap; null when the row couldn't be checked |
@@ -36,7 +38,7 @@
 
 ## Warehouse: star schema
 
-Defined in `sql/warehouse_schema.sql`, schema `dw`. The grain of `fact_transaction` is one real
+Defined by the migrations in `sql/migrations/`, schema `dw`. The grain of `fact_transaction` is one real
 transaction.
 
 ```mermaid
@@ -58,7 +60,7 @@ erDiagram
 | `dim_provider` | `provider_code` | Mobile-money providers |
 | `dim_transaction_type` | `(template, transaction_type)` | Template, type, direction, "Money In"/"Money Out" label |
 | `dim_counterparty` | `counterparty_name` | Phone, kind, first and last seen |
-| `dim_category` | `category_name` | Spending categories (filled by the future categorisation step) |
+| `dim_category` | `category_name` | Categories, each in a `category_group`: Spending, Money In, Own Money or Unknown |
 | `etl_run` | `run_id` | One row per load: status, row counts, quality report, error |
 
 Every dimension has an **Unknown** member with key `-1`, so fact rows never have null foreign
@@ -69,8 +71,9 @@ keys.
 - Dimensions are upserted on their natural keys.
 - Facts are upserted on `transaction_nk`. A row is only updated when one of its data columns
   changed; then `pipeline_run_id` and `updated_at` record the change.
-- `category_key`, `is_recurring` and `recurring_interval_days` belong to later steps, so a
+- `is_recurring` and `recurring_interval_days` belong to the recurring-detection step, so a
   reload never overwrites them.
+- A category the transform uses but `dim_category` lacks fails the load; add it in a migration.
 - The whole load is one database transaction. A failure rolls everything back and is recorded
   in `etl_run` with status `failed` and the error.
 
@@ -80,7 +83,22 @@ keys.
   the raw SMS text.
 - Mark `dim_date` as the date table.
 - Filter `is_internal_transfer = false` for income and spending, otherwise money moved between
-  your own wallets is counted twice.
+  your own wallets is counted twice. (Those rows are also in the **Own Money** category group.)
+- Use `dim_category.category_group` to split Spending from Money In.
 - `balance_after` is a point-in-time value: show the last value in a period
   (e.g. `LASTNONBLANK`), never a sum.
 - Use `signed_amount` for net cash flow and `amount` with `flow_label` for in/out breakdowns.
+
+### Schema migrations
+
+Schema changes are numbered SQL files in `sql/migrations/`. The load step applies any the
+database hasn't seen yet, in order, each in its own transaction, and records them in
+`dw.schema_migration`:
+
+| Migration | Adds |
+|---|---|
+| `001_star_schema` | The star schema, `etl_run`, and the Power BI view |
+| `002_categorisation` | Categories and their groups, `fact_transaction.category_rule`, the column in the view |
+
+To change the schema, add the next file (`003_….sql`); never edit one that has run. A
+database created before migrations were tracked is recognised and only gets the newer files.
