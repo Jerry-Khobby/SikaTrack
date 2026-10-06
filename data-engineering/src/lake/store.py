@@ -1,4 +1,4 @@
-"""Object storage for the data lake: a local folder now, MinIO (S3 API) later.
+"""Object storage for the data lake: a local folder, or any S3-compatible server (RustFS in Docker).
 
 Pick the backend with LAKE_BACKEND=local|s3. Both expose the same small interface,
 so nothing else in the pipeline knows which one is in use.
@@ -54,7 +54,7 @@ class LocalObjectStore:
 
 
 class S3ObjectStore:
-    """A MinIO/S3 bucket. Uploads are atomic on S3: an object appears only when complete."""
+    """A bucket on an S3-compatible server. Uploads are atomic: an object appears only when complete."""
 
     def __init__(self, bucket: str, client):
         self.name = bucket
@@ -90,9 +90,9 @@ def s3_client():
     import boto3
     return boto3.client(
         "s3",
-        endpoint_url=os.getenv("MINIO_ENDPOINT", "http://localhost:9000"),
-        aws_access_key_id=os.getenv("MINIO_ROOT_USER"),
-        aws_secret_access_key=os.getenv("MINIO_ROOT_PASSWORD"),
+        endpoint_url=os.getenv("S3_ENDPOINT", "http://localhost:9000"),
+        aws_access_key_id=os.getenv("S3_ACCESS_KEY"),
+        aws_secret_access_key=os.getenv("S3_SECRET_KEY"),
         region_name="us-east-1",
     )
 
