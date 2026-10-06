@@ -11,6 +11,27 @@ python -m src.orchestration.pipeline --load          # also load the warehouse
 Every run rebuilds the outputs from **all** backups in the raw zone, so re-running is always
 safe.
 
+## Run with Airflow
+
+Start the stack from `data-engineering/` with `docker compose up -d`, then open
+http://localhost:8080 (login in `.env`: `AIRFLOW_ADMIN_USER` / `AIRFLOW_ADMIN_PASSWORD`).
+
+1. Drop SMS Backup & Restore exports into `data/inbox/`.
+2. In the Airflow UI, open **sikatrack_pipeline**, switch it on (it's paused when created),
+   and click **Trigger**. Set `force` to true to reprocess even if nothing changed.
+3. Once switched on, it also runs daily. A run with no new backup or settings change stops
+   after `has_changes` and skips the rest (shown as skipped, not failed).
+
+| Task fails | Meaning |
+|---|---|
+| `has_changes` | The raw zone is empty: add a backup to `data/inbox/` |
+| `parse` / `transform` | A quality gate failed; see [below](#a-quality-gate-fails). Not retried |
+| `stage`, `publish`, `load` | Storage or database unreachable; retried twice before failing |
+
+A failed run keeps its files in `data/work/<run_id>/` for debugging.
+Trigger with `force=true` after changing parser templates or transform rules: the change
+check only sees backups and settings, not code.
+
 ## Add a new backup
 
 1. Export your SMS with SMS Backup & Restore.

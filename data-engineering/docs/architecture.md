@@ -160,9 +160,29 @@ This pipeline handles real financial data about real people.
 | Fail loudly on bad data | A gate failure means a new SMS format or missing data, which needs a human, not a silent fix |
 | Airflow as orchestrator | Retries, scheduling and visibility once the pipeline runs unattended (Docker) |
 
+## Orchestration (Airflow)
+
+`dags/sikatrack_pipeline.py` runs the same step functions as the command-line runner, one
+Airflow task each:
+
+```
+start → stage → has_changes → extract → parse → transform → publish → load → remember → cleanup
+```
+
+| Practice | How |
+|---|---|
+| Thin DAG | Tasks only call functions in `src/`; all logic is testable without Airflow |
+| Small XCom | Tasks pass a run ID and small stats; data stays in files and the lake |
+| Deterministic run ID | Derived from the Airflow run ID, so a retried run reuses its `etl_run` row and lake keys |
+| Isolated work files | Each run works in `data/work/<run_id>/`, deleted after success, kept after a failure |
+| Targeted retries | Storage and database tasks retry 2× with exponential backoff; quality-gate tasks fail at once |
+| Skip unchanged runs | `has_changes` compares a fingerprint of the staged backups and owner settings with the last processed run; `force=true` overrides it |
+| No overlap or backfill | `max_active_runs=1`, `catchup=False`: every run rebuilds from all backups anyway |
+| Assets | `publish` and `load` declare the Parquet dataset and the fact table as outputs, so downstream DAGs can be triggered by new data |
+| Fast parsing | Heavy imports happen inside tasks, not at the top of the DAG file |
+
 ## What's next
 
-1. Run RustFS, Postgres and Airflow from `docker-compose.yml`.
-2. Write the Airflow DAG: one task per pipeline step.
-3. Run the load step for real and build the Power BI dashboard on `dw.v_fact_transaction`.
-4. Categorisation and recurring-charge detection, writing `category_key` and `is_recurring`.
+1. Build the Power BI dashboard on `dw.v_fact_transaction`.
+2. Categorisation and recurring-charge detection, writing `category_key` and `is_recurring`,
+   as downstream DAGs triggered by the warehouse asset.

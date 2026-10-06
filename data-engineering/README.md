@@ -23,8 +23,8 @@ On the current dataset (8,059 SMS, Nov 2025 – Oct 2026), a full run takes abou
 | Stage to raw zone | Done (local folder, or RustFS in Docker) |
 | Extract, parse, transform | Done |
 | Quality gates, lineage, run reports | Done |
-| Warehouse load | Code done and tested against real Postgres; runs for real once Docker is installed |
-| Airflow orchestration | Planned (needs Docker) |
+| Warehouse load | Done (Postgres in Docker, or a local Postgres) |
+| Airflow orchestration | Done: `dags/sikatrack_pipeline.py` (see [Runbook](docs/runbook.md#run-with-airflow)) |
 | Categorisation, recurring-charge detection | Planned |
 
 ## Quick start
