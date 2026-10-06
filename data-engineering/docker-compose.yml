@@ -10,18 +10,16 @@
 #   docker compose up -d --build
 #
 # Airflow UI:    http://localhost:8080   (user/pass from .env)
-# RustFS console: http://localhost:9001   (S3-compatible storage; MinIO no longer ships images)
+# RustFS console: http://localhost:9001/rustfs/console/   (S3-compatible; MinIO no longer ships images)
 # Power BI:      Get Data -> PostgreSQL -> localhost:5434, database sikatrack_dw
 
 # ---------------------------------------------------------------------
 # Shared Airflow config (Airflow 3: api-server + scheduler + dag-processor)
 # ---------------------------------------------------------------------
 x-airflow-common: &airflow-common
-  build:
-    context: .
-    args:
-      AIRFLOW_VERSION: ${AIRFLOW_VERSION:-3.0.6}
+  # Built once by airflow-init (below); every other service reuses the same image.
   image: sikatrack-airflow:${AIRFLOW_VERSION:-3.0.6}
+  pull_policy: never
   user: "${AIRFLOW_UID:-50000}:0"
   env_file:
     - .env
@@ -146,6 +144,11 @@ services:
   # One-shot: migrate the metadata DB and create the admin user
   airflow-init:
     <<: *airflow-common
+    build:
+      context: .
+      args:
+        AIRFLOW_VERSION: ${AIRFLOW_VERSION:-3.0.6}
+    pull_policy: build
     container_name: sikatrack-airflow-init
     entrypoint: /bin/bash
     command: ["-c", "exec /entrypoint airflow version"]
