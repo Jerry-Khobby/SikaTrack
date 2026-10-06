@@ -1,7 +1,7 @@
 """The processed dataset's contract: column order, types and nullability.
 
 Enforced on every write, so schema drift fails here instead of in the warehouse or Power BI.
-Keep in sync with dw.fact_transaction in sql/warehouse_schema.sql.
+Keep in sync with dw.fact_transaction in sql/migrations/.
 """
 
 import pyarrow as pa
@@ -34,6 +34,8 @@ SCHEMA = pa.schema([
     _f("counterparty_kind", pa.string()),
     _f("counterparty_raw", pa.string(), nullable=True),
     _f("reference", pa.string(), nullable=True),
+    _f("category", pa.string()),
+    _f("category_rule", pa.string()),
     _f("is_internal_transfer", pa.bool_()),
     _f("has_balance_gap", pa.bool_()),
     _f("balance_gap_amount", pa.float64(), nullable=True),

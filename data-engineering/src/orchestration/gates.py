@@ -21,6 +21,7 @@ class Thresholds:
     min_parse_rate: float = 0.95           # parsed / (parsed + unparsed)
     min_balance_continuity: float = 0.98   # per provider
     max_unexplained_gaps: int = 20
+    min_category_coverage: float = 0.90     # share of spending with a category
 
     @classmethod
     def from_env(cls) -> "Thresholds":
@@ -28,6 +29,7 @@ class Thresholds:
             min_parse_rate=_env_float("GATE_MIN_PARSE_RATE", cls.min_parse_rate),
             min_balance_continuity=_env_float("GATE_MIN_BALANCE_CONTINUITY", cls.min_balance_continuity),
             max_unexplained_gaps=int(_env_float("GATE_MAX_UNEXPLAINED_GAPS", cls.max_unexplained_gaps)),
+            min_category_coverage=_env_float("GATE_MIN_CATEGORY_COVERAGE", cls.min_category_coverage),
         )
 
 
@@ -51,6 +53,10 @@ def check_transform(report: dict, limits: Thresholds) -> None:
     unexplained = report["balance_gap_reasons"].get("unexplained", 0)
     if unexplained > limits.max_unexplained_gaps:
         failures.append(f"{unexplained} unexplained balance gaps > {limits.max_unexplained_gaps}")
+    categories = report.get("categories")
+    if categories and categories["spending_transactions"] and categories["coverage"] < limits.min_category_coverage:
+        failures.append(f"category coverage {categories['coverage']:.1%} < {limits.min_category_coverage:.1%} "
+                        "(add keywords in src/transform/categorise.py)")
     _raise_if(failures, "transform")
 
 
