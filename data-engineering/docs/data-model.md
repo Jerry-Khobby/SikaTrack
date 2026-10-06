@@ -29,6 +29,9 @@
 | `category` | string | no | Spending/income category, e.g. Food, Airtime/Data, Income ([rules](architecture.md#categorisation)) |
 | `category_rule` | string | no | Rule that chose the category, e.g. `reference:food`, `type:airtime`, `default:person` |
 | `is_internal_transfer` | bool | no | Money moved between your own wallets; exclude from income and spending |
+| `is_recurring` | bool | no | Part of a recurring series ([rules](architecture.md#recurring-payments)) |
+| `recurring_interval_days` | int16 | yes | The series' rhythm: 1, 7, 14 or 30 |
+| `recurring_series` | string | yes | Stable ID of the series; groups its payments |
 | `has_balance_gap` | bool | no | The reported balance doesn't match the expected one |
 | `balance_gap_amount` | float | yes | Size of the gap; null when the row couldn't be checked |
 | `balance_gap_reason` | string | yes | `own_transfer_leg_missing` or `unexplained` |
@@ -71,8 +74,6 @@ keys.
 - Dimensions are upserted on their natural keys.
 - Facts are upserted on `transaction_nk`. A row is only updated when one of its data columns
   changed; then `pipeline_run_id` and `updated_at` record the change.
-- `is_recurring` and `recurring_interval_days` belong to the recurring-detection step, so a
-  reload never overwrites them.
 - A category the transform uses but `dim_category` lacks fails the load; add it in a migration.
 - The whole load is one database transaction. A failure rolls everything back and is recorded
   in `etl_run` with status `failed` and the error.
@@ -99,6 +100,7 @@ database hasn't seen yet, in order, each in its own transaction, and records the
 |---|---|
 | `001_star_schema` | The star schema, `etl_run`, and the Power BI view |
 | `002_categorisation` | Categories and their groups, `fact_transaction.category_rule`, the column in the view |
+| `003_recurring` | `fact_transaction.recurring_series` and its index, the column in the view |
 
 To change the schema, add the next file (`003_….sql`); never edit one that has run. A
 database created before migrations were tracked is recognised and only gets the newer files.

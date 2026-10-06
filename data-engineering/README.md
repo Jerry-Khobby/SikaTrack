@@ -17,6 +17,7 @@ On the current dataset (8,059 SMS, Nov 2025 – Oct 2026):
 | Transactions after dedup | 1,890 (73 duplicate SMS and 1 cross-provider receipt removed) |
 | Balance continuity | MTN MoMo 99.6%, GhanaPay 100% |
 | Category coverage | 99.9% of spending |
+| Recurring payments | 7 series found, 2 still active (~GHS 235/month) |
 
 ## Status
 
@@ -27,7 +28,7 @@ On the current dataset (8,059 SMS, Nov 2025 – Oct 2026):
 | Quality gates, lineage, run reports | Done |
 | Postgres load with schema migrations | Done |
 | Airflow orchestration | Done: `dags/sikatrack_pipeline.py` |
-| Recurring-charge detection | Planned |
+| Recurring-payment detection | Done: daily, weekly, fortnightly and monthly series |
 | Power BI dashboard | Planned |
 
 ## Quick start
@@ -84,7 +85,7 @@ data-engineering/
 ├── dags/               sikatrack_pipeline.py (Airflow DAG: one task per step)
 ├── src/
 │   ├── extraction/     filter_sms.py (XML → MoMo CSV), momo_parser.py (CSV → parsed JSON)
-│   ├── transform/      clean, dedupe, counterparty, enrich, categorise, quality, schema, storage, run
+│   ├── transform/      clean, dedupe, counterparty, enrich, categorise, recurring, quality, schema, storage, run
 │   ├── lake/           store.py (S3 object store), raw_zone.py (staging backups), init_buckets.py
 │   ├── load/           warehouse.py (schema migrations + idempotent Postgres load)
 │   ├── orchestration/  pipeline.py (the steps), gates.py, state.py (change detection), run_id.py
@@ -104,7 +105,7 @@ Run on Windows from `data-engineering/` (`pip install -r requirements-dev.txt` o
 python -m pytest
 ```
 
-164 tests cover every step:
+180 tests cover every step:
 
 - **S3 storage** is simulated in memory by `moto`, so lake tests never touch RustFS.
 - **Postgres** tests use the Docker container, each in a throwaway database that's dropped

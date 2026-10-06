@@ -80,10 +80,12 @@ Runs these steps in order (`transform/run.py`):
 5. **Enrich**: natural key, signed amount, total cost, date and hour keys, internal-transfer flag.
 6. **Categorise**: give every transaction a category and record the rule that chose it
    (see [Categorisation](#categorisation)).
-7. **Check balance continuity**: each reported balance should equal the previous balance plus
+7. **Flag recurring payments**: mark repeat payments and group them into series
+   (see [Recurring payments](#recurring-payments)).
+8. **Check balance continuity**: each reported balance should equal the previous balance plus
    every flow since. A gap usually means an SMS is missing from the backup; each gap is flagged
    and labelled (see [Runbook](runbook.md#balance-gaps)).
-8. **Write**: validate against the schema in `transform/schema.py`, then write Parquet.
+9. **Write**: validate against the schema in `transform/schema.py`, then write Parquet.
 
 ### Categorisation
 `transform/categorise.py` applies rules in order; the first match wins, and the rule is
@@ -103,6 +105,28 @@ For references like "Name,233200000000,food", only the last part (the purpose) i
 The rules are data (keyword patterns), so better coverage means adding a keyword. Coverage
 (share of your own spending with a category) is in every run report and gated at 90%.
 Rule-based on purpose: it's auditable, and there's far too little labelled data for a model.
+
+### Recurring payments
+`transform/recurring.py` finds repeat payments in your own spending. A **series** is the
+payments to one counterparty within an amount band (±10%). It's recurring when the gaps
+between its payment days fit one rhythm:
+
+| Rhythm | A gap fits if it's | `recurring_interval_days` |
+|---|---|---|
+| daily | 1–2 days | 1 |
+| weekly | 5–9 days | 7 |
+| fortnightly | 12–17 days | 14 |
+| monthly | 26–35 days | 30 |
+
+A series needs at least 4 payment days, and at least 60% of its gaps (and at least 3) must
+fit, so a couple of coincidences don't make a pattern. Several payments on one day count
+once. Each payment in a series gets `is_recurring`, `recurring_interval_days` and a stable
+`recurring_series` ID. A series is **active** if its last payment is within two rhythm-lengths
+of the latest data; the run report lists every series (without counterparty names) and the
+monthly cost of the active ones.
+
+On the current data this finds 7 series: six daily airtime/bundle habits and a monthly
+Giving payment. Cash withdrawals are frequent but irregular, so they're correctly not flagged.
 
 ### Load
 Applies pending schema migrations (`sql/migrations/`, tracked in `dw.schema_migration`),
@@ -200,5 +224,4 @@ start → stage → has_changes → extract → parse → transform → publish 
 
 ## What's next
 
-1. Recurring-charge detection, writing `is_recurring` and `recurring_interval_days`.
-2. The Power BI dashboard on `dw.v_fact_transaction`.
+1. The Power BI dashboard on `dw.v_fact_transaction`.
