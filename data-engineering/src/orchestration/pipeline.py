@@ -11,6 +11,7 @@ Airflow runs these steps as tasks (dags/sikatrack_pipeline.py). For a manual run
     docker compose exec airflow-scheduler python -m src.orchestration.pipeline
 """
 
+import json
 import logging
 import time
 from dataclasses import dataclass
@@ -25,6 +26,7 @@ from src.orchestration.gates import Thresholds, check_parse, check_transform
 from src.orchestration.run_id import new_run_id
 from src.transform.config import BASE_DIR, Owner, TransformConfig
 from src.transform.run import run as run_transform
+from src.utils.fileio import atomic_write
 from src.utils.logging_config import setup_logging
 
 log = logging.getLogger(__spec__.name if __spec__ else __name__)
@@ -68,7 +70,10 @@ class PipelineRun:
 
 
 def stage(run: PipelineRun) -> dict:
+    from src.orchestration.state import save_heartbeat
+
     staged = [stage_backup(run.xml_path, run.raw)] if run.xml_path else stage_inbox(INBOX, run.raw)
+    save_heartbeat(run.processed)  # proof of life for monitoring, even if the run then skips
     return {"staged": staged, "backups": len(list_backups(run.raw))}
 
 
@@ -78,6 +83,8 @@ def extract(run: PipelineRun) -> dict:
 
 def parse(run: PipelineRun) -> dict:
     stats = parse_file(run.paths.filtered, run.paths.parsed, run.paths.unparsed)
+    with atomic_write(run.paths.data_dir / "parse_stats.json") as f:  # picked up by transform's report
+        json.dump(stats, f, indent=2)
     check_parse(stats, run.limits)
     return stats
 
@@ -87,6 +94,13 @@ def transform(run: PipelineRun) -> dict:
         input_path=run.paths.parsed, output_dir=run.paths.processed, owner=run.owner, run_id=run.run_id,
     )
     report = run_transform(config)
+    parse_stats = run.paths.data_dir / "parse_stats.json"
+    if parse_stats.exists():
+        # The run report (stored in dw.etl_run) then also carries the parse numbers monitoring needs.
+        stats = json.loads(parse_stats.read_text(encoding="utf-8"))
+        report["parse"] = {k: stats[k] for k in ("total", "parsed", "ignored", "unparsed", "parse_success_rate")}
+        with atomic_write(run.paths.processed / "quality_report.json") as f:
+            json.dump(report, f, indent=2, default=str)
     check_transform(report, run.limits)
     return report
 
