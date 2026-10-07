@@ -114,6 +114,18 @@ python -m pytest
   afterwards; your `sikatrack_dw` data is never touched. They're skipped if the stack is down.
 - **SMS fixtures** in `test/samples.py` copy the real provider formats with made-up names and numbers.
 
+### CI
+
+Every push or pull request that touches `data-engineering/` runs
+`.github/workflows/data-engineering.yml` on GitHub Actions:
+
+- **Tests**: the whole suite, with a real Postgres 16 service container, so the warehouse tests
+  run there instead of being skipped (`REQUIRE_WAREHOUSE=1` makes them fail if Postgres is missing).
+- **DAG integrity**: installs Airflow 3.0.6 with its official constraints and runs
+  `test/test_dags.py`: both DAGs load, keep their task order, schedules, retry rules and failure alerts.
+
+Results are in the repository's **Actions** tab; a test-results file is attached to each run.
+
 ## Further reading
 
 - [Architecture](docs/architecture.md): how data flows, idempotency, quality gates, lineage, privacy, design decisions
