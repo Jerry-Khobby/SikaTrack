@@ -1,9 +1,13 @@
 """Warehouse migrations + load, against the Postgres container from docker-compose.
 
 Each test gets a throwaway database (sikatrack_test_<id>) that's dropped afterwards, so the
-real sikatrack_dw is never touched. Skipped when the container isn't running.
+real sikatrack_dw is never touched. Locally they're skipped when the container isn't running;
+in CI (REQUIRE_WAREHOUSE=1, Postgres service container) they must run, so they fail instead.
+
+Connection settings: WAREHOUSE_* environment variables (CI), else data-engineering/.env.
 """
 
+import os
 import uuid
 from pathlib import Path
 
@@ -18,12 +22,17 @@ from src.load.warehouse import migrate, load_transactions
 from src.orchestration.pipeline import run_pipeline
 from src.transform.config import Owner
 
-ENV = dotenv_values(Path(__file__).parents[1] / ".env")
+ENV = {
+    **dotenv_values(Path(__file__).parents[1] / ".env"),
+    **{k: v for k, v in os.environ.items() if k.startswith("WAREHOUSE_")},
+}
+REQUIRED = os.getenv("REQUIRE_WAREHOUSE") == "1"
 
 
 def _dsn(dbname: str) -> str:
-    return (f"host=localhost port={ENV.get('WAREHOUSE_PORT', '5434')} dbname={dbname} "
-            f"user={ENV.get('WAREHOUSE_USER')} password={ENV.get('WAREHOUSE_PASSWORD')} connect_timeout=3")
+    return (f"host={ENV.get('WAREHOUSE_HOST', 'localhost')} port={ENV.get('WAREHOUSE_PORT', '5434')} "
+            f"dbname={dbname} user={ENV.get('WAREHOUSE_USER')} password={ENV.get('WAREHOUSE_PASSWORD')} "
+            "connect_timeout=3")
 
 
 @pytest.fixture(scope="session")
@@ -32,6 +41,8 @@ def admin():
     try:
         connection = psycopg2.connect(_dsn(ENV.get("WAREHOUSE_DB", "sikatrack_dw")))
     except psycopg2.OperationalError as e:
+        if REQUIRED:
+            pytest.fail(f"REQUIRE_WAREHOUSE=1 but Postgres isn't reachable: {e}")
         pytest.skip(f"Postgres container not reachable (docker compose up -d): {e}")
     connection.autocommit = True
     yield connection
