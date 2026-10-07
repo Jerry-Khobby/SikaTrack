@@ -117,4 +117,13 @@ def test_quality_gate_stops_the_pipeline_before_publishing(make_xml, tmp_path):
 
     with pytest.raises(QualityGateError, match="parse rate 50.0%"):
         run_pipeline(xml, tmp_path / "data", owner=Owner(), load=False, limits=Thresholds(min_parse_rate=0.95))
-    assert get_store("PROCESSED_BUCKET").list() == []
+    processed = get_store("PROCESSED_BUCKET")
+    assert processed.list("transactions/") == [] and processed.list("reports/") == []  # nothing published
+    assert processed.exists("state/pipeline_heartbeat.txt")  # but the run is still visible to monitoring
+
+def test_report_carries_parse_stats_and_a_heartbeat_is_written(result):
+    from src.orchestration.state import last_heartbeat
+    _, _, data_dir = result
+    report = json.loads((data_dir / "processed" / "quality_report.json").read_text())
+    assert report["parse"] == {"total": 8, "parsed": 5, "ignored": 3, "unparsed": 0, "parse_success_rate": 1.0}
+    assert last_heartbeat(get_store("PROCESSED_BUCKET")) is not None

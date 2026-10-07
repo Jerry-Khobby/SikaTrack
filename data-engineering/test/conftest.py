@@ -15,11 +15,50 @@ ISOLATED_ENV = [
 ]
 
 
+class FakeSMTP:
+    """Stands in for smtplib.SMTP: records messages, never touches the network."""
+    sent: list = []
+
+    def __init__(self, host, port, timeout=None):
+        self.host, self.port = host, port
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def starttls(self, context=None):
+        pass
+
+    def login(self, user, password):
+        self.user, self.password = user, password
+        FakeSMTP.last_login = (user, password)
+
+    def send_message(self, message):
+        FakeSMTP.sent.append(message)
+
+
+@pytest.fixture
+def outbox():
+    """Emails 'sent' during the test."""
+    return FakeSMTP.sent
+
+
 @pytest.fixture(autouse=True)
 def isolated_env(monkeypatch):
-    """Tests never see your .env, RustFS or real buckets: S3 is moto's in-memory fake."""
-    for name in ISOLATED_ENV:
+    """Tests never see your .env, RustFS, real buckets or a real mail server."""
+    import os
+    import smtplib
+
+    for name in ISOLATED_ENV + ["EMAIL_USER", "EMAIL_PASS", "ALERT_EMAIL_TO", "SMTP_HOST", "SMTP_PORT",
+                                "DIGEST_ENABLED", "WATCHDOG_ENABLED", "AIRFLOW_PUBLIC_URL"]:
         monkeypatch.delenv(name, raising=False)
+    for name in [n for n in os.environ if n.startswith("MONITOR_")]:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("ALERTS_ENABLED", "false")  # tests that check sending switch it on
+    FakeSMTP.sent = []
+    monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
     monkeypatch.setenv("S3_ACCESS_KEY", "test")
     monkeypatch.setenv("S3_SECRET_KEY", "test")
     # Sample SMS aren't one continuous ledger, so balance gates would always trip.

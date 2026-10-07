@@ -211,3 +211,13 @@ def test_pipeline_loads_the_warehouse(test_db, make_xml, tmp_path):
 
     assert first["load"]["rows_inserted"] == 1
     assert second["load"]["rows_unchanged"] == 1
+
+def test_monitoring_reads_load_history(conn, parquet):
+    from src.monitoring.daily import fetch_runs
+    migrate(conn)
+    load_transactions(conn, parquet, "run-1", {"rows_out": 4, "categories": {"coverage": 1.0}})
+
+    runs = fetch_runs(conn)
+
+    assert [r["run_id"] for r in runs] == ["run-1"]
+    assert runs[0]["status"] == "succeeded" and runs[0]["quality_report"]["rows_out"] == 4
