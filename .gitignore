@@ -8,3 +8,6 @@ __pycache__
 data-engineering/data/
 .env
 data-engineering/logs/
+
+# Power BI guide contains real spending totals
+data-engineering/docs/powerbi/*.pdf
