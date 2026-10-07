@@ -1,0 +1,97 @@
+name: data-engineering
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "data-engineering/**"
+      - ".github/workflows/data-engineering.yml"
+  pull_request:
+    paths:
+      - "data-engineering/**"
+      - ".github/workflows/data-engineering.yml"
+  workflow_dispatch:
+
+# A newer push to the same branch cancels the run still in progress.
+concurrency:
+  group: data-engineering-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: data-engineering
+
+jobs:
+  tests:
+    name: Tests (unit + Postgres)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      # Same Postgres as the Docker stack. Throwaway credentials, only valid inside this job.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sika
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: sikatrack_dw
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U sika -d sikatrack_dw"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      WAREHOUSE_HOST: localhost
+      WAREHOUSE_PORT: "5434"
+      WAREHOUSE_DB: sikatrack_dw
+      WAREHOUSE_USER: sika
+      WAREHOUSE_PASSWORD: ci-only-password
+      REQUIRE_WAREHOUSE: "1"   # warehouse tests must run here, not skip
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: data-engineering/requirements*.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: python -m pytest -rs --junitxml=test-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: data-engineering/test-results.xml
+
+  dags:
+    name: DAG integrity (Airflow 3.0.6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AIRFLOW_VERSION: "3.0.6"   # keep in step with AIRFLOW_VERSION in .env / the Dockerfile
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: data-engineering/requirements*.txt
+
+      - name: Install Airflow with its official constraints
+        run: |
+          echo "AIRFLOW_HOME=$RUNNER_TEMP/airflow" >> "$GITHUB_ENV"
+          pip install "apache-airflow==${AIRFLOW_VERSION}" -r requirements-dev.txt \
+            --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.11.txt"
+
+      - name: Check both DAGs load and keep their rules
+        run: python -m pytest test/test_dags.py -v
