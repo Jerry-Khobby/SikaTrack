@@ -1,0 +1,35 @@
+{
+  "name": "SikaTrack",
+  "dataColors": ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#4a3aa7"],
+  "background": "#FFFFFF",
+  "foreground": "#1B2631",
+  "tableAccent": "#1F4E79",
+  "good": "#0ca30c",
+  "neutral": "#fab219",
+  "bad": "#d03b3b",
+  "minimum": "#cde2fb",
+  "center": "#6da7ec",
+  "maximum": "#0d366b",
+  "textClasses": {
+    "title":   {"fontFace": "Segoe UI Semibold", "fontSize": 12, "color": "#1B2631"},
+    "header":  {"fontFace": "Segoe UI Semibold", "fontSize": 11, "color": "#1B2631"},
+    "label":   {"fontFace": "Segoe UI", "fontSize": 10, "color": "#52514e"},
+    "callout": {"fontFace": "Segoe UI Semibold", "fontSize": 24, "color": "#0b0b0b"}
+  },
+  "visualStyles": {
+    "*": {
+      "*": {
+        "background": [{"show": true, "color": {"solid": {"color": "#FFFFFF"}}, "transparency": 0}],
+        "border": [{"show": true, "color": {"solid": {"color": "#E5E8EB"}}, "radius": 10}],
+        "dropShadow": [{"show": true, "preset": "BottomRight", "transparency": 85}],
+        "title": [{"show": true, "fontFamily": "Segoe UI Semibold", "fontSize": 11, "fontColor": {"solid": {"color": "#1B2631"}}}],
+        "padding": [{"top": 8, "bottom": 8, "left": 10, "right": 10}]
+      }
+    },
+    "page": {
+      "*": {
+        "background": [{"color": {"solid": {"color": "#F4F6F8"}}, "transparency": 0}]
+      }
+    }
+  }
+}

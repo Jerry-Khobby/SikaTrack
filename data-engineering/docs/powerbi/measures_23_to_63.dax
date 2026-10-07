@@ -1,0 +1,222 @@
+// SikaTrack: measures 23-63 in one go.
+// Paste into Power BI Desktop > DAX query view, click "Update model with changes".
+// Needs first: measures 1-22 in _Measures, the Transactions[Rule Layer] column,
+// and the 'Pipeline Runs' table. Measures 47-48 are in a second block at the bottom
+// because they need the 'Low Balance Threshold' what-if parameter (guide section 10.3).
+
+DEFINE
+    // 6.3 Categories
+    MEASURE _Measures[Top Category] =
+        MAXX (
+            TOPN ( 1, VALUES ( Category[category_name] ), [Money Out] ),
+            Category[category_name]
+        )
+    MEASURE _Measures[Top Category Share %] =
+        VAR TopName = [Top Category]
+        RETURN CALCULATE ( [Category Share %], Category[category_name] = TopName )
+
+    // 6.4 Recurring payments
+    MEASURE _Measures[Recurring Spend] =
+        CALCULATE ( [Money Out], Transactions[is_recurring] = TRUE () )
+    MEASURE _Measures[Recurring Share %] =
+        DIVIDE ( [Recurring Spend], [Money Out] )
+    MEASURE _Measures[Recurring Series] =
+        DISTINCTCOUNTNOBLANK ( Transactions[recurring_series] )
+    MEASURE _Measures[Data End Date] =
+        CALCULATE ( MAX ( Transactions[occurred_at] ), REMOVEFILTERS () )
+    MEASURE _Measures[Series Last Paid] =
+        CALCULATE ( MAX ( Transactions[occurred_at] ), REMOVEFILTERS ( 'Date' ) )
+    MEASURE _Measures[Series Typical Amount] =
+        CALCULATE ( MEDIAN ( Transactions[amount] ), REMOVEFILTERS ( 'Date' ) )
+    MEASURE _Measures[Series Is Active] =
+        VAR Interval = SELECTEDVALUE ( Transactions[recurring_interval_days] )
+        VAR WindowDays = SWITCH ( Interval, 1, 4, 7, 18, 14, 34, 30, 70 )
+        VAR LastPaid = [Series Last Paid]
+        RETURN
+            IF (
+                NOT ISBLANK ( LastPaid ) && NOT ISBLANK ( Interval ),
+                DATEDIFF ( LastPaid, [Data End Date], DAY ) <= WindowDays
+            )
+    MEASURE _Measures[Series Status] =
+        IF ( [Series Is Active], "Active", "Stopped" )
+    MEASURE _Measures[Active Recurring Series] =
+        COUNTROWS (
+            FILTER (
+                CALCULATETABLE (
+                    VALUES ( Transactions[recurring_series] ),
+                    REMOVEFILTERS ( 'Date' ),
+                    NOT ISBLANK ( Transactions[recurring_series] )
+                ),
+                [Series Is Active]
+            )
+        )
+    MEASURE _Measures[Recurring Monthly Cost (Active)] =
+        SUMX (
+            FILTER (
+                CALCULATETABLE (
+                    VALUES ( Transactions[recurring_series] ),
+                    REMOVEFILTERS ( 'Date' ),
+                    NOT ISBLANK ( Transactions[recurring_series] )
+                ),
+                [Series Is Active]
+            ),
+            [Series Typical Amount] * 30
+                / CALCULATE ( SELECTEDVALUE ( Transactions[recurring_interval_days] ) )
+        )
+    MEASURE _Measures[Recurring Annual Cost (Active)] =
+        [Recurring Monthly Cost (Active)] * 12
+
+    // 6.5 Spending habits
+    MEASURE _Measures[Peak Spending Day] =
+        MAXX ( TOPN ( 1, VALUES ( 'Date'[day_name] ), [Money Out] ), 'Date'[day_name] )
+    MEASURE _Measures[Peak Day Part] =
+        MAXX (
+            TOPN ( 1, VALUES ( 'Time of Day'[day_part] ), [Money Out] ),
+            'Time of Day'[day_part]
+        )
+    MEASURE _Measures[Weekend Share %] =
+        DIVIDE ( CALCULATE ( [Money Out], 'Date'[is_weekend] = TRUE () ), [Money Out] )
+    MEASURE _Measures[Median Spend Size] =
+        CALCULATE (
+            MEDIAN ( Transactions[amount] ),
+            Transactions[signed_amount] < 0,
+            Transactions[is_internal_transfer] = FALSE ()
+        )
+    MEASURE _Measures[Airtime Purchases per Week] =
+        DIVIDE (
+            CALCULATE ( [Spending Transactions], Category[category_name] = "Airtime/Data" ),
+            DIVIDE ( [Days in Period], 7 )
+        )
+
+    // 6.6 Fees and charges
+    MEASURE _Measures[Fee Rate %] =
+        DIVIDE ( [Fees & Tax], [Money Out] )
+    MEASURE _Measures[Cash-out Fees] =
+        CALCULATE ( [Fees & Tax], 'Transaction Type'[transaction_type] = "cashout" )
+    MEASURE _Measures[Cash-out Fee Share %] =
+        DIVIDE ( [Cash-out Fees], [Fees & Tax] )
+    MEASURE _Measures[Cumulative Fees] =
+        CALCULATE (
+            [Fees & Tax],
+            FILTER ( ALL ( 'Date' ), 'Date'[full_date] <= MAX ( 'Date'[full_date] ) )
+        )
+
+    // 6.7 Wallet balance (47-48 are in the second block below)
+    MEASURE _Measures[Latest Balance] =
+        SUMX (
+            VALUES ( Provider[provider_name] ),
+            VAR LastTime =
+                CALCULATE (
+                    MAX ( Transactions[occurred_at] ),
+                    NOT ISBLANK ( Transactions[balance_after] )
+                )
+            RETURN
+                CALCULATE ( MAX ( Transactions[balance_after] ), Transactions[occurred_at] = LastTime )
+        )
+    MEASURE _Measures[Wallet Balance (End of Day)] =
+        VAR CurrentDate = MAX ( 'Date'[full_date] )
+        RETURN
+            SUMX (
+                VALUES ( Provider[provider_name] ),
+                VAR LastTime =
+                    CALCULATE (
+                        MAX ( Transactions[occurred_at] ),
+                        NOT ISBLANK ( Transactions[balance_after] ),
+                        'Date'[full_date] <= CurrentDate,
+                        REMOVEFILTERS ( 'Date' )
+                    )
+                RETURN
+                    CALCULATE (
+                        MAX ( Transactions[balance_after] ),
+                        Transactions[occurred_at] = LastTime,
+                        REMOVEFILTERS ( 'Date' )
+                    )
+            )
+    MEASURE _Measures[Lowest Balance (End of Day)] =
+        MINX (
+            FILTER ( VALUES ( 'Date'[full_date] ), NOT ISBLANK ( [Wallet Balance (End of Day)] ) ),
+            [Wallet Balance (End of Day)]
+        )
+
+    // 6.8 Data quality and pipeline
+    MEASURE _Measures[Balance Gaps] =
+        CALCULATE ( [Transactions], Transactions[has_balance_gap] = TRUE () )
+    MEASURE _Measures[Balance Continuity %] =
+        1 - DIVIDE (
+            [Balance Gaps],
+            CALCULATE ( [Transactions], NOT ISBLANK ( Transactions[balance_gap_amount] ) )
+        )
+    MEASURE _Measures[Duplicate SMS Merged] =
+        SUM ( Transactions[sms_count] ) - [Transactions]
+    MEASURE _Measures[Last Load] =
+        MAX ( 'Pipeline Runs'[finished_at] )
+    MEASURE _Measures[Successful Loads] =
+        CALCULATE ( COUNTROWS ( 'Pipeline Runs' ), 'Pipeline Runs'[status] = "succeeded" )
+    MEASURE _Measures[Continuity Target] = 0.98
+    MEASURE _Measures[Coverage Target] = 0.90
+    MEASURE _Measures[Gauge Minimum] = 0
+    MEASURE _Measures[Gauge Maximum] = 1
+
+    // 6.9 Insight text and dynamic titles
+    MEASURE _Measures[Insight - Spending] =
+        "You spent " & FORMAT ( [Money Out], "GHS #,0" )
+            & " over " & [Days in Period] & " days, about "
+            & FORMAT ( [Avg Daily Spend], "GHS #,0" ) & " a day."
+    MEASURE _Measures[Insight - Top Category] =
+        "Biggest category: " & [Top Category] & " ("
+            & FORMAT ( [Top Category Share %], "0%" ) & " of spending)."
+    MEASURE _Measures[Insight - Fees] =
+        FORMAT ( [Cash-out Fee Share %], "0%" )
+            & " of your fees come from cash-outs. Paying merchants directly avoids them."
+    MEASURE _Measures[Insight - Recurring] =
+        [Active Recurring Series] & " recurring payments are still active, costing about "
+            & FORMAT ( [Recurring Monthly Cost (Active)], "GHS #,0" ) & " a month."
+    MEASURE _Measures[Page Subtitle] =
+        VAR Months = DISTINCTCOUNT ( 'Date'[year_month] )
+        RETURN
+            IF (
+                ISFILTERED ( 'Date' ),
+                IF ( Months = 1, SELECTEDVALUE ( 'Date'[year_month] ), Months & " months selected" ),
+                "All time: 15 Nov 2025 to " & FORMAT ( [Data End Date], "d mmm yyyy" )
+            )
+
+// Running the query also shows the checks from the guide, all in one row.
+EVALUATE
+ROW (
+    "Top Category (Cash Withdrawal)", [Top Category],
+    "Top Category Share (0.433)", [Top Category Share %],
+    "Recurring Spend (3257.50)", [Recurring Spend],
+    "Recurring Series (7)", [Recurring Series],
+    "Active Series (2)", [Active Recurring Series],
+    "Monthly Cost Active (235)", [Recurring Monthly Cost (Active)],
+    "Peak Day (Monday)", [Peak Spending Day],
+    "Fee Rate (0.0077)", [Fee Rate %],
+    "Cash-out Fees (208.20)", [Cash-out Fees],
+    "Latest Balance (30.24)", [Latest Balance],
+    "Balance Gaps (7)", [Balance Gaps],
+    "Continuity (0.9963)", [Balance Continuity %],
+    "Duplicates (73)", [Duplicate SMS Merged]
+)
+
+
+// ---- Second block: run separately AFTER creating the what-if parameter -------------
+// Modeling > New parameter > Numeric range: name "Low Balance Threshold",
+// 0 to 100, increment 5, default 5. Then paste this block alone into a new query tab.
+/*
+DEFINE
+    MEASURE _Measures[Low Balance Threshold Value] =
+        SELECTEDVALUE ( 'Low Balance Threshold'[Low Balance Threshold], 5 )
+    MEASURE _Measures[Days Below Threshold] =
+        VAR FirstKey = CALCULATE ( MIN ( Transactions[date_key] ), REMOVEFILTERS () )
+        VAR LastKey  = CALCULATE ( MAX ( Transactions[date_key] ), REMOVEFILTERS () )
+        RETURN
+            COUNTROWS (
+                FILTER (
+                    VALUES ( 'Date'[date_key] ),
+                    'Date'[date_key] >= FirstKey && 'Date'[date_key] <= LastKey
+                        && [Wallet Balance (End of Day)] < [Low Balance Threshold Value]
+                )
+            )
+EVALUATE
+ROW ( "Days Below Threshold", [Days Below Threshold] )
+*/
