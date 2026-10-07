@@ -21,6 +21,8 @@ import pendulum
 from airflow.exceptions import AirflowFailException, AirflowSkipException
 from airflow.sdk import Asset, Param, dag, get_current_context, task
 
+from src.monitoring.callbacks import on_task_failure  # light: stdlib only
+
 # Heavy imports (pandas, pyarrow, boto3) happen inside tasks: the DAG processor re-reads this
 # file often, and slow top-level imports slow down scheduling for every DAG.
 
@@ -34,6 +36,8 @@ default_args = {
     "retry_exponential_backoff": True,
     "max_retry_delay": timedelta(minutes=10),
     "execution_timeout": timedelta(minutes=15),
+    # Email when a task fails for good (after retries). Settings in .env (EMAIL_USER, ...).
+    "on_failure_callback": on_task_failure,
 }
 
 
