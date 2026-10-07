@@ -222,6 +222,24 @@ start → stage → has_changes → extract → parse → transform → publish 
 | Assets | `publish` and `load` declare the Parquet dataset and the fact table as outputs, so downstream DAGs can be triggered by new data |
 | Fast parsing | Heavy imports happen inside tasks, not at the top of the DAG file |
 
+## Monitoring and alerting
+
+`src/monitoring/` holds plain functions, tested without Airflow or a mail server:
+
+| Module | Job |
+|---|---|
+| `notify.py` | Send email over SMTP (Gmail by default), settings from `.env` |
+| `callbacks.py` | Airflow `on_failure_callback` on every task of both DAGs: task, run, error, log link |
+| `checks.py` | Staleness, failure and quality-drift checks, each returning critical / warning findings |
+| `daily.py` | The `sikatrack_monitoring` DAG's task: gather state, run checks, email the digest |
+| `watchdog.py` | Runs on Windows (Task Scheduler) to catch the stack itself being down |
+
+Each pipeline run writes a **heartbeat** (`state/pipeline_heartbeat.txt` in the processed bucket)
+in its `stage` task, even when it then skips, so monitoring can tell a quiet day from a stopped
+pipeline. Each run report now also carries the parse numbers, so the digest and the drift
+checks can see the parse rate. See the [Runbook](runbook.md#monitoring-and-alerts) for setup,
+limits and how to silence alerts.
+
 ## What's next
 
 1. The Power BI dashboard on `dw.v_fact_transaction`.

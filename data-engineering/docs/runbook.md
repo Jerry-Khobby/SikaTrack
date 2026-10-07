@@ -31,6 +31,72 @@ For a one-off run without the scheduler:
 docker compose exec airflow-scheduler python -m src.orchestration.pipeline
 ```
 
+## Monitoring and alerts
+
+Alerts go by email, from the Gmail account in `.env` (`EMAIL_USER`, `EMAIL_PASS` = a Gmail **app
+password**) to `ALERT_EMAIL_TO` (default: the same address). Three parts:
+
+| Part | Runs | Emails |
+|---|---|---|
+| Failure callback on every task | Inside Airflow, whenever a task fails for good (after retries) | `FAILED: <dag>.<task>` with the run, attempt, error and a link to the log |
+| `sikatrack_monitoring` DAG | Inside Airflow, daily at 06:00 UTC (after the midnight pipeline run) | `ACTION NEEDED: ...` when something is broken, otherwise `Daily digest: all good` with the day's numbers |
+| Watchdog (`scripts/watchdog.cmd`) | On Windows, via Task Scheduler, outside Docker | `ACTION NEEDED: stack down` when Airflow, Postgres or RustFS don't answer, or the pipeline heartbeat is stale |
+
+The watchdog exists because Airflow can't report its own absence: if Docker is down, nothing
+inside it runs.
+
+### What the daily check looks at
+
+| Check | Level | Default limit (`.env`) |
+|---|---|---|
+| Pipeline hasn't run (no heartbeat) | critical | `MONITOR_MAX_HOURS_SINCE_PIPELINE=36` |
+| Last warehouse load failed | critical | |
+| A staged backup hasn't been loaded | critical | `MONITOR_MAX_DAYS_BACKUP_NOT_LOADED=2` |
+| Postgres or RustFS unreachable | critical | |
+| No new SMS backup recently | warning | `MONITOR_MAX_DAYS_SINCE_BACKUP=14` |
+| Parse rate drifting down | warning | `MONITOR_WARN_MIN_PARSE_RATE=0.98` (gate fails at 0.95) |
+| Category coverage drifting down / dropped since last load | warning | `MONITOR_WARN_MIN_CATEGORY_COVERAGE=0.95` (gate 0.90), `MONITOR_WARN_MAX_COVERAGE_DROP=0.02` |
+| Balance continuity drifting down | warning | `MONITOR_WARN_MIN_BALANCE_CONTINUITY=0.99` (gate 0.98) |
+| Unexplained balance gaps piling up | warning | `MONITOR_WARN_MAX_UNEXPLAINED_GAPS=10` (gate 20) |
+| Fewer transactions than the previous load | warning | |
+
+Warnings are deliberately tighter than the quality gates: you hear about drift while the
+pipeline still passes, instead of on the day it fails.
+
+### Set up (once)
+
+1. In `.env`: `EMAIL_USER`, `EMAIL_PASS` (and optionally `ALERT_EMAIL_TO`), then
+   `docker compose up -d` so the containers read them.
+2. In Airflow, switch on **sikatrack_monitoring** (new DAGs start paused).
+3. Watchdog: register it with Windows Task Scheduler (run once in PowerShell, as you):
+
+   ```powershell
+   schtasks /Create /TN "SikaTrack Watchdog" /SC DAILY /ST 08:00 /F `
+     /TR "E:\jerry\Downloads\SikaTrack\data-engineering\scripts\watchdog.cmd"
+   ```
+
+   It uses your Windows Python, so `pip install -r requirements.txt` there once.
+
+### Test it
+
+- **Digest:** in Airflow, trigger **sikatrack_monitoring**; the email arrives within a minute.
+- **Failure alert:** trigger **sikatrack_pipeline** with RustFS stopped
+  (`docker compose stop rustfs`); `stage` fails after its retries and the FAILED email arrives.
+  Then `docker compose start rustfs`.
+- **Watchdog:** `scripts\watchdog.cmd` from a terminal; it emails only if something is down.
+
+### Silence or tune
+
+| Want | Set in `.env` |
+|---|---|
+| No emails at all (they're logged instead) | `ALERTS_ENABLED=false` |
+| Only problem emails, no daily "all good" | `DIGEST_ENABLED=false` |
+| Pause the watchdog (e.g. while E: is unplugged) | `WATCHDOG_ENABLED=false` |
+| Other recipients | `ALERT_EMAIL_TO=a@x.com,b@y.com` |
+
+After changing `.env`, run `docker compose up -d` so Airflow picks it up (the watchdog reads it
+directly).
+
 ## Add a new backup
 
 1. Export your SMS with SMS Backup & Restore.

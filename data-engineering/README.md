@@ -29,7 +29,8 @@ On the current dataset (8,059 SMS, Nov 2025 – Oct 2026):
 | Postgres load with schema migrations | Done |
 | Airflow orchestration | Done: `dags/sikatrack_pipeline.py` |
 | Recurring-payment detection | Done: daily, weekly, fortnightly and monthly series |
-| Power BI dashboard | Planned |
+| Monitoring and email alerts | Done: failure alerts, daily digest with drift warnings, Windows watchdog |
+| Power BI dashboard | In progress (guide in docs/powerbi/) |
 
 ## Quick start
 
@@ -82,13 +83,14 @@ Everything is set in `.env`; `.env.example` documents every variable. The ones y
 
 ```
 data-engineering/
-├── dags/               sikatrack_pipeline.py (Airflow DAG: one task per step)
+├── dags/               sikatrack_pipeline.py (one task per step), sikatrack_monitoring.py (daily checks)
 ├── src/
 │   ├── extraction/     filter_sms.py (XML → MoMo CSV), momo_parser.py (CSV → parsed JSON)
 │   ├── transform/      clean, dedupe, counterparty, enrich, categorise, recurring, quality, schema, storage, run
 │   ├── lake/           store.py (S3 object store), raw_zone.py (staging backups), init_buckets.py
 │   ├── load/           warehouse.py (schema migrations + idempotent Postgres load)
-│   ├── orchestration/  pipeline.py (the steps), gates.py, state.py (change detection), run_id.py
+│   ├── orchestration/  pipeline.py (the steps), gates.py, state.py (change detection, heartbeat), run_id.py
+│   ├── monitoring/     notify, callbacks, checks, daily digest, watchdog (email alerts)
 │   └── utils/          constants.py (SMS templates), logging_config.py, fileio.py
 ├── sql/migrations/     numbered schema changes, applied by the load step
 ├── test/               pytest suite; samples.py holds SMS in real formats with fake data
