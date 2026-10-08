@@ -11,3 +11,4 @@ data-engineering/logs/
 
 # Power BI guide contains real spending totals
 data-engineering/docs/powerbi/*.pdf
+data-engineering/docs/powerbi/*.png
