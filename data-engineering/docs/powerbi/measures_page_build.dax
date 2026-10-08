@@ -1,0 +1,113 @@
+// Measures for the page-build workbook: card notes, status colours, and three chart
+// measures that stop at the last data date instead of running on to the end of the Date table.
+// Paste into DAX query view, Run, then click "Update model with changes".
+// The three "(updated)" ones replace measures you already have.
+
+DEFINE
+    // ---- updated: only compare months when exactly one month is selected
+    MEASURE '_Measures'[KPI Delta Text] =
+        VAR Change = [Money Out MoM %]
+        RETURN
+            IF (
+                NOT HASONEVALUE ( 'Date'[year_month] ),
+                "Pick a month to compare",
+                IF (
+                    ISBLANK ( Change ),
+                    "no previous month",
+                    IF ( Change > 0, UNICHAR ( 9650 ), UNICHAR ( 9660 ) ) & " "
+                        & FORMAT ( ABS ( Change ), "0.0%" ) & " vs last month"
+                )
+            )
+    MEASURE '_Measures'[KPI Delta Color] =
+        VAR Change = [Money Out MoM %]
+        RETURN
+            IF (
+                NOT HASONEVALUE ( 'Date'[year_month] ) || ISBLANK ( Change ),
+                "#52514e",
+                IF ( Change > 0, "#d03b3b", "#0ca30c" )
+            )
+
+    // ---- updated: blank after the last data date, so the line stops where the data does
+    MEASURE '_Measures'[Money Out 3M Avg] =
+        IF (
+            MIN ( 'Date'[full_date] ) <= [Data End Date],
+            DIVIDE (
+                CALCULATE (
+                    [Money Out],
+                    DATESINPERIOD ( 'Date'[full_date], MAX ( 'Date'[full_date] ), -3, MONTH )
+                ),
+                3
+            )
+        )
+
+    // ---- new: Money In delta (money coming in going up is good, so the colours flip)
+    MEASURE '_Measures'[Money In Delta Text] =
+        VAR Change = [Money In MoM %]
+        RETURN
+            IF (
+                NOT HASONEVALUE ( 'Date'[year_month] ),
+                "Pick a month to compare",
+                IF (
+                    ISBLANK ( Change ),
+                    "no previous month",
+                    IF ( Change > 0, UNICHAR ( 9650 ), UNICHAR ( 9660 ) ) & " "
+                        & FORMAT ( ABS ( Change ), "0.0%" ) & " vs last month"
+                )
+            )
+    MEASURE '_Measures'[Money In Delta Color] =
+        VAR Change = [Money In MoM %]
+        RETURN
+            IF (
+                NOT HASONEVALUE ( 'Date'[year_month] ) || ISBLANK ( Change ),
+                "#52514e",
+                IF ( Change > 0, "#0ca30c", "#d03b3b" )
+            )
+
+    // ---- new: the small grey line under each KPI number
+    MEASURE '_Measures'[Net Note] =
+        "GHS " & FORMAT ( [Own Money Moved], "#,0" ) & " moved between own accounts"
+    MEASURE '_Measures'[Fee Note] =
+        FORMAT ( [Fee Rate %], "0.00%" ) & " of money out"
+    MEASURE '_Measures'[Daily Note] =
+        "GHS " & FORMAT ( [Median Spend Size], "#,0.00" ) & " typical payment"
+    MEASURE '_Measures'[Top Category Note] =
+        FORMAT ( [Top Category Share %], "0.0%" ) & " of spending"
+    MEASURE '_Measures'[Coverage Note] = "of spending transactions"
+    MEASURE '_Measures'[Purpose Note] = "from your reference or the payee"
+    MEASURE '_Measures'[Spend Count Note] =
+        "GHS " & FORMAT ( [Avg Spend per Transaction], "#,0.00" ) & " average"
+    MEASURE '_Measures'[Fee Rate Note] = "of money out"
+    MEASURE '_Measures'[Cash-out Note] = "of all fees"
+    MEASURE '_Measures'[Series Found Note] = "of " & [Recurring Series] & " found"
+    MEASURE '_Measures'[Recurring Share Note] = "of all spending"
+    MEASURE '_Measures'[Threshold Note] =
+        "days under GHS " & FORMAT ( [Low Balance Threshold Value], "#,0" )
+
+    // ---- new: status colours for table text (always shown next to the word itself)
+    MEASURE '_Measures'[Series Status Color] =
+        IF ( [Series Is Active], "#0ca30c", "#8a8984" )
+    MEASURE '_Measures'[Run Status Color] =
+        IF ( SELECTEDVALUE ( 'Pipeline Runs'[status] ) = "succeeded", "#0ca30c", "#d03b3b" )
+
+    // ---- new: chart versions that stop at the last data date
+    MEASURE '_Measures'[Cumulative Fees (to date)] =
+        IF ( MIN ( 'Date'[full_date] ) <= [Data End Date], [Cumulative Fees] )
+    MEASURE '_Measures'[Wallet Balance (Chart)] =
+        VAR DataStart = CALCULATE ( MIN ( Transactions[occurred_at] ), REMOVEFILTERS () )
+        RETURN
+            IF (
+                MIN ( 'Date'[full_date] ) <= [Data End Date]
+                    && MAX ( 'Date'[full_date] ) >= INT ( DataStart ),
+                [Wallet Balance (End of Day)]
+            )
+
+EVALUATE
+ROW (
+    "KPI Delta Text", [KPI Delta Text],
+    "Net Note", [Net Note],
+    "Fee Note", [Fee Note],
+    "Daily Note", [Daily Note],
+    "Top Category Note", [Top Category Note],
+    "Series Found Note", [Series Found Note],
+    "Threshold Note", [Threshold Note]
+)
