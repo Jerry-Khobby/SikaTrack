@@ -159,9 +159,9 @@ DEFINE
 
     // 6.9 Insight text and dynamic titles
     MEASURE _Measures[Insight - Spending] =
-        "You spent " & FORMAT ( [Money Out], "GHS #,0" )
+        "You spent GHS " & FORMAT ( [Money Out], "#,0" )
             & " over " & [Days in Period] & " days, about "
-            & FORMAT ( [Avg Daily Spend], "GHS #,0" ) & " a day."
+            & "GHS " & FORMAT ( [Avg Daily Spend], "#,0" ) & " a day."
     MEASURE _Measures[Insight - Top Category] =
         "Biggest category: " & [Top Category] & " ("
             & FORMAT ( [Top Category Share %], "0%" ) & " of spending)."
@@ -170,7 +170,7 @@ DEFINE
             & " of your fees come from cash-outs. Paying merchants directly avoids them."
     MEASURE _Measures[Insight - Recurring] =
         [Active Recurring Series] & " recurring payments are still active, costing about "
-            & FORMAT ( [Recurring Monthly Cost (Active)], "GHS #,0" ) & " a month."
+            & "GHS " & FORMAT ( [Recurring Monthly Cost (Active)], "#,0" ) & " a month."
     MEASURE _Measures[Page Subtitle] =
         VAR Months = DISTINCTCOUNT ( 'Date'[year_month] )
         RETURN
