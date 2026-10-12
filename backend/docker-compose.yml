@@ -1,0 +1,67 @@
+# SikaTrack backend. Joins the data stack's network to reach Postgres (warehouse) and RustFS,
+# so start the data stack first:  cd ../data-engineering && docker compose up -d
+#
+#   cp .env.example .env     # then fill it in
+#   docker compose up -d --build
+#
+# API:  http://localhost:8000/docs     Health: /health   Readiness: /ready
+
+name: sikatrack-backend
+
+x-api: &api
+  image: sikatrack-api:local
+  env_file: .env
+  environment:
+    # Inside Docker, services reach each other by name; these override the host values in .env
+    DATABASE_HOST: warehouse
+    DATABASE_PORT: "5432"
+    S3_ENDPOINT: http://rustfs:9000
+
+services:
+  # One-shot: create the sikatrack_api login and the app schema (idempotent).
+  # The only service that sees the warehouse admin password, from the data stack's .env.
+  api-db-init:
+    image: postgres:16-alpine
+    env_file:
+      - ../data-engineering/.env
+      - .env
+    command:
+      - sh
+      - -c
+      - >-
+        PGPASSWORD="$$WAREHOUSE_PASSWORD" psql -v ON_ERROR_STOP=1 -h warehouse
+        -U "$$WAREHOUSE_USER" -d "$$WAREHOUSE_DB"
+        -v api_password="$$DATABASE_PASSWORD" -f /sql/init_db.sql
+    volumes:
+      - ./scripts/init_db.sql:/sql/init_db.sql:ro
+    restart: "no"
+
+  # One-shot: apply app-schema migrations. Builds the image the api service reuses.
+  api-migrate:
+    <<: *api
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      api-db-init:
+        condition: service_completed_successfully
+    restart: "no"
+
+  api:
+    <<: *api
+    pull_policy: never  # built by api-migrate; building in two services at once races
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      api-migrate:
+        condition: service_completed_successfully
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+networks:
+  default:
+    name: ${DATA_STACK_NETWORK:-data-engineering_sikatrack}
+    external: true
