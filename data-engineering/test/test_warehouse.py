@@ -87,7 +87,7 @@ def query(conn, sql):
 
 
 def test_migrations_apply_once(conn):
-    assert migrate(conn) == ["001_star_schema", "002_categorisation", "003_recurring"]
+    assert migrate(conn) == ["001_star_schema", "002_categorisation", "003_recurring", "004_dashboard_views"]
     assert migrate(conn) == []
     assert query(conn, "SELECT count(*) FROM dw.dim_date")[0][0] > 4000
 
@@ -174,9 +174,9 @@ def test_migrations_upgrade_a_database_created_before_they_were_tracked(conn):
     with conn, conn.cursor() as cur:
         cur.execute((Path(__file__).parents[1] / "sql/migrations/001_star_schema.sql").read_text(encoding="utf-8"))
 
-    assert migrate(conn) == ["002_categorisation", "003_recurring"]
+    assert migrate(conn) == ["002_categorisation", "003_recurring", "004_dashboard_views"]
     assert query(conn, "SELECT version FROM dw.schema_migration ORDER BY version") == [
-        ("001_star_schema",), ("002_categorisation",), ("003_recurring",)]
+        ("001_star_schema",), ("002_categorisation",), ("003_recurring",), ("004_dashboard_views",)]
 
 
 def test_missing_migrations_folder_fails_loudly(conn, monkeypatch, tmp_path):
@@ -232,3 +232,29 @@ def test_monitoring_reads_load_history(conn, parquet):
 
     assert [r["run_id"] for r in runs] == ["run-1"]
     assert runs[0]["status"] == "succeeded" and runs[0]["quality_report"]["rows_out"] == 4
+
+
+def test_dashboard_views_match_the_facts(conn, parquet):
+    migrate(conn)
+    load_transactions(conn, parquet, "run-1")
+
+    facts = query(conn, """
+        SELECT sum(amount) FILTER (WHERE signed_amount < 0 AND NOT is_internal_transfer),
+               sum(amount) FILTER (WHERE signed_amount > 0 AND NOT is_internal_transfer)
+        FROM dw.fact_transaction""")[0]
+    assert query(conn, "SELECT sum(money_out), sum(money_in) FROM mart.transactions") == [facts]
+    assert query(conn, "SELECT sum(money_out), sum(money_in) FROM mart.monthly_cashflow") == [facts]
+    assert query(conn, "SELECT transactions FROM mart.data_quality") == [(4,)]
+    assert len(query(conn, "SELECT insight FROM mart.insights")) == 4
+    assert all(name.startswith("Person #") or kind != "person" for name, kind in query(
+        conn, "SELECT counterparty, counterparty_kind FROM mart.transactions"))
+
+
+def test_dashboard_reader_sees_marts_but_not_raw_tables(conn):
+    migrate(conn)
+    with conn.cursor() as cur:
+        cur.execute("SET ROLE mart_reader")
+        cur.execute("SELECT count(*) FROM mart.transactions")
+        with pytest.raises(psycopg2.errors.InsufficientPrivilege):
+            cur.execute("SELECT raw_text FROM dw.fact_transaction")
+    conn.rollback()
