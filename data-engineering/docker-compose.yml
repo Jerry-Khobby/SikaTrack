@@ -3,7 +3,7 @@
 #                         Airflow (orchestrates every step)
 #   SMS backup XML ──► RustFS raw ──► pandas transform ──► RustFS processed (Parquet)
 #                                                              │
-#                                  Power BI ◄── Postgres star schema (warehouse) ◄┘
+#                       Metabase / Power BI ◄── Postgres star schema (warehouse) ◄┘
 #
 # Usage:
 #   cp .env.example .env            # then fill in the secrets
@@ -12,6 +12,7 @@
 # Airflow UI:    http://localhost:8080   (user/pass from .env)
 # RustFS console: http://localhost:9001/rustfs/console/   (S3-compatible; MinIO no longer ships images)
 # Power BI:      Get Data -> PostgreSQL -> localhost:5434, database sikatrack_dw
+# Metabase:      http://localhost:3000   (dashboards on the mart views; setup in docs/metabase.md)
 
 # ---------------------------------------------------------------------
 # Shared Airflow config (Airflow 3: api-server + scheduler + dag-processor)
@@ -214,10 +215,86 @@ services:
       <<: *airflow-depends
     restart: unless-stopped
 
+  # ===================================================================
+  # Metabase (dashboards)
+  # ===================================================================
+
+  # Metabase's own application DB (questions, dashboards, users), kept apart from the warehouse
+  metabase-db:
+    image: postgres:16-alpine
+    container_name: sikatrack-metabase-db
+    environment:
+      POSTGRES_DB: metabase
+      POSTGRES_USER: metabase
+      POSTGRES_PASSWORD: ${METABASE_DB_PASSWORD}
+    volumes:
+      - metabase_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metabase -d metabase"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sikatrack
+
+  # One-shot: create/update the read-only login Metabase uses (members of mart_reader see
+  # only the mart views). Idempotent; re-run after changing METABASE_READER_PASSWORD.
+  metabase-reader-init:
+    image: postgres:16-alpine
+    container_name: sikatrack-metabase-reader-init
+    environment:
+      PGHOST: warehouse
+      PGUSER: ${WAREHOUSE_USER}
+      PGPASSWORD: ${WAREHOUSE_PASSWORD}
+      PGDATABASE: ${WAREHOUSE_DB}
+      METABASE_READER_PASSWORD: ${METABASE_READER_PASSWORD}
+    command: ["sh", "-c", "psql -v ON_ERROR_STOP=1 -v reader_password=\"$$METABASE_READER_PASSWORD\" -f /sql/metabase_reader.sql"]
+    volumes:
+      - ./scripts/metabase_reader.sql:/sql/metabase_reader.sql:ro
+    depends_on:
+      warehouse:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - sikatrack
+
+  metabase:
+    image: metabase/metabase:v0.63.16.6
+    container_name: sikatrack-metabase
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_HOST: metabase-db
+      MB_DB_PORT: "5432"
+      MB_DB_DBNAME: metabase
+      MB_DB_USER: metabase
+      MB_DB_PASS: ${METABASE_DB_PASSWORD}
+      MB_ANON_TRACKING_ENABLED: "false"
+      MB_CHECK_FOR_UPDATES: "false"
+      JAVA_TIMEZONE: Africa/Accra
+      JAVA_OPTS: -Xmx1g
+    ports:
+      - "${METABASE_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail -s http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    depends_on:
+      metabase-db:
+        condition: service_healthy
+      metabase-reader-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - sikatrack
+
 volumes:
   rustfs_data:
   warehouse_data:
   airflow_db_data:
+  metabase_db_data:
 
 networks:
   sikatrack:
