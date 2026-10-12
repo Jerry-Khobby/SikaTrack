@@ -1,7 +1,47 @@
 # SikaTrack backend
 
-The API between the React Native app and everything behind it. **Design stage: no code yet.**
-This folder holds the plan and the contracts the app and the API will both be built against.
+The API between the React Native app and everything behind it. **Phase 1 (skeleton) is
+built:** the FastAPI project, settings, logging, errors, `GET /health`, `GET /ready`, the `app`
+schema migrations, Docker and CI. The docs below are the contract the rest is built against.
+
+## Run it
+
+The backend joins the data stack's Docker network, so start that first.
+
+```bash
+cd ../data-engineering && docker compose up -d     # warehouse + RustFS
+cd ../backend
+cp .env.example .env                                # then fill in the passwords and S3 keys
+docker compose up -d --build                        # creates the DB login, migrates, starts the API
+```
+
+Then: http://localhost:8000/docs (interactive API docs), http://localhost:8000/ready.
+
+To work on it without Docker for the API (Postgres and RustFS still in Docker):
+
+```bash
+python -m venv .venv && .venv\Scriptsctivate
+pip install -e ".[dev]"
+alembic upgrade head
+uvicorn sikatrack_api.main:create_app --factory --reload
+```
+
+Checks (the same ones CI runs):
+
+```bash
+ruff check . && ruff format --check .
+mypy
+pytest                                    # integration tests skip unless TEST_DATABASE_URL is set
+```
+
+| Endpoint | Answers | Use |
+|---|---|---|
+| `GET /health` | `200 {"status": "ok", "version": ...}` while the process runs; never touches a dependency | Docker health check (restart if dead) |
+| `GET /ready` | `200` when Postgres and RustFS both answer; `503` naming the one that didn't (never why) | Watchdog, load balancer (send traffic or not) |
+
+Every response carries `X-Request-ID`; every error is an RFC 9457 problem document with a stable
+`code` (see [docs/api-contract.md](docs/api-contract.md#errors)). Logs are JSON lines with the
+request ID and never contain SMS text, tokens, phone numbers or request bodies.
 
 | Document | What it covers |
 |---|---|
@@ -107,7 +147,7 @@ The data is financial and personal, so these are requirements, not extras:
 - **Phone numbers:** stored normalised (`+233...`); counterparty phone numbers are never returned
   by the API (the warehouse already hides them from Power BI).
 
-## Folder layout (when we build it)
+## Folder layout
 
 ```text
 backend/
