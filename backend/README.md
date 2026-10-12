@@ -137,7 +137,7 @@ Each phase ends with something that works end to end.
 
 | Phase | Build | Done when |
 |---|---|---|
-| **0. Groundwork** | Make `data-engineering` installable; add `user_id` to the warehouse (migration `004`, see [data-model](docs/data-model.md#warehouse-changes-dw)); run the pipeline per user | Your existing data loads under your user ID, all data-engineering tests pass, Power BI still refreshes |
+| **0. Groundwork** | Make `data-engineering` installable; add `user_id` to the warehouse (migration `005`, see [data-model](docs/data-model.md#warehouse-changes-dw)); run the pipeline per user | Your existing data loads under your user ID, all data-engineering tests pass, Power BI still refreshes |
 | **1. Skeleton** | FastAPI project, settings, `/health`, `/ready`, Alembic, `app` schema, Docker service, CI job | `docker compose up` serves `/docs`; CI runs the backend tests |
 | **2. Auth** | OTP request/verify, tokens, refresh rotation, `/v1/me`, devices | Sign in from `curl` with the console OTP provider; refresh and logout work; tokens expire |
 | **3. Ingestion** | `/v1/config`, `POST /v1/sms/batches`, raw-zone writes, provisional parse, sync status, pipeline trigger, internal pipeline event | Uploading SMS twice creates nothing new; a new SMS shows as provisional, then final after the pipeline runs |

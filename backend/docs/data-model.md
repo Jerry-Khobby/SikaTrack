@@ -215,7 +215,7 @@ app.audit_event (
 
 ## Warehouse changes (`dw`)
 
-The warehouse is single-user today. Migration **`004_users`** in
+The warehouse is single-user today. Migration **`005_users`** in
 `data-engineering/sql/migrations/` makes it multi-user. This is phase 0 and the biggest change
 the backend forces on the data layer.
 
