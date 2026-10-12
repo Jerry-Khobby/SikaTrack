@@ -1,6 +1,8 @@
 data-engineering/data/**/*.xml
 .venv
 __init__.py
+# ...except the backend's: its package needs them (version, imports)
+!backend/**/__init__.py
 data-engineering/data/momo_sms.csv
 __pycache__ 
 /__pycache__ 

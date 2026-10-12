@@ -1,0 +1,65 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sikatrack-api"
+version = "0.1.0"
+description = "SikaTrack backend: the API between the mobile app and the data platform"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.143,<1",
+    "uvicorn[standard]>=0.54,<1",
+    "pydantic>=2.14,<3",
+    "pydantic-settings>=2.15,<3",
+    "sqlalchemy[asyncio]>=2.1,<2.2",
+    "asyncpg>=0.32,<1",
+    "alembic>=1.20,<2",
+    "boto3>=1.43,<2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx2>=2.13,<3",  # what Starlette's TestClient uses from Starlette 1.7
+    "pytest>=9.1,<10",
+    "moto[s3]>=5.2,<6",
+    "python-dotenv>=1.0,<2",
+    "ruff>=0.17,<1",
+    "mypy>=2.4,<3",
+    "boto3-stubs[s3]>=1.43,<2",
+]
+
+[tool.hatch.build]
+# The repo's root .gitignore excludes every __init__.py; the package needs them, so the build
+# lists its own files instead of following git's ignore rules.
+ignore-vcs = true
+exclude = ["**/__pycache__", "**/*.pyc"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sikatrack_api"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = ["integration: needs the Docker Postgres (skipped when unreachable, unless REQUIRE_DATABASE=1)"]
+filterwarnings = ["error::DeprecationWarning:sikatrack_api.*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF", "SIM", "PT"]
+ignore = ["S101"]  # assert is how pytest tests
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/*" = ["S"]
+"tests/*" = ["S105", "S106"]  # fake credentials for fake services
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+packages = ["sikatrack_api"]
