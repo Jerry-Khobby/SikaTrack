@@ -101,6 +101,7 @@ database hasn't seen yet, in order, each in its own transaction, and records the
 | `001_star_schema` | The star schema, `etl_run`, and the Power BI view |
 | `002_categorisation` | Categories and their groups, `fact_transaction.category_rule`, the column in the view |
 | `003_recurring` | `fact_transaction.recurring_series` and its index, the column in the view |
+| `004_dashboard_views` | The `mart` schema: dashboard-ready views (see [Metabase](metabase.md#the-views)) and the read-only `mart_reader` role |
 
-To change the schema, add the next file (`003_….sql`); never edit one that has run. A
+To change the schema, add the next file (`005_….sql`); never edit one that has run. A
 database created before migrations were tracked is recognised and only gets the newer files.

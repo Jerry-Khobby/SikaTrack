@@ -1,10 +1,10 @@
 # SikaTrack: Data Engineering Layer
 
 Turns an Android SMS backup into clean, deduplicated, categorised mobile-money transactions in
-a Postgres star schema, ready for a Power BI dashboard. Runs on Docker, orchestrated by Airflow.
+a Postgres star schema, ready for dashboards (Metabase, or Power BI). Runs on Docker, orchestrated by Airflow.
 
 ```
-SMS backup (.xml) → raw zone → extract → parse → transform → processed zone → Postgres → Power BI
+SMS backup (.xml) → raw zone → extract → parse → transform → processed zone → Postgres → Metabase / Power BI
                     (RustFS)                                   (RustFS)
 ```
 
@@ -30,7 +30,8 @@ On the current dataset (8,059 SMS, Nov 2025 – Oct 2026):
 | Airflow orchestration | Done: `dags/sikatrack_pipeline.py` |
 | Recurring-payment detection | Done: daily, weekly, fortnightly and monthly series |
 | Monitoring and email alerts | Done: failure alerts, daily digest with drift warnings, Windows watchdog |
-| Power BI dashboard | In progress (guide in docs/powerbi/) |
+| Metabase dashboard | In progress: Metabase in the stack, `mart` views per page (docs/metabase.md) |
+| Power BI dashboard | On hold (guide in docs/powerbi/) |
 
 ## Quick start
 
@@ -53,6 +54,7 @@ The DAG stages the backup, processes every backup staged so far and loads Postgr
 | Airflow | http://localhost:8080 | `AIRFLOW_ADMIN_USER` / `AIRFLOW_ADMIN_PASSWORD` |
 | RustFS console (the lake) | http://localhost:9001/rustfs/console/ | `S3_ACCESS_KEY` / `S3_SECRET_KEY` |
 | Postgres (Power BI) | `localhost:5434`, database `sikatrack_dw`, view `dw.v_fact_transaction` | `WAREHOUSE_USER` / `WAREHOUSE_PASSWORD` |
+| Metabase | http://localhost:3000 (reads the `mart` views as `metabase_reader`) | Your Metabase admin account |
 
 ## Commands
 
@@ -131,3 +133,4 @@ Results are in the repository's **Actions** tab; a test-results file is attached
 - [Architecture](docs/architecture.md): how data flows, idempotency, quality gates, lineage, privacy, design decisions
 - [Data model](docs/data-model.md): the processed dataset, the star schema, categories, migrations
 - [Runbook](docs/runbook.md): running with Airflow, adding backups, SMS formats and category rules, handling failures
+- [Metabase](docs/metabase.md): setup, the `mart` views, and every dashboard card tab by tab
