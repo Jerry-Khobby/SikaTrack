@@ -102,6 +102,8 @@ database hasn't seen yet, in order, each in its own transaction, and records the
 | `002_categorisation` | Categories and their groups, `fact_transaction.category_rule`, the column in the view |
 | `003_recurring` | `fact_transaction.recurring_series` and its index, the column in the view |
 | `004_dashboard_views` | The `mart` schema: dashboard-ready views (see [Metabase](metabase.md#the-views)) and the read-only `mart_reader` role |
+| `005_users` | Multi-user: `dim_user`, a `user_key` on facts, counterparties and runs (uniqueness per user); the dashboards restricted to the legacy owner |
+| `006_api_views` | The `api` schema the backend reads, scoped to one user per session, and `api.forget_user` for account erasure |
 
-To change the schema, add the next file (`005_….sql`); never edit one that has run. A
+To change the schema, add the next file (`007_….sql`); never edit one that has run. A
 database created before migrations were tracked is recognised and only gets the newer files.

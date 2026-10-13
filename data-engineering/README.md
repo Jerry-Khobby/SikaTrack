@@ -31,6 +31,7 @@ On the current dataset (8,059 SMS, Nov 2025 – Oct 2026):
 | Recurring-payment detection | Done: daily, weekly, fortnightly and monthly series |
 | Monitoring and email alerts | Done: failure alerts, daily digest with drift warnings, Windows watchdog |
 | Metabase dashboard | In progress: Metabase in the stack, `mart` views per page (docs/metabase.md) |
+| Multi-user (for the app) | Done: per-user runs, app uploads, wallets and corrections from the backend ([runbook](docs/runbook.md#users-and-the-app)) |
 | Power BI dashboard | On hold (guide in docs/powerbi/) |
 
 ## Quick start

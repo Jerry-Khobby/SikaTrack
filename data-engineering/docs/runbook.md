@@ -97,6 +97,29 @@ pipeline still passes, instead of on the day it fails.
 After changing `.env`, run `docker compose up -d` so Airflow picks it up (the watchdog reads it
 directly).
 
+## Users and the app
+
+The warehouse holds every app user's data, each kept apart by `user_key`. The SMS backups in the
+raw zone belong to the **legacy owner** (you, before the app).
+
+| Run | Reads | Triggered by |
+|---|---|---|
+| Daily, or `user_id` empty | The backups (plus your app uploads once linked) | The schedule, or you |
+| `user_id` = an app user | That user's uploads (`users/<id>/sms/` in the raw bucket) | The backend, a couple of minutes after they upload |
+
+**Link your history to your app account** (once): put your user ID (a UUID, from the API's
+`GET /v1/me`) in `.env` as `LEGACY_OWNER_USER_ID`, then `docker compose up -d`. Do it before your
+first app upload; the next run links the rows, with no reload.
+
+Per-user settings come from the backend: an app user's own wallets (instead of
+`OWNER_NAMES`/`OWNER_NUMBERS`) and their category corrections, which win over the rules
+(`category_rule` = `user:override` or `user:counterparty`). A correction counts as a change, so
+the next run isn't skipped.
+
+When a run ends, the DAG tells the backend (`BACKEND_INTERNAL_URL`, `INTERNAL_API_TOKEN`), which
+moves the user's uploads from "processing" to done. If that call fails, the run still succeeds;
+the backend requeues uploads stuck for two hours.
+
 ## Add a new backup
 
 1. Export your SMS with SMS Backup & Restore.
