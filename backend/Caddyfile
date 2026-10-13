@@ -1,0 +1,37 @@
+# HTTPS in front of the API. The only way in from outside: the API itself isn't published.
+#
+# API_DOMAIN=localhost (default): Caddy's own local certificate authority (trust it with
+#   `docker compose exec proxy caddy trust` to stop browser warnings), for development.
+# API_DOMAIN=api.example.com: a real certificate from Let's Encrypt, renewed automatically.
+#   Point the domain's DNS at this machine and open ports 80 and 443 first.
+
+{$API_DOMAIN:localhost} {
+	encode zstd gzip
+
+	# The pipeline calls /internal on the Docker network; never from the internet
+	@internal path /internal /internal/*
+	respond @internal 404
+
+	# A little above the API's own 1 MB upload limit, so the API answers with a clear error
+	request_body {
+		max_size 2MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	reverse_proxy api:8000 {
+		# The phone's address, for per-IP rate limits (uvicorn trusts it from this proxy)
+		header_up X-Forwarded-For {remote_host}
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

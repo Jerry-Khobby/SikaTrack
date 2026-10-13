@@ -1,0 +1,12 @@
+# The build context is the repository root; only these paths may enter the image build.
+# Everything else (every .env, SMS backups, the data lake's local files) stays out.
+*
+!backend/pyproject.toml
+!backend/README.md
+!backend/src
+!backend/alembic
+!backend/alembic.ini
+!data-engineering/pyproject.toml
+!data-engineering/src
+**/__pycache__
+**/*.pyc

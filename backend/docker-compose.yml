@@ -4,7 +4,8 @@
 #   cp .env.example .env     # then fill it in
 #   docker compose up -d --build
 #
-# API:  http://localhost:8000/docs     Health: /health   Readiness: /ready
+# The app talks to the HTTPS proxy:  https://localhost (or your API_DOMAIN)
+# For debugging on this machine only: http://127.0.0.1:8000/docs (not reachable from outside)
 
 name: sikatrack-backend
 
@@ -16,6 +17,10 @@ x-api: &api
     DATABASE_HOST: warehouse
     DATABASE_PORT: "5432"
     S3_ENDPOINT: http://rustfs:9000
+    AIRFLOW_URL: http://airflow-apiserver:8080
+    # Only the proxy and the pipeline reach the API (on this Docker network), so trusting their
+    # X-Forwarded-For gives the phone's address. Never publish the API's port to the internet.
+    FORWARDED_ALLOW_IPS: "*"
 
 services:
   # One-shot: create the sikatrack_api login and the app schema (idempotent).
@@ -39,7 +44,9 @@ services:
   # One-shot: apply app-schema migrations. Builds the image the api service reuses.
   api-migrate:
     <<: *api
-    build: .
+    build:
+      context: ..  # the repo root: the API shares the pipeline's code
+      dockerfile: backend/Dockerfile
     command: ["alembic", "upgrade", "head"]
     depends_on:
       api-db-init:
@@ -50,7 +57,7 @@ services:
     <<: *api
     pull_policy: never  # built by api-migrate; building in two services at once races
     ports:
-      - "${API_PORT:-8000}:8000"
+      - "127.0.0.1:${API_PORT:-8000}:8000"  # this machine only, for debugging; the world uses the proxy
     depends_on:
       api-migrate:
         condition: service_completed_successfully
@@ -60,6 +67,26 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
+
+  # HTTPS in front of the API: certificates, security headers, /internal blocked (Caddyfile)
+  proxy:
+    image: caddy:2.10.2-alpine
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-localhost}
+    ports:
+      - "${PROXY_HTTP_PORT:-80}:80"
+      - "${PROXY_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data  # certificates: keep them, or Let's Encrypt rate-limits re-issuing
+      - caddy_config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
 
 networks:
   default:

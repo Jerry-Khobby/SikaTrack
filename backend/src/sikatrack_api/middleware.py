@@ -43,7 +43,12 @@ class RequestContextMiddleware:
             nonlocal status, started_response
             if message["type"] == "http.response.start":
                 status, started_response = message["status"], True
-                MutableHeaders(scope=message)[REQUEST_ID_HEADER] = request_id
+                headers = MutableHeaders(scope=message)
+                headers[REQUEST_ID_HEADER] = request_id
+                headers.setdefault("X-Content-Type-Options", "nosniff")
+                # Personal financial data: never stored by the phone's HTTP cache unless an
+                # endpoint says otherwise (only /v1/config does)
+                headers.setdefault("Cache-Control", "no-store")
             await send(message)
 
         try:
