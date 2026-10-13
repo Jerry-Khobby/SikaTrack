@@ -35,6 +35,28 @@ def result(make_xml, tmp_path):
     return stats, transactions, tmp_path / "data"
 
 
+def test_an_app_user_gets_their_own_outputs(upload_sms, tmp_path):
+    raw, processed = get_store("RAW_BUCKET"), get_store("PROCESSED_BUCKET")
+    upload_sms(raw, "user-1", [(s.MTN, "2025-11-18T09:00:00", s.PAYMENT_RECEIVED)])
+
+    stats = run_pipeline(None, tmp_path / "data", user_id="user-1", load=False, owner=Owner())
+
+    assert stats["transform"]["rows_out"] == 1
+    assert processed.exists("users/user-1/transactions/transactions.parquet")
+    assert not processed.exists("transactions/transactions.parquet")  # the legacy owner's is untouched
+
+
+def test_the_linked_legacy_owner_keeps_the_original_outputs(make_xml, upload_sms, tmp_path, monkeypatch):
+    monkeypatch.setenv("LEGACY_OWNER_USER_ID", "owner-1")
+    raw, processed = get_store("RAW_BUCKET"), get_store("PROCESSED_BUCKET")
+    upload_sms(raw, "owner-1", [(s.MTN, "2026-02-01T09:00:00", s.MERCHANT_PAID)])
+
+    stats = run_pipeline(make_xml(BACKUP), tmp_path / "data", load=False, owner=Owner())
+
+    assert stats["extract"]["sources"] == 2  # the backup and the owner's app upload
+    assert processed.exists("transactions/transactions.parquet")
+
+
 def test_every_step_reports_stats(result):
     stats, _, _ = result
     assert list(stats) == ["stage", "extract", "parse", "transform", "publish", "run_id"]

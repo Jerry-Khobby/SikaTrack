@@ -5,6 +5,9 @@ transaction. A fact row is only touched when its data changed, so loading the sa
 Parquet twice inserts and updates nothing the second time. A failed load rolls back
 completely and is recorded in dw.etl_run.
 
+Every load is for one user (dw.dim_user): their facts and counterparties are keyed by
+user_key, so two users never share or overwrite rows.
+
 Schema changes are numbered SQL files in sql/migrations/; migrate() applies the ones the
 database hasn't seen yet and records them in dw.schema_migration.
 """
@@ -92,7 +95,32 @@ def _key_map(cur, sql: str) -> dict:
     return {tuple(row[:-1]) if len(row) > 2 else row[0]: row[-1] for row in cur.fetchall()}
 
 
-def _upsert_dimensions(cur, df: pd.DataFrame) -> None:
+def _user_key(cur, user_id: str | None, is_legacy_owner: bool) -> int:
+    """The load's user. The legacy owner's row is linked to their app account the first time a
+    load names it, so the history loaded before the app keeps its user_key."""
+    if is_legacy_owner and user_id:
+        cur.execute("SELECT 1 FROM dw.dim_user WHERE user_id = %s AND NOT is_legacy_owner", (user_id,))
+        if cur.fetchone():
+            raise ValueError(
+                f"User {user_id} already has warehouse rows of their own, so the legacy history can't "
+                "be linked to them automatically. Set LEGACY_OWNER_USER_ID before that user's first upload."
+            )
+        cur.execute("UPDATE dw.dim_user SET user_id = %s WHERE is_legacy_owner AND user_id IS NULL",
+                    (user_id,))
+    if user_id is None:
+        if not is_legacy_owner:
+            raise ValueError("An app user's load needs their user_id")
+        cur.execute("SELECT user_key FROM dw.dim_user WHERE is_legacy_owner")
+    else:
+        cur.execute("""
+            INSERT INTO dw.dim_user (user_id) VALUES (%s)
+            ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
+            RETURNING user_key
+        """, (user_id,))
+    return cur.fetchone()[0]
+
+
+def _upsert_dimensions(cur, df: pd.DataFrame, user_key: int) -> None:
     providers = sorted(df["provider"].unique())
     execute_values(cur, """
         INSERT INTO dw.dim_provider (provider_code, provider_name) VALUES %s
@@ -117,11 +145,12 @@ def _upsert_dimensions(cur, df: pd.DataFrame) -> None:
         first_seen=("occurred_at", "min"),
         last_seen=("occurred_at", "max"),
     ).reset_index()
+    counterparties["user_key"] = user_key
     execute_values(cur, """
         INSERT INTO dw.dim_counterparty AS c
-            (counterparty_name, counterparty_phone, counterparty_kind, first_seen_at, last_seen_at)
+            (user_key, counterparty_name, counterparty_phone, counterparty_kind, first_seen_at, last_seen_at)
         VALUES %s
-        ON CONFLICT (counterparty_name) DO UPDATE SET
+        ON CONFLICT (user_key, counterparty_name) DO UPDATE SET
             counterparty_phone = COALESCE(EXCLUDED.counterparty_phone, c.counterparty_phone),
             counterparty_kind  = EXCLUDED.counterparty_kind,
             first_seen_at      = LEAST(c.first_seen_at, EXCLUDED.first_seen_at),
@@ -130,14 +159,16 @@ def _upsert_dimensions(cur, df: pd.DataFrame) -> None:
               IS DISTINCT FROM
               (COALESCE(EXCLUDED.counterparty_phone, c.counterparty_phone), EXCLUDED.counterparty_kind,
                LEAST(c.first_seen_at, EXCLUDED.first_seen_at), GREATEST(c.last_seen_at, EXCLUDED.last_seen_at))
-    """, _rows(counterparties, ["counterparty", "phone", "kind", "first_seen", "last_seen"]))
+    """, _rows(counterparties, ["user_key", "counterparty", "phone", "kind", "first_seen", "last_seen"]))
 
 
-def _fact_frame(cur, df: pd.DataFrame) -> pd.DataFrame:
+def _fact_frame(cur, df: pd.DataFrame, user_key: int) -> pd.DataFrame:
     """Swap natural values for dimension surrogate keys (-1 = Unknown member)."""
     providers = _key_map(cur, "SELECT provider_code, provider_key FROM dw.dim_provider")
     types = _key_map(cur, "SELECT template, transaction_type, transaction_type_key FROM dw.dim_transaction_type")
-    counterparties = _key_map(cur, "SELECT counterparty_name, counterparty_key FROM dw.dim_counterparty")
+    counterparties = _key_map(
+        cur, f"SELECT counterparty_name, counterparty_key FROM dw.dim_counterparty WHERE user_key = {int(user_key)}"
+    )
     categories = _key_map(cur, "SELECT category_name, category_key FROM dw.dim_category")
 
     unknown = sorted(set(df["category"]) - set(categories))
@@ -149,15 +180,16 @@ def _fact_frame(cur, df: pd.DataFrame) -> pd.DataFrame:
     facts["transaction_type_key"] = [types[k] for k in zip(facts["template"], facts["transaction_type"])]
     facts["counterparty_key"] = facts["counterparty"].map(counterparties).fillna(-1).astype(int)
     facts["category_key"] = facts["category"].map(categories)
+    facts["user_key"] = user_key
     return facts
 
 
 def _upsert_facts(cur, facts: pd.DataFrame, run_id: str) -> dict:
-    columns = FACT_COLUMNS + ["pipeline_run_id"]
-    rows = [row + (run_id,) for row in _rows(facts, FACT_COLUMNS)]
+    columns = ["user_key"] + FACT_COLUMNS + ["pipeline_run_id"]
+    rows = [row + (run_id,) for row in _rows(facts, ["user_key"] + FACT_COLUMNS)]
     returned = execute_values(cur, f"""
         INSERT INTO dw.fact_transaction AS f ({", ".join(columns)}) VALUES %s
-        ON CONFLICT (transaction_nk) DO UPDATE SET
+        ON CONFLICT (user_key, transaction_nk) DO UPDATE SET
             {", ".join(f"{c} = EXCLUDED.{c}" for c in _DATA_COLUMNS)},
             pipeline_run_id = EXCLUDED.pipeline_run_id,
             updated_at = NOW()
@@ -179,17 +211,29 @@ def _json(report: dict | None) -> Json | None:
     return Json(report, dumps=lambda o: json.dumps(o, default=str)) if report is not None else None
 
 
-def load_transactions(conn, parquet_path: Path, run_id: str, report: dict | None = None) -> dict:
-    """Upsert dimensions + facts in one transaction; returns row counts."""
+def load_transactions(
+    conn,
+    parquet_path: Path,
+    run_id: str,
+    report: dict | None = None,
+    *,
+    user_id: str | None = None,
+    is_legacy_owner: bool = True,
+) -> dict:
+    """Upsert one user's dimensions + facts in one transaction; returns row counts.
+
+    user_id: the app user (None for the legacy owner before they're linked to an account).
+    """
     df = pd.read_parquet(parquet_path)
     try:
         with conn, conn.cursor() as cur:
+            user_key = _user_key(cur, user_id, is_legacy_owner)
             cur.execute("""
-                INSERT INTO dw.etl_run (run_id, status) VALUES (%s, 'running')
+                INSERT INTO dw.etl_run (run_id, status, user_key) VALUES (%s, 'running', %s)
                 ON CONFLICT (run_id) DO UPDATE SET status = 'running', started_at = NOW(), error = NULL
-            """, (run_id,))
-            _upsert_dimensions(cur, df)
-            counts = _upsert_facts(cur, _fact_frame(cur, df), run_id)
+            """, (run_id, user_key))
+            _upsert_dimensions(cur, df, user_key)
+            counts = _upsert_facts(cur, _fact_frame(cur, df, user_key), run_id)
             cur.execute("""
                 UPDATE dw.etl_run SET status = 'succeeded', finished_at = NOW(), rows_in = %s,
                     rows_inserted = %s, rows_updated = %s, rows_unchanged = %s, quality_report = %s

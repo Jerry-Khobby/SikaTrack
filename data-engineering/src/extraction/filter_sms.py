@@ -1,6 +1,7 @@
 import argparse
 import csv
 import hashlib
+import json
 import logging
 import xml.etree.ElementTree as ET
 from collections import Counter
@@ -10,7 +11,7 @@ from functools import partial
 from pathlib import Path
 from typing import BinaryIO, Callable, Sequence, Union
 
-from src.lake.raw_zone import list_backups
+from src.lake.raw_zone import list_sources
 from src.lake.store import ObjectStore
 from src.utils.constants import MOMO_KEYWORDS, MOMO_SENDERS
 from src.utils.fileio import atomic_write
@@ -72,6 +73,16 @@ def iter_sms(xml):
             elem.clear()
 
 
+def iter_jsonl(stream):
+    """App uploads: one JSON object per line ({"sender", "date_ms", "body", ...}), read in the
+    same shape as backup <sms> attributes, so both give the same message_id for the same SMS."""
+    # read() then split: an S3 body iterates in fixed-size chunks, not lines (uploads are <= 1 MB)
+    for line in stream.read().decode("utf-8").splitlines():
+        if line.strip():
+            sms = json.loads(line)
+            yield {"address": sms["sender"], "date": str(sms["date_ms"]), "body": sms["body"]}
+
+
 # ---------------------------------------------------------
 # Modes
 # ---------------------------------------------------------
@@ -116,8 +127,9 @@ def filter_momo_sms(sources: Union[Path, Sequence[Source]], output_path: Path) -
 
     for name, source in sources:
         log.info("Reading %s", name)
-        with _open(source) as xml:
-            for attrs in iter_sms(xml):
+        read = iter_jsonl if str(name).endswith(".jsonl") else iter_sms
+        with _open(source) as stream:
+            for attrs in read(stream):
                 total += 1
                 sender = attrs.get("address", "").strip()
                 body = attrs.get("body", "").strip()
@@ -173,11 +185,17 @@ def filter_momo_sms(sources: Union[Path, Sequence[Source]], output_path: Path) -
     }
 
 
-def filter_raw_zone(store: ObjectStore, output_path: Path) -> dict:
-    """Extract from every backup in the raw zone, so history accumulates across backups."""
-    keys = list_backups(store)
+def filter_raw_zone(
+    store: ObjectStore, output_path: Path, user_id: str | None = None, include_backups: bool = True
+) -> dict:
+    """Extract from every source of one user in the raw zone, so history accumulates.
+
+    The legacy owner's sources are the backups (plus their app uploads once linked); an app
+    user's are their uploads.
+    """
+    keys = list_sources(store, user_id, include_backups)
     if not keys:
-        raise FileNotFoundError(f"No backups staged in {store.name}; stage one first")
+        raise FileNotFoundError(f"No SMS staged in {store.name} for this user; stage some first")
     sources = [(f"{store.name}/{key}", partial(store.open, key)) for key in keys]
     return filter_momo_sms(sources, output_path)
 

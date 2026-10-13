@@ -84,3 +84,33 @@ def test_every_category_exists_in_the_warehouse_migrations():
                     for p in sorted((Path(__file__).parents[1] / "sql" / "migrations").glob("*.sql")))
     seeded = set(re.findall(r"\('([^']+)'\)", sql)) | {UNCATEGORIZED}
     assert set(CATEGORIES) <= seeded, set(CATEGORIES) - seeded
+
+
+def test_the_users_choices_win_over_the_rules():
+    import pandas as pd
+
+    from src.transform.categorise import apply_user_categories
+    from src.transform.config import UserCategories
+
+    df = pd.DataFrame({
+        "transaction_nk": ["mtn:1", "mtn:2", "mtn:3", "mtn:4"],
+        "counterparty": ["SHOP", "MUM", "MUM", "MUM"],
+        "is_internal_transfer": [False, False, False, True],
+        "category": ["Food", "Transfers-Personal", "Transfers-Personal", "Own Transfers"],
+        "category_rule": ["type:merchant", "default:person", "default:person", "own:transfer"],
+    })
+    choices = UserCategories(overrides={"mtn:1": "Bills", "mtn:3": "Health"},
+                             counterparty_defaults={"MUM": "Giving"})
+
+    out = apply_user_categories(df, choices)
+
+    assert list(out["category"]) == ["Bills", "Giving", "Health", "Own Transfers"]
+    assert list(out["category_rule"]) == ["user:override", "user:counterparty", "user:override", "own:transfer"]
+    assert apply_user_categories(df, UserCategories()) is df  # nothing chosen: untouched
+
+
+def test_choices_change_the_fingerprint():
+    from src.transform.config import UserCategories
+
+    assert UserCategories().fingerprint() != UserCategories(overrides={"mtn:1": "Bills"}).fingerprint()
+

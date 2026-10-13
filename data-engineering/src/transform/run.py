@@ -4,7 +4,7 @@ import logging
 
 import pandas as pd
 
-from src.transform.categorise import UNCATEGORIZED, categorise, category_report
+from src.transform.categorise import UNCATEGORIZED, apply_user_categories, categorise, category_report
 from src.transform.clean import clean
 from src.transform.config import TransformConfig
 from src.transform.counterparty import normalise_counterparties
@@ -35,6 +35,7 @@ def transform(raw: pd.DataFrame, config: TransformConfig) -> tuple[pd.DataFrame,
     if not (config.owner.names or config.owner.numbers):
         log.warning("OWNER_NAMES / OWNER_NUMBERS not set: transfers between your own wallets count as income/spend")
     df = categorise(df)
+    df = apply_user_categories(df, config.user_categories)
     _log_categories(df)
     df, series = flag_recurring(df)
     _log_recurring(df, series)

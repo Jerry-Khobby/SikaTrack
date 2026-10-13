@@ -62,3 +62,53 @@ def test_make_run_isolates_work_files_per_run():
     assert run.paths.data_dir.parts[-3:] == ("data", "work", "run-1")
     assert run.paths.parsed == run.paths.data_dir / "parsed_transactions.json"
     assert run.load is True  # Postgres is always part of the Docker stack
+
+
+def test_finished_runs_are_reported_to_the_backend(monkeypatch):
+    import json
+    import urllib.request
+
+    from src.orchestration.backend_events import notify_run_finished
+
+    sent = []
+
+    class Reply:
+        status = 204
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def fake_urlopen(request, timeout):
+        sent.append((request.full_url, request.headers["Authorization"], json.loads(request.data)))
+        return Reply()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setenv("BACKEND_INTERNAL_URL", "http://api:8000/")
+    monkeypatch.setenv("INTERNAL_API_TOKEN", "token-123")
+    started = datetime(2026, 10, 12, 9, tzinfo=timezone.utc)
+
+    assert notify_run_finished("user-1", "manual__1", "succeeded", started) is True
+    url, auth, body = sent[0]
+    assert (url, auth) == ("http://api:8000/internal/pipeline-events", "Bearer token-123")
+    assert (body["user_id"], body["status"], body["started_at"]) == ("user-1", "succeeded", started.isoformat())
+
+
+def test_reporting_is_skipped_without_a_user_or_backend_and_never_raises(monkeypatch):
+    import urllib.request
+
+    from src.orchestration.backend_events import notify_run_finished
+
+    def unreachable(request, timeout):
+        raise ConnectionRefusedError("api:8000")
+
+    monkeypatch.setattr(urllib.request, "urlopen", unreachable)
+    started = datetime.now(timezone.utc)
+    assert notify_run_finished("user-1", "r", "succeeded", started) is False  # no backend configured
+    monkeypatch.setenv("BACKEND_INTERNAL_URL", "http://api:8000")
+    monkeypatch.setenv("INTERNAL_API_TOKEN", "token-123")
+    assert notify_run_finished(None, "r", "succeeded", started) is False  # the unlinked legacy owner
+    assert notify_run_finished("user-1", "r", "failed", started) is False  # backend down: logged only
+

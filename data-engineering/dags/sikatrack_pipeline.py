@@ -7,6 +7,9 @@ SMS backups → raw zone → extract → parse → transform → processed zone 
 it into the raw zone (already-staged files are skipped) and rebuilds from **every** backup.
 
 **Params**
+- `user_id`: whose data to process. Empty (the daily run) means the legacy owner: the SMS
+  backups, plus their app uploads once `LEGACY_OWNER_USER_ID` links them to an app account.
+  The backend triggers a run with a user's ID after they upload SMS.
 - `force`: run even if no new backup or settings change was detected. Use it after
   changing parser templates or transform rules.
 - `load`: load the warehouse (default true).
@@ -42,10 +45,29 @@ default_args = {
 
 
 def _run(pipeline_run_id: str):
-    """Each run works in data/work/<pipeline_run_id>/."""
+    """Each run works in data/work/<pipeline_run_id>/, for the user in the run's params."""
     from src.orchestration.pipeline import make_run
 
-    return make_run(pipeline_run_id)
+    user_id = (get_current_context()["params"].get("user_id") or "").strip() or None
+    return make_run(pipeline_run_id, user_id=user_id)
+
+
+def _report_to_backend(context, status: str) -> None:
+    """Tell the backend this user's run ended (best effort; see src/orchestration/backend_events.py)."""
+    from src.orchestration.backend_events import notify_run_finished
+    from src.orchestration.pipeline import legacy_owner_user_id
+
+    dag_run = context["dag_run"]
+    user_id = ((dag_run.conf or {}).get("user_id") or "").strip() or legacy_owner_user_id()
+    notify_run_finished(user_id, dag_run.run_id, status, dag_run.start_date)
+
+
+def _run_succeeded(context) -> None:
+    _report_to_backend(context, "succeeded")
+
+
+def _run_failed(context) -> None:
+    _report_to_backend(context, "failed")
 
 
 def _without_retries(step, run):
@@ -65,7 +87,10 @@ def _without_retries(step, run):
     catchup=False,          # each run rebuilds from all backups; past days add nothing
     max_active_runs=1,      # runs share the lake and warehouse
     default_args=default_args,
+    on_success_callback=_run_succeeded,
+    on_failure_callback=_run_failed,
     params={
+        "user_id": Param("", type="string", description="App user ID; empty = the legacy owner."),
         "force": Param(False, type="boolean", description="Run even if nothing changed."),
         "load": Param(True, type="boolean", description="Load the warehouse."),
     },
@@ -92,15 +117,17 @@ def sikatrack_pipeline():
     @task.short_circuit
     def has_changes(pipeline_run_id: str) -> bool:
         """Skip everything downstream when the backups and settings match the last run."""
-        from src.lake.raw_zone import list_backups
+        from src.lake.raw_zone import list_sources
         from src.orchestration import state
 
         run = _run(pipeline_run_id)
-        if not list_backups(run.raw):
-            raise AirflowFailException("No backups in the raw zone: drop an export into data/inbox/")
+        if not list_sources(run.raw, run.user_id, run.include_backups):
+            raise AirflowFailException("No SMS in the raw zone for this user: drop an export into data/inbox/")
         if get_current_context()["params"]["force"]:
             return True
-        return state.fingerprint(run.raw, run.owner) != state.last_fingerprint(run.processed)
+        current = state.fingerprint(run.raw, run.owner, run.user_id, run.include_backups,
+                                    run.user_categories.fingerprint())
+        return current != state.last_fingerprint(run.processed, run.state_scope)
 
     @task
     def extract(pipeline_run_id: str) -> dict:
@@ -148,7 +175,9 @@ def sikatrack_pipeline():
         from src.orchestration import state
 
         run = _run(pipeline_run_id)
-        state.save_fingerprint(run.processed, state.fingerprint(run.raw, run.owner))
+        current = state.fingerprint(run.raw, run.owner, run.user_id, run.include_backups,
+                                    run.user_categories.fingerprint())
+        state.save_fingerprint(run.processed, current, run.state_scope)
 
     @task(trigger_rule="none_failed")
     def cleanup(pipeline_run_id: str) -> None:

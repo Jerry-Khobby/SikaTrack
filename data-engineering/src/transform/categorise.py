@@ -140,3 +140,22 @@ def category_report(df: pd.DataFrame) -> dict:
         "spend_by_category": spending.groupby("category")["amount"].sum().round(2)
                                      .sort_values(ascending=False).to_dict(),
     }
+
+
+def apply_user_categories(df: pd.DataFrame, choices) -> pd.DataFrame:
+    """The user's choices from the app win over the rules: their category for one transaction,
+    then their default for a counterparty (never for transfers between their own wallets).
+    The rule column records which, so every category stays explainable."""
+    if not (choices.overrides or choices.counterparty_defaults):
+        return df
+    df = df.copy()
+    for i, row in df.iterrows():
+        chosen = choices.overrides.get(row["transaction_nk"])
+        if chosen:
+            df.at[i, "category"], df.at[i, "category_rule"] = chosen, "user:override"
+            continue
+        default = choices.counterparty_defaults.get(row["counterparty"])
+        if default and not row["is_internal_transfer"]:
+            df.at[i, "category"], df.at[i, "category_rule"] = default, "user:counterparty"
+    return df
+

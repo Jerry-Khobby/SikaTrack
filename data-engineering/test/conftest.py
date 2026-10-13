@@ -11,7 +11,7 @@ from src.extraction.momo_parser import parse_message
 ISOLATED_ENV = [
     "OWNER_NAMES", "OWNER_NUMBERS", "RAW_BUCKET", "PROCESSED_BUCKET", "S3_ENDPOINT",
     "GATE_MIN_PARSE_RATE", "GATE_MIN_BALANCE_CONTINUITY", "GATE_MAX_UNEXPLAINED_GAPS",
-    "GATE_MIN_CATEGORY_COVERAGE",
+    "GATE_MIN_CATEGORY_COVERAGE", "LEGACY_OWNER_USER_ID",
 ]
 
 
@@ -89,6 +89,22 @@ def make_xml(tmp_path):
         ET.ElementTree(root).write(path, encoding="utf-8", xml_declaration=True)
         return path
     return _make
+
+
+@pytest.fixture
+def upload_sms(tmp_path):
+    """Write an app upload (JSON Lines, as the backend does) into a user's raw-zone folder."""
+    import json
+
+    def _upload(store, user_id, messages, batch="batch1", day="2026-01-03"):
+        lines = [json.dumps({"sender": sender, "date_ms": to_epoch_ms(iso), "body": body})
+                 for sender, iso, body in messages]
+        path = tmp_path / f"{batch}.jsonl"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        key = f"users/{user_id}/sms/{day}/{batch}.jsonl"
+        store.put_file(key, path)
+        return key
+    return _upload
 
 
 @pytest.fixture

@@ -87,7 +87,9 @@ def query(conn, sql):
 
 
 def test_migrations_apply_once(conn):
-    assert migrate(conn) == ["001_star_schema", "002_categorisation", "003_recurring", "004_dashboard_views"]
+    assert migrate(conn) == [
+        "001_star_schema", "002_categorisation", "003_recurring", "004_dashboard_views", "005_users",
+        "006_api_views"]
     assert migrate(conn) == []
     assert query(conn, "SELECT count(*) FROM dw.dim_date")[0][0] > 4000
 
@@ -174,9 +176,11 @@ def test_migrations_upgrade_a_database_created_before_they_were_tracked(conn):
     with conn, conn.cursor() as cur:
         cur.execute((Path(__file__).parents[1] / "sql/migrations/001_star_schema.sql").read_text(encoding="utf-8"))
 
-    assert migrate(conn) == ["002_categorisation", "003_recurring", "004_dashboard_views"]
+    assert migrate(conn) == [
+        "002_categorisation", "003_recurring", "004_dashboard_views", "005_users", "006_api_views"]
     assert query(conn, "SELECT version FROM dw.schema_migration ORDER BY version") == [
-        ("001_star_schema",), ("002_categorisation",), ("003_recurring",), ("004_dashboard_views",)]
+        ("001_star_schema",), ("002_categorisation",), ("003_recurring",), ("004_dashboard_views",),
+        ("005_users",), ("006_api_views",)]
 
 
 def test_missing_migrations_folder_fails_loudly(conn, monkeypatch, tmp_path):
@@ -258,3 +262,104 @@ def test_dashboard_reader_sees_marts_but_not_raw_tables(conn):
         with pytest.raises(psycopg2.errors.InsufficientPrivilege):
             cur.execute("SELECT raw_text FROM dw.fact_transaction")
     conn.rollback()
+
+
+def test_users_never_share_rows_and_dashboards_show_only_the_owner(conn, parquet):
+    migrate(conn)
+    other = "11111111-1111-1111-1111-111111111111"
+
+    owner_counts = load_transactions(conn, parquet, "run-owner")
+    other_counts = load_transactions(conn, parquet, "run-other", user_id=other, is_legacy_owner=False)
+
+    # The same SMS on two phones: each user gets their own rows, nothing is overwritten
+    assert owner_counts["rows_inserted"] == other_counts["rows_inserted"] == 4
+    assert query(conn, "SELECT count(*), count(DISTINCT user_key) FROM dw.fact_transaction") == [(8, 2)]
+    assert query(conn, """
+        SELECT count(DISTINCT user_key) FROM dw.dim_counterparty WHERE counterparty_key > 0""") == [(2,)]
+    # The dashboards are the owner's personal view
+    assert query(conn, "SELECT count(*) FROM mart.transactions") == [(4,)]
+    assert query(conn, "SELECT count(*) FROM dw.v_fact_transaction") == [(4,)]
+    assert query(conn, "SELECT transactions FROM mart.data_quality") == [(4,)]
+
+
+def test_linking_the_owner_to_their_account_keeps_their_history(conn, parquet):
+    migrate(conn)
+    account = "22222222-2222-2222-2222-222222222222"
+    load_transactions(conn, parquet, "run-before")
+
+    after = load_transactions(conn, parquet, "run-after", user_id=account, is_legacy_owner=True)
+
+    assert (after["rows_inserted"], after["rows_unchanged"]) == (0, 4)
+    assert query(conn, "SELECT user_id::text, is_legacy_owner FROM dw.dim_user") == [(account, True)]
+
+
+def test_linking_refuses_an_account_that_already_has_its_own_rows(conn, parquet):
+    migrate(conn)
+    account = "33333333-3333-3333-3333-333333333333"
+    load_transactions(conn, parquet, "run-own", user_id=account, is_legacy_owner=False)
+
+    with pytest.raises(ValueError, match="LEGACY_OWNER_USER_ID"):
+        load_transactions(conn, parquet, "run-link", user_id=account, is_legacy_owner=True)
+
+
+def test_an_app_users_wallets_are_their_own_accounts(conn, test_db):
+    from src.orchestration.users import wallet_owner
+
+    user = "44444444-4444-4444-4444-444444444444"
+    assert wallet_owner(user, _dsn(test_db)) == Owner()  # before the backend's tables exist
+    with conn, conn.cursor() as cur:
+        cur.execute("""
+            CREATE SCHEMA app;
+            CREATE TABLE app.wallet (user_id uuid, account_name text, phone_number text);
+            INSERT INTO app.wallet VALUES
+                (%s, 'KWAME OWUSU', '+233240000001'),
+                (%s, NULL, '+233200000002'),
+                ('55555555-5555-5555-5555-555555555555', 'SOMEONE ELSE', '+233550000003');
+        """, (user, user))
+
+    owner = wallet_owner(user, _dsn(test_db))
+
+    assert owner == Owner(names=frozenset({"KWAME OWUSU"}), numbers=frozenset({"0240000001", "0200000002"}))
+
+
+def test_api_views_show_only_the_user_in_the_session(conn, parquet):
+    migrate(conn)
+    first, second = "66666666-6666-6666-6666-666666666666", "77777777-7777-7777-7777-777777777777"
+    load_transactions(conn, parquet, "run-1", user_id=first, is_legacy_owner=False)
+    load_transactions(conn, parquet, "run-2", user_id=second, is_legacy_owner=False)
+    with conn.cursor() as cur:
+        cur.execute("INSERT INTO dw.fact_transaction (user_key, transaction_nk, message_id, amount, signed_amount, "
+                    "occurred_at, raw_text) SELECT user_key, 'only-second', 'x', 1, -1, now(), 'x' "
+                    "FROM dw.dim_user WHERE user_id = %s", (second,))
+        cur.execute("SET ROLE api_reader")
+
+        assert query(conn, "SELECT count(*) FROM api.transaction") == [(0,)]  # no user set: nothing
+        cur.execute("SELECT set_config('sikatrack.user_id', %s, false)", (first,))
+        assert query(conn, "SELECT count(*) FROM api.transaction") == [(4,)]
+        cur.execute("SELECT set_config('sikatrack.user_id', %s, false)", (second,))
+        assert query(conn, "SELECT count(*) FROM api.transaction") == [(5,)]
+        assert query(conn, "SELECT count(*) FROM api.counterparty") > [(0,)]
+        with pytest.raises(psycopg2.errors.InsufficientPrivilege):
+            cur.execute("SELECT count(*) FROM dw.fact_transaction")
+    conn.rollback()
+
+
+def test_the_users_category_choices_are_read_from_the_backend(conn, test_db):
+    from src.orchestration.users import user_categories
+    from src.transform.config import UserCategories
+
+    user = "88888888-8888-8888-8888-888888888888"
+    assert user_categories(user, _dsn(test_db)) == UserCategories()  # before the backend's tables exist
+    with conn, conn.cursor() as cur:
+        cur.execute("""
+            CREATE SCHEMA app;
+            CREATE TABLE app.category_override (user_id uuid, transaction_nk text, category_name text);
+            CREATE TABLE app.counterparty_preference (user_id uuid, counterparty_name text, default_category text);
+            INSERT INTO app.category_override VALUES (%s, 'mtn:1', 'Bills'), (%s, 'mtn:2', NULL);
+            INSERT INTO app.counterparty_preference VALUES (%s, 'MUM', 'Giving'), (%s, 'SHOP', NULL);
+        """, (user, user, user, user))
+
+    choices = user_categories(user, _dsn(test_db))
+
+    assert choices == UserCategories(overrides={"mtn:1": "Bills"}, counterparty_defaults={"MUM": "Giving"})
+

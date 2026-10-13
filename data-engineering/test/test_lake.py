@@ -89,6 +89,30 @@ def test_extract_reads_every_backup_in_the_raw_zone(store, make_xml, tmp_path):
     assert all(r["source_object"].startswith("sikatrack-raw/sms_backup/") for r in rows)
 
 
+def test_app_uploads_are_read_with_the_backups_and_deduplicated(store, make_xml, upload_sms, tmp_path):
+    shared = (s.MTN, "2026-01-01T10:00:00", s.PAYMENT_MADE)
+    stage_backup(make_xml([shared, (s.MTN, "2026-01-02T10:00:00", s.PAYMENT_RECEIVED)]), store)
+    upload_sms(store, "u1", [shared, (s.MTN, "2026-01-03T10:00:00", s.MERCHANT_PAID)])  # one is in the backup
+
+    stats = filter_raw_zone(store, tmp_path / "out.csv", user_id="u1", include_backups=True)
+
+    assert (stats["sources"], stats["kept"], stats["duplicates"]) == (2, 3, 1)
+
+
+def test_an_app_users_run_reads_only_their_own_uploads(store, make_xml, upload_sms, tmp_path):
+    stage_backup(make_xml([(s.MTN, "2026-01-01T10:00:00", s.PAYMENT_MADE)]), store)  # the legacy owner's
+    upload_sms(store, "u1", [(s.MTN, "2026-01-03T10:00:00", s.MERCHANT_PAID)])
+    upload_sms(store, "u2", [(s.MTN, "2026-01-04T10:00:00", s.PAYMENT_RECEIVED)])
+    out = tmp_path / "out.csv"
+
+    stats = filter_raw_zone(store, out, user_id="u2", include_backups=False)
+
+    with open(out, encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    assert stats["kept"] == 1
+    assert rows[0]["source_object"] == "sikatrack-raw/users/u2/sms/2026-01-03/batch1.jsonl"
+
+
 def test_extract_fails_on_an_empty_raw_zone(store, tmp_path):
-    with pytest.raises(FileNotFoundError, match="No backups staged"):
+    with pytest.raises(FileNotFoundError, match="No SMS staged"):
         filter_raw_zone(store, tmp_path / "out.csv")

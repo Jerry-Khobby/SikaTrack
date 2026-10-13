@@ -31,12 +31,25 @@ class Owner:
 
 
 @dataclass(frozen=True)
+class UserCategories:
+    """A user's own category choices, from the app: per transaction (by natural key) and per
+    counterparty. They win over the rules; the app and the warehouse then agree."""
+    overrides: dict = field(default_factory=dict)              # transaction_nk -> category
+    counterparty_defaults: dict = field(default_factory=dict)  # counterparty name -> category
+
+    def fingerprint(self) -> str:
+        raw = repr(sorted(self.overrides.items())) + "#" + repr(sorted(self.counterparty_defaults.items()))
+        return hashlib.sha256(raw.encode()).hexdigest()[:12]
+
+
+@dataclass(frozen=True)
 class TransformConfig:
     input_path: Path
     output_dir: Path
     owner: Owner = field(default_factory=Owner)
     balance_tolerance: float = 0.02  # GHS; rounding noise allowed in the balance check
     run_id: str | None = None
+    user_categories: UserCategories = field(default_factory=UserCategories)
 
     def describe(self) -> dict:
         """The settings that shape the output, for the run report."""
@@ -46,4 +59,6 @@ class TransformConfig:
             "owner_numbers": len(self.owner.numbers),
             "owner_fingerprint": self.owner.fingerprint(),
             "balance_tolerance": self.balance_tolerance,
+            "user_category_overrides": len(self.user_categories.overrides),
+            "user_counterparty_defaults": len(self.user_categories.counterparty_defaults),
         }

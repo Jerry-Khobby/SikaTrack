@@ -32,11 +32,14 @@ def add_time_keys(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def is_self_reference(reference) -> bool:
+    """A reference saying the money went to yourself (e.g. "self", "own account")."""
+    return bool(_SELF_TRANSFER.search(reference)) if isinstance(reference, str) else False
+
+
 def flag_internal_transfers(df: pd.DataFrame) -> pd.DataFrame:
     """Money moved between your own wallets/accounts: not income, not spending."""
     df = df.copy()
-    self_reference = df["reference"].map(
-        lambda ref: bool(_SELF_TRANSFER.search(ref)) if isinstance(ref, str) else False
-    )
+    self_reference = df["reference"].map(is_self_reference)
     df["is_internal_transfer"] = (df["counterparty_kind"] == "own_wallet") | self_reference
     return df

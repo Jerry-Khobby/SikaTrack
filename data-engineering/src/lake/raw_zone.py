@@ -1,6 +1,9 @@
-"""The raw zone: every SMS backup, stored unchanged. The source of truth the pipeline replays.
+"""The raw zone: every SMS backup and app upload, stored unchanged. The source of truth the
+pipeline replays.
 
-Layout: sms_backup/ingest_date=YYYY-MM-DD/<file stem>-<content hash>.xml
+Layout:
+    sms_backup/ingest_date=YYYY-MM-DD/<file stem>-<content hash>.xml   backups (the legacy owner's)
+    users/<user_id>/sms/<YYYY-MM-DD>/<batch_id>.jsonl                  uploads from the app (backend)
 """
 
 import hashlib
@@ -13,6 +16,7 @@ from src.lake.store import ObjectStore
 log = logging.getLogger(__spec__.name if __spec__ else __name__)
 
 PREFIX = "sms_backup/"
+USERS_PREFIX = "users/"
 
 
 def content_hash(path: Path) -> str:
@@ -56,3 +60,18 @@ def stage_inbox(inbox: Path, store: ObjectStore) -> list[str]:
 def list_backups(store: ObjectStore) -> list[str]:
     """All staged backups, oldest ingest date first."""
     return [k for k in store.list(PREFIX) if k.endswith(".xml")]
+
+
+def user_uploads_prefix(user_id: str) -> str:
+    return f"{USERS_PREFIX}{user_id}/sms/"
+
+
+def list_user_uploads(store: ObjectStore, user_id: str) -> list[str]:
+    """One user's app uploads (JSON Lines, written by the backend), oldest first."""
+    return [k for k in store.list(user_uploads_prefix(user_id)) if k.endswith(".jsonl")]
+
+
+def list_sources(store: ObjectStore, user_id: str | None, include_backups: bool) -> list[str]:
+    """Everything one run reads: the backups (for the legacy owner) and the user's app uploads."""
+    keys = list_backups(store) if include_backups else []
+    return keys + (list_user_uploads(store, user_id) if user_id else [])
