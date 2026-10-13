@@ -195,8 +195,12 @@ Registers or updates this phone's push token; call on sign-in and whenever the t
 ```json
 {"platform": "android", "push_token": "ExponentPushToken[...]", "app_version": "1.0.3"}
 ```
-`200 OK` with the stored device. If `app_version` is below `min_app_version`, responds
-`426 app_update_required`.
+`200 OK`:
+```json
+{"device_id": "b3f1c2e0-...", "platform": "android", "app_version": "1.0.3", "push_enabled": true, "last_seen_at": "2026-10-08T10:00:00Z"}
+```
+If `app_version` is below `min_app_version`, responds `426 app_update_required`. A device ID that
+belongs to another account is `404`.
 
 ### `DELETE /v1/devices/{device_id}`
 
@@ -323,7 +327,7 @@ What happens:
    `sender|date_ms|body`, first 16 hex characters. A message already received (by any batch,
    or from an XML backup you loaded before) is a duplicate and is skipped.
 3. Writes the accepted messages as one JSON Lines object to the raw zone,
-   `raw/users/<user_id>/sms/<YYYY-MM-DD>/<batch_id>.jsonl`, the source of truth.
+   `users/<user_id>/sms/<YYYY-MM-DD>/<batch_id>.jsonl` in the raw bucket, the source of truth.
 4. Parses each with the pipeline's parser and categoriser and stores a provisional transaction,
    so the app can show it immediately.
 5. Schedules a pipeline run for the user, debounced (see the sync doc), and returns.
@@ -564,6 +568,10 @@ The category list for pickers and icons; same as `dw.dim_category`.
 {"items": [{"id": "cpt_7Hq2", "name": "Sunshine Laundry", "original_name": "SUNSHINE LAUNDRY", "alias": null, "kind": "merchant", "default_category": null, "money_out": "320.00", "transactions": 8, "last_seen_at": "2026-09-30T18:02:00Z"}]}
 ```
 
+### `GET /v1/counterparties/{id}`
+
+One counterparty, same shape as a list item.
+
 ### `PATCH /v1/counterparties/{id}`
 
 ```json
@@ -607,6 +615,10 @@ Series found by the pipeline's recurring detection, plus the user's decision abo
 - `user_state`: `null` (not reviewed), `expected` (fine, keep it), `cancel_planned` (you mean to
   stop it: the app reminds you if it keeps charging), `not_recurring` (a false match: hidden and
   left out of `monthly_cost`).
+
+### `GET /v1/recurring/{id}`
+
+One series, same shape as a list item.
 
 ### `GET /v1/recurring/{id}/transactions`
 
@@ -714,11 +726,14 @@ Called by the Airflow pipeline when a per-user run finishes. Authenticated with 
 service token (`Authorization: Bearer <INTERNAL_API_TOKEN>`), not reachable from outside the
 Docker network.
 ```json
-{"run_id": "20261008T100700Z-91ab", "user_id": "usr_3kP9", "status": "succeeded", "batch_ids": ["bat_X7"], "finished_at": "2026-10-08T10:08:12Z"}
+{"run_id": "manual__2026-10-08T10:07:00", "user_id": "3f2a9c0e-1b7d-4c55-a1e2-f3a4b5c6d7e8", "status": "succeeded", "started_at": "2026-10-08T10:07:00Z", "finished_at": "2026-10-08T10:08:12Z"}
 ```
-`204`. The backend then marks batches `loaded`, removes provisional transactions now in the
-warehouse, evaluates budget and low-balance rules, and sends `data_ready` if the user wants it.
-On `failed`, batches go back to `received` and are picked up by the next run.
+`204`. A run reads everything uploaded before it started, so on success every batch from before
+`started_at` becomes `loaded` and its provisional transactions give way to the warehouse rows;
+then the alert rules run (budgets, low balance, new recurring payments, `data_ready` if wanted).
+On `failed`, those batches go back to `received`, a retry is scheduled after a pause, and the
+user gets a `sync_problem` notification. If a callback is ever lost, batches stuck in
+`processing` for two hours are requeued by the backend itself.
 
 ---
 

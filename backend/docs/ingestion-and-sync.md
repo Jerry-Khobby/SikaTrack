@@ -11,7 +11,7 @@ Phone                    Backend                         Raw zone / pipeline    
   │ sender in allowlist?   │                                │                             │
   │── POST /v1/sms/batches ►│ 1. drop non-MoMo senders       │                             │
   │                        │ 2. message_id, skip seen ones   │                             │
-  │                        │ 3. write JSONL ────────────────►│ raw/users/<id>/sms/...      │
+  │                        │ 3. write JSONL ────────────────►│ users/<id>/sms/... (raw)    │
   │                        │ 4. parse + categorise (shared   │                             │
   │                        │    code) → provisional row      │                             │
   │◄── 202 counts ─────────│ 5. schedule run (debounced) ───►│ Airflow: per-user run       │
@@ -66,7 +66,7 @@ Runs in one database transaction, in this order:
    `data-engineering/src/extraction/filter_sms.py`. Skip any already in `app.sms_seen` for this
    user (`duplicates`).
 4. **Raw zone.** Write the accepted messages as one JSONL object
-   `raw/users/<user_id>/sms/<YYYY-MM-DD>/<batch_id>.jsonl`, one line per SMS:
+   `users/<user_id>/sms/<YYYY-MM-DD>/<batch_id>.jsonl` in the raw bucket, one line per SMS:
    `{"message_id", "sender", "date_ms", "body", "received_via": "app"}`. If the write fails,
    the whole request fails with `503` and nothing is recorded, so the app's retry is safe.
 5. **Provisional parse.** For each message, `parse_message()` from the pipeline's parser, then the

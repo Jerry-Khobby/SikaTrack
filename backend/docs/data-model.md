@@ -89,7 +89,7 @@ app.sms_batch (
   idempotency_key    uuid NOT NULL,
   request_hash       char(64) NOT NULL,           -- detects the same key with a different body
   source             varchar(16) NOT NULL,        -- initial_scan | incremental | live
-  raw_object_key     varchar(500),                -- raw/users/<user_id>/sms/<date>/<batch_id>.jsonl
+  raw_object_key     varchar(500),                -- users/<user_id>/sms/<date>/<batch_id>.jsonl (raw bucket)
   received           integer NOT NULL,
   accepted           integer NOT NULL,
   duplicates         integer NOT NULL,
@@ -215,28 +215,28 @@ app.audit_event (
 
 ## Warehouse changes (`dw`)
 
-The warehouse is single-user today. Migration **`005_users`** in
-`data-engineering/sql/migrations/` makes it multi-user. This is phase 0 and the biggest change
-the backend forces on the data layer.
+Migration **`005_users`** in `data-engineering/sql/migrations/` made the warehouse
+multi-user; **`006_api_views`** added what the backend may read (below). This was phase 0, the
+biggest change the backend forced on the data layer.
 
 | Table | Change | Why |
 |---|---|---|
-| `dw.dim_user` | **New**: `user_key serial`, `user_id uuid UNIQUE` (= `app.user.id`), `created_at` | Conformed user dimension; no personal data, the phone number stays in `app` |
+| `dw.dim_user` | **New**: `user_key serial`, `user_id uuid UNIQUE` (= `app.user.id`), `is_legacy_owner`, `created_at` | Conformed user dimension; no personal data, the phone number stays in `app`. The legacy owner (the data from before the app) is linked to an account by `LEGACY_OWNER_USER_ID` |
 | `dw.fact_transaction` | Add `user_key` (FK, `NOT NULL`, index `(user_key, occurred_at)`). The natural key becomes unique **per user**: `UNIQUE (user_key, transaction_nk)` | Two users can receive the same provider transaction (sender and receiver both get an SMS for one transfer) |
 | `dw.dim_counterparty` | Add `user_key`; unique on `(user_key, counterparty_name)` instead of the name alone | Who "KOFI MENSAH" is depends on whose phone it's on; counterparties are personal data |
 | `dw.etl_run` | Add `user_key` (nullable for old runs) | Runs, quality reports and monitoring become per user |
 | `dw.dim_date`, `dim_time`, `dim_provider`, `dim_transaction_type`, `dim_category` | Unchanged, shared | Not personal |
-| `dw.v_fact_transaction` | Add `user_id`; Power BI filters on your user | Your dashboard keeps working |
+| `dw.v_fact_transaction`, `mart.*` | Restricted to the legacy owner | Your dashboards keep showing only your data |
 
-Backfill: create your user, set `user_key` on every existing row to yours, then add the
-`NOT NULL` and the new unique constraints, all in the one migration transaction.
+Backfill: the existing rows belong to the legacy owner, set in the same migration transaction
+as the new constraints.
 
 ### Pipeline changes that go with it
 
 | Today | Per user |
 |---|---|
-| Raw zone `raw/sms/<date>/<file>.xml` | Also `raw/users/<user_id>/sms/<date>/<batch_id>.jsonl` (app uploads). XML backups you import go under your user too |
-| One run processes every backup | The DAG maps over users with new data (Airflow dynamic task mapping), one isolated run per user |
+| Raw zone `sms_backup/.../<file>.xml` | Also `users/<user_id>/sms/<date>/<batch_id>.jsonl` (app uploads). The backups stay the legacy owner's |
+| One run processes every backup | One run per user: the backend triggers the DAG with `user_id` after uploads; the daily run is the legacy owner's |
 | `Owner.from_env()` | `Owner` from the user's `app.wallet` rows |
 | Recurring detection, balance checks, quality gates over everything | The same, per user |
 | Category rules only | Rules, then the user's counterparty defaults and overrides (read from `app`) |
@@ -249,26 +249,21 @@ app. Your old backups and new uploads deduplicate against each other automatical
 
 ## How the backend reads `dw`
 
-A read-only Postgres role `sikatrack_api_ro` with `USAGE` on `dw` and `SELECT` on views only.
-Every view takes the user from the session, so a forgotten `WHERE` can't leak another user's
-rows:
+Through the `api` schema (migration `006_api_views`) only: `api.transaction`,
+`api.counterparty`, `api.category`, `api.time_of_day`, `api.pipeline_run`. The backend's login
+`sikatrack_api` has the `api_reader` role: SELECT on those views, nothing in `dw` itself.
+
+Every user-scoped view filters on the session setting `sikatrack.user_id`, which the backend sets
+from the access token at the start of each read (`services/warehouse.py scope()`, transaction
+local). **Unset, the views return nothing**: a query that forgets the user fails closed.
 
 ```sql
--- set by the backend on each connection checkout:
-SET LOCAL app.user_id = '<uuid>';
-
-CREATE VIEW dw.api_transaction AS
-SELECT f.*, c.counterparty_name, c.counterparty_kind, cat.category_name, cat.category_group
-FROM dw.fact_transaction f
-JOIN dw.dim_user u USING (user_key)
-JOIN dw.dim_counterparty c USING (counterparty_key)
-JOIN dw.dim_category cat USING (category_key)
-WHERE u.user_id = current_setting('app.user_id')::uuid;
+SELECT set_config('sikatrack.user_id', '<uuid>', true);   -- the backend, per request
+SELECT * FROM api.transaction;                            -- this user's rows only
 ```
 
-The backend's session dependency sets `app.user_id` from the access token before any query
-runs. Row-level security (`ALTER TABLE ... ENABLE ROW LEVEL SECURITY` with the same condition)
-can be added on the base tables in phase 7 as a second layer.
+The one warehouse write the backend may make is `api.forget_user(uuid)` (SECURITY DEFINER), which
+removes a single user's rows when their account is erased.
 
 ## ID mapping (API ↔ database)
 

@@ -1,8 +1,16 @@
 # SikaTrack backend
 
-The API between the React Native app and everything behind it. **Phase 1 (skeleton) is
-built:** the FastAPI project, settings, logging, errors, `GET /health`, `GET /ready`, the `app`
-schema migrations, Docker and CI. The docs below are the contract the rest is built against.
+The API between the React Native app and everything behind it. **Built:** every endpoint in
+[docs/api-contract.md](docs/api-contract.md), phases 0-6 of the build plan below, and account
+erasure from phase 7. Interactive docs at `/docs` when it runs (development only).
+
+| Area | Endpoints |
+|---|---|
+| Accounts | `POST /v1/auth/otp/request`, `/otp/verify`, `/refresh`, `/logout`; `GET/PATCH/DELETE /v1/me`; `PUT/DELETE /v1/devices/{id}` |
+| Getting data in | `GET /v1/config`; `/v1/wallets` (CRUD); `POST /v1/sms/batches`; `GET /v1/sms/batches/{id}`; `GET /v1/sync/status` |
+| Reading | `/v1/transactions` (list, detail, correct); `/v1/summary` (+ `/categories`, `/trend`, `/counterparties`, `/habits`); `/v1/balances` (+ `/history`); `/v1/categories`; `/v1/counterparties` (list, one, nickname); `/v1/recurring` (list, one, payments, decision); `/v1/insights` |
+| Budgets and alerts | `/v1/budgets` (list, set, delete); `/v1/notifications` (inbox, read, read-all) |
+| Operations | `GET /health`, `GET /ready`; `POST /internal/pipeline-events` (the pipeline only) |
 
 ## Run it
 
@@ -15,7 +23,21 @@ cp .env.example .env                                # then fill in the passwords
 docker compose up -d --build                        # creates the DB login, migrates, starts the API
 ```
 
-Then: http://localhost:8000/docs (interactive API docs), http://localhost:8000/ready.
+Then the app talks to **https://localhost** (the HTTPS proxy). For debugging on this machine
+only: http://127.0.0.1:8000/docs (interactive API docs) and /ready. The API's own port is
+bound to 127.0.0.1, so from outside the proxy is the only way in.
+
+### Going to production
+
+| Setting (`.env`) | Value |
+|---|---|
+| `ENVIRONMENT` | `production` (turns off /docs; refuses printed sign-in codes) |
+| `API_DOMAIN` | Your domain, e.g. `api.sikatrack.app`. Point its DNS here and open ports 80 and 443; Caddy gets and renews the Let's Encrypt certificate |
+| `OTP_PROVIDER` | `twilio`, with `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_FROM` (an approved sender ID such as `SikaTrack`, or a Twilio number). Another provider (e.g. a Ghanaian SMS gateway) is one more class in `auth/sms.py` |
+| `RATE_LIMIT_PER_USER`, `RATE_LIMIT_PER_IP` | Requests per minute per signed-in user (120) and per IP before sign-in (30) |
+
+The proxy blocks `/internal` (only the pipeline, on the Docker network, may call it), caps
+request bodies at 2 MB and adds HSTS and the usual security headers.
 
 To work on it without Docker for the API (Postgres and RustFS still in Docker):
 
@@ -48,6 +70,21 @@ request ID and never contain SMS text, tokens, phone numbers or request bodies.
 | [docs/api-contract.md](docs/api-contract.md) | Every endpoint: request, response, errors, and what it does behind the scenes |
 | [docs/data-model.md](docs/data-model.md) | The backend's own tables (`app` schema) and the changes the warehouse needs for many users |
 | [docs/ingestion-and-sync.md](docs/ingestion-and-sync.md) | How an SMS on a phone becomes a transaction in the app, step by step |
+
+## Link your existing data to your account
+
+Your SMS backups in the warehouse belong to the "legacy owner" until you link them:
+
+1. Sign in through the API (or the app) once, and copy your user ID from `GET /v1/me`
+   (`usr_3f2a...`: the 32 characters after `usr_` are a UUID).
+2. Put it in `data-engineering/.env` as `LEGACY_OWNER_USER_ID=3f2a....` (with the dashes:
+   `3f2a9c0e-1b7d-...`; Python's `uuid.UUID(hex=...)` prints it), then
+   `docker compose up -d` in `data-engineering/` so Airflow reads it.
+3. Do this **before** uploading SMS from the app. The next pipeline run links your history to
+   your account with no reload; the loader refuses (with a clear error) if your account already
+   has rows of its own.
+
+Your Power BI and Metabase dashboards keep showing your data only.
 
 ## What the backend is for
 
@@ -86,7 +123,7 @@ React Native app (Android)
   │ HTTPS + JWT
   ▼
 FastAPI backend ─────────────────────────────────────────────┐
-  │ 1. raw SMS ──► RustFS raw zone  raw/users/<user_id>/...     │
+  │ 1. raw SMS ──► RustFS raw zone  users/<user_id>/... (raw bucket)     │
   │ 2. provisional parse (shared parser) ──► app.provisional_*  │
   │ 3. "new data" ──► Airflow REST API (debounced)               │
   │                                                             │
@@ -185,6 +222,11 @@ Each phase ends with something that works end to end.
 | **5. User input** | Category overrides, counterparty aliases, recurring decisions, budgets; the pipeline reads overrides | A correction shows immediately in the app and in Power BI after the next run |
 | **6. Notifications** | Device tokens, push sender, notification inbox, budget and low-balance rules | Crossing 80% of a budget sends one push, not one per transaction |
 | **7. Hardening** | Rate limits, account deletion and export, load test, security review | A second test user sees none of your data through any endpoint |
+
+Status: phases 0-6 are built and tested (every endpoint has tests on a real Postgres, including
+a second user who must never see the first one's data). From phase 7, account erasure is built;
+still to do: data export (`GET /v1/me/export`), general per-user rate limits beyond sign-in and
+uploads, a load test, and an external security review.
 
 v2, already in the project overview: the scam-number reporting layer (`/v1/reports/numbers`) and
 custom categories. They fit this design without changing existing endpoints.
