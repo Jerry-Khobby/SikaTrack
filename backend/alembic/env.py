@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from sikatrack_api.config import get_settings
 from sikatrack_api.db import create_engine
+from sikatrack_api.models import Base
 
 SCHEMA = "app"
 
@@ -17,8 +18,8 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
-# Set when tables exist (phase 2): the SQLAlchemy metadata, for `alembic revision --autogenerate`
-target_metadata = None
+# The models: `alembic revision --autogenerate` diffs the database against them
+target_metadata = Base.metadata
 
 
 def include_name(name: str | None, type_: str, _parent: object) -> bool:

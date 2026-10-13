@@ -6,14 +6,28 @@ from sikatrack_api.main import create_app
 
 
 def test_secrets_are_required(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("DATABASE_PASSWORD", "S3_ACCESS_KEY", "S3_SECRET_KEY"):
+    for name in (
+        "DATABASE_PASSWORD",
+        "S3_ACCESS_KEY",
+        "S3_SECRET_KEY",
+        "JWT_SECRET",
+        "OTP_PEPPER",
+        "INTERNAL_API_TOKEN",
+    ):
         monkeypatch.delenv(name, raising=False)
 
     with pytest.raises(ValidationError) as exc:
         Settings(_env_file=None)  # type: ignore[call-arg]
 
     missing = {e["loc"][0] for e in exc.value.errors()}
-    assert missing == {"database_password", "s3_access_key", "s3_secret_key"}
+    assert missing == {
+        "database_password",
+        "s3_access_key",
+        "s3_secret_key",
+        "jwt_secret",
+        "otp_pepper",
+        "internal_api_token",
+    }
 
 
 def test_secrets_never_print(settings: Settings) -> None:

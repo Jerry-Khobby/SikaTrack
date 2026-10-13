@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -29,9 +29,83 @@ class Settings(BaseSettings):
     s3_secret_key: SecretStr
     s3_region: str = "us-east-1"
     raw_bucket: str = "sikatrack-raw"
+    processed_bucket: str = "sikatrack-processed"
 
     # How long /ready waits for each dependency before calling it down
     readiness_timeout: float = Field(default=2.0, gt=0)
+
+    # Tokens: short-lived JWT access tokens, long-lived rotating refresh tokens
+    jwt_secret: SecretStr = Field(min_length=32)
+    jwt_issuer: str = "sikatrack-api"
+    access_token_ttl_s: int = Field(default=900, ge=60)
+    refresh_token_ttl_days: int = Field(default=30, ge=1)
+
+    # One-time sign-in codes
+    otp_pepper: SecretStr = Field(min_length=32)  # server secret mixed into every code hash
+    otp_provider: Literal["console", "twilio", "disabled"] = "console"
+    # Twilio (OTP_PROVIDER=twilio): the account, and who the SMS comes from: an approved
+    # alphanumeric sender ID or a Twilio number (TWILIO_FROM), or a messaging service
+    twilio_account_sid: str | None = None
+    twilio_auth_token: SecretStr | None = None
+    twilio_from: str | None = None
+    twilio_messaging_service_sid: str | None = None
+    otp_message: str = "Your SikaTrack code is {code}. It expires in 5 minutes. Never share it."
+    otp_ttl_s: int = Field(default=300, ge=60)
+    otp_max_attempts: int = Field(default=5, ge=1)
+    otp_resend_after_s: int = Field(default=60, ge=0)
+    otp_max_per_phone: int = Field(default=3, ge=1)  # per otp_phone_window_s
+    otp_phone_window_s: int = Field(default=600, ge=60)
+    otp_max_per_ip: int = Field(default=20, ge=1)  # per hour
+
+    # Rate limits for every endpoint, per minute (sign-in and uploads have tighter ones of their own)
+    rate_limit_enabled: bool = True
+    rate_limit_per_user: int = Field(default=120, ge=1)
+    rate_limit_per_ip: int = Field(default=30, ge=1)  # endpoints used before signing in
+
+    # Accounts
+    account_deletion_grace_days: int = Field(default=7, ge=0)
+    min_app_version: str = "1.0.0"
+
+    # SMS uploads
+    sms_batch_max_messages: int = Field(default=500, ge=1)
+    sms_batch_max_bytes: int = Field(default=1_048_576, ge=1024)
+    sms_batches_per_hour: int = Field(default=60, ge=1)
+
+    # The pipeline: triggered through Airflow's REST API, debounced per user
+    airflow_url: str = "http://localhost:8080"
+    airflow_username: str = "admin"
+    airflow_password: SecretStr | None = None  # unset: runs aren't triggered (the daily run still happens)
+    airflow_dag_id: str = "sikatrack_pipeline"
+    pipeline_debounce_s: int = Field(default=120, ge=0)  # wait for a burst of uploads to finish
+    pipeline_retry_s: int = Field(default=300, ge=10)  # after a failed trigger or run
+    pipeline_scheduler_interval_s: float = Field(default=30, gt=0)
+    pipeline_scheduler_enabled: bool = True
+    # Shared with the pipeline, which calls POST /internal/pipeline-events when a run ends
+    internal_api_token: SecretStr = Field(min_length=32)
+
+    # Push notifications (Expo's push service, for a React Native / Expo app). "disabled" keeps
+    # them in the in-app inbox only, e.g. until the app exists.
+    push_provider: Literal["expo", "disabled"] = "disabled"
+    expo_access_token: SecretStr | None = None  # only if the Expo project requires one
+    weekly_digest_weekday: int = Field(default=1, ge=1, le=7)  # 1 = Monday
+    weekly_digest_hour_utc: int = Field(default=7, ge=0, le=23)
+
+    @model_validator(mode="after")
+    def _no_console_codes_in_production(self) -> "Settings":
+        if self.environment == "production" and self.otp_provider == "console":
+            raise ValueError("OTP_PROVIDER=console prints sign-in codes; choose a real SMS provider")
+        if self.otp_provider == "twilio" and not (
+            self.twilio_account_sid
+            and self.twilio_auth_token
+            and (self.twilio_from or self.twilio_messaging_service_sid)
+        ):
+            raise ValueError(
+                "OTP_PROVIDER=twilio needs TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM "
+                "(or TWILIO_MESSAGING_SERVICE_SID)"
+            )
+        if "{code}" not in self.otp_message:
+            raise ValueError("OTP_MESSAGE must contain {code}")
+        return self
 
     @property
     def database_url(self) -> URL:

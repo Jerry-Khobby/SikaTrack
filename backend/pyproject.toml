@@ -16,14 +16,19 @@ dependencies = [
     "asyncpg>=0.32,<1",
     "alembic>=1.20,<2",
     "boto3>=1.43,<2",
+    "pyjwt>=2.15,<3",
+    "httpx2>=2.13,<3",  # outgoing HTTP: push notifications, Airflow
+    # The pipeline's SMS parser, message IDs and category rules (../data-engineering), shared so
+    # the instant view and the warehouse agree. Install with: pip install -e ../data-engineering
+    "sikatrack-pipeline>=0.1",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "httpx2>=2.13,<3",  # what Starlette's TestClient uses from Starlette 1.7
     "pytest>=9.1,<10",
     "moto[s3]>=5.2,<6",
     "python-dotenv>=1.0,<2",
+    "psycopg2-binary>=2.9,<3",  # tests apply the warehouse migrations with the pipeline's runner
     "ruff>=0.17,<1",
     "mypy>=2.4,<3",
     "boto3-stubs[s3]>=1.43,<2",
@@ -56,6 +61,10 @@ ignore = ["S101"]  # assert is how pytest tests
 [tool.ruff.lint.per-file-ignores]
 "alembic/*" = ["S"]
 "tests/*" = ["S105", "S106"]  # fake credentials for fake services
+"tests/warehouse_seed.py" = ["S608"]  # builds SQL from test data the tests define, never from input
+# The read queries are built from SQL fragments that are module constants (column names,
+# fixed filters); every value from a request is a bound parameter (:start, :uid, ...).
+"src/sikatrack_api/services/{transactions,summaries,recurring,insights}.py" = ["S608"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -63,3 +72,8 @@ strict = true
 plugins = ["pydantic.mypy"]
 mypy_path = "src"
 packages = ["sikatrack_api"]
+
+[[tool.mypy.overrides]]
+# The shared pipeline code (../data-engineering, imported as `src`) has no type hints
+module = ["src", "src.*"]
+ignore_missing_imports = true

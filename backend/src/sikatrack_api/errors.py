@@ -33,9 +33,18 @@ _CODES_BY_STATUS = {
 class AppError(Exception):
     """An expected failure with a stable code, raised by services and turned into a problem response."""
 
-    def __init__(self, status: int, code: str, title: str, detail: str | None = None) -> None:
+    def __init__(
+        self,
+        status: int,
+        code: str,
+        title: str,
+        detail: str | None = None,
+        headers: Mapping[str, str] | None = None,
+        errors: list[dict[str, str]] | None = None,
+    ) -> None:
         super().__init__(title)
         self.status, self.code, self.title, self.detail = status, code, title, detail
+        self.headers, self.errors = headers, errors
 
 
 def problem(
@@ -63,7 +72,7 @@ def problem(
 
 async def _app_error(_: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, AppError)
-    return problem(exc.status, exc.code, exc.title, exc.detail)
+    return problem(exc.status, exc.code, exc.title, exc.detail, exc.errors, exc.headers)
 
 
 async def _http_error(_: Request, exc: Exception) -> JSONResponse:
