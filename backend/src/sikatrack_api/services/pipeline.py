@@ -179,9 +179,14 @@ async def record_event(session: AsyncSession, settings: Settings, event: Pipelin
         # Back in the queue; retried after a pause, so a broken run doesn't loop every few seconds
         await session.execute(update(SmsBatch).where(SmsBatch.id.in_(covered)).values(status="received"))
         mark_due(user, settings.pipeline_retry_s)
-    # Uploads that arrived during the run still need one
+    # Uploads that arrived during the run still need one. Only those: after a failure the run's
+    # own uploads are "received" again too, and they wait for the back-off above, not the debounce.
     waiting = await session.scalar(
-        select(SmsBatch.id).where(SmsBatch.user_id == user.id, SmsBatch.status == "received").limit(1)
+        select(SmsBatch.id)
+        .where(
+            SmsBatch.user_id == user.id, SmsBatch.status == "received", SmsBatch.created_at > event.started_at
+        )
+        .limit(1)
     )
     if waiting is not None:
         mark_due(user, settings.pipeline_debounce_s)

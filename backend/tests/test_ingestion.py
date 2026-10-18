@@ -320,6 +320,26 @@ def test_a_failed_run_puts_the_batch_back_in_the_queue(
     assert sync["provisional_transactions"] == 1  # still shown while waiting
 
 
+def test_a_failed_run_is_retried_after_the_back_off_not_the_debounce(
+    api: TestClient, user: SignedIn, trigger: FakeTrigger, fake_clock: Clock, database_url: str
+) -> None:
+    """The failed run's own uploads go back in the queue; they mustn't count as "uploads that
+    arrived during the run", or the 2-minute debounce would override the 5-minute back-off."""
+    upload(api, user, [sms(s.PAYMENT_MADE)])
+    asyncio.run(execute(
+        database_url,
+        "UPDATE app.sms_batch SET status = 'processing'",
+        "UPDATE app.user SET pipeline_due_at = NULL",  # as the scheduler leaves it after triggering
+    ))  # fmt: skip
+
+    api.post("/internal/pipeline-events", **_event(user, "failed", datetime.now(UTC) + timedelta(seconds=1)))
+
+    fake_clock.advance(seconds=121)
+    assert _scheduler_pass(api, trigger) == 0  # past the debounce, still backing off
+    fake_clock.advance(seconds=180)
+    assert _scheduler_pass(api, trigger) == 1
+
+
 @pytest.mark.parametrize("token", ["", "wrong-token-of-the-right-length-0000000000"])
 def test_the_internal_endpoint_needs_the_service_token(api: TestClient, user: SignedIn, token: str) -> None:
     response = api.post("/internal/pipeline-events", **_event(user, "succeeded", datetime.now(UTC), token))
