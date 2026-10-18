@@ -90,7 +90,8 @@ def _without_retries(step, run):
     on_success_callback=_run_succeeded,
     on_failure_callback=_run_failed,
     params={
-        "user_id": Param("", type="string", description="App user ID; empty = the legacy owner."),
+        # "null" makes the field optional in the trigger form; a plain "string" is required there
+        "user_id": Param(None, type=["null", "string"], description="App user ID; empty = the legacy owner."),
         "force": Param(False, type="boolean", description="Run even if nothing changed."),
         "load": Param(True, type="boolean", description="Load the warehouse."),
     },

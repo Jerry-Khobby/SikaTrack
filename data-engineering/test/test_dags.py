@@ -59,6 +59,13 @@ def test_quality_gates_fail_fast_and_io_retries(dagbag):
     assert all(retries[t] == 2 for t in ("stage", "extract", "publish", "load"))
 
 
+def test_user_id_can_be_left_empty_when_triggering(dagbag):
+    # Empty means the legacy owner; the trigger form refuses an empty field unless "null" is allowed
+    user_id = dag(dagbag, "sikatrack_pipeline").params.get_param("user_id")
+    assert user_id.resolve(None) is None
+    assert user_id.resolve("3f2a9c0e-1b7d-4c8e-9a6f-2d5b8e1c7a90") == "3f2a9c0e-1b7d-4c8e-9a6f-2d5b8e1c7a90"
+
+
 def test_cleanup_and_state_run_even_when_load_is_skipped(dagbag):
     pipeline = dag(dagbag, "sikatrack_pipeline")
     assert pipeline.get_task("remember").trigger_rule == "none_failed"
