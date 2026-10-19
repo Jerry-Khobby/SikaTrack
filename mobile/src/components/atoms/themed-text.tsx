@@ -1,57 +1,86 @@
-import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
+import { StyleSheet, Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/theme';
+import { FontFamily, ThemeColor } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?:
+    | 'display'
+    | 'title'
+    | 'headline'
+    | 'heading'
+    | 'subheading'
+    | 'body'
+    | 'bodySmall'
+    | 'callout'
+    | 'caption'
+    | 'label'
+    | 'fine';
   themeColor?: ThemeColor;
 };
 
-export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
+export function ThemedText({ style, type = 'body', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
 
   return <Text style={[{ color: theme[themeColor ?? 'text'] }, styles[type], style]} {...rest} />;
 }
 
 const styles = StyleSheet.create({
-  small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
-  },
-  smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
-  },
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
+  display: {
+    fontFamily: FontFamily.extraBold,
+    fontSize: 40,
+    lineHeight: 43,
+    letterSpacing: -1,
   },
   title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+    fontFamily: FontFamily.extraBold,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.5,
   },
-  subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
+  headline: {
+    fontFamily: FontFamily.extraBold,
+    fontSize: 26,
+    lineHeight: 32,
   },
-  link: {
-    lineHeight: 30,
+  heading: {
+    fontFamily: FontFamily.bold,
+    fontSize: 20,
+    lineHeight: 26,
+  },
+  subheading: {
+    fontFamily: FontFamily.bold,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  body: {
+    fontFamily: FontFamily.regular,
+    fontSize: 16,
+    lineHeight: 23,
+  },
+  bodySmall: {
+    fontFamily: FontFamily.regular,
+    fontSize: 15,
+    lineHeight: 23,
+  },
+  callout: {
+    fontFamily: FontFamily.regular,
     fontSize: 14,
+    lineHeight: 22,
   },
-  linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
+  caption: {
+    fontFamily: FontFamily.regular,
+    fontSize: 13,
+    lineHeight: 18,
   },
-  code: {
-    fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
+  label: {
+    fontFamily: FontFamily.bold,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  fine: {
+    fontFamily: FontFamily.regular,
     fontSize: 12,
+    lineHeight: 18,
   },
 });
