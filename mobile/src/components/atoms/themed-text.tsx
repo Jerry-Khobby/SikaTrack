@@ -15,6 +15,7 @@ export type ThemedTextProps = TextProps & {
     | 'callout'
     | 'caption'
     | 'label'
+    | 'overline'
     | 'fine';
   themeColor?: ThemeColor;
 };
@@ -77,6 +78,13 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.bold,
     fontSize: 13,
     lineHeight: 18,
+  },
+  overline: {
+    fontFamily: FontFamily.bold,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   fine: {
     fontFamily: FontFamily.regular,

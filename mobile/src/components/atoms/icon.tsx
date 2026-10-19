@@ -54,6 +54,19 @@ const paths = {
     </>
   ),
   message: <Path d="M4 4h16v12H8l-4 4z" />,
+  'message-dash': (
+    <>
+      <Path d="M4 4h16v12H8l-4 4z" />
+      <Path d="M9 10h6" />
+    </>
+  ),
+  lock: (
+    <>
+      <Rect x={5} y={11} width={14} height={10} rx={2} />
+      <Path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </>
+  ),
+  edit: <Path d="M4 20h4L19 9l-4-4L4 16z" />,
   shield: <Path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z" />,
   user: (
     <>
@@ -75,10 +88,11 @@ export type IconProps = {
   name: IconName;
   color: string;
   size?: number;
+  strokeWidth?: number;
 };
 
 /** Line icons drawn on a 24×24 grid. */
-export function Icon({ name, color, size = 24 }: IconProps) {
+export function Icon({ name, color, size = 24, strokeWidth = 1.8 }: IconProps) {
   return (
     <Svg
       width={size}
@@ -86,7 +100,7 @@ export function Icon({ name, color, size = 24 }: IconProps) {
       viewBox="0 0 24 24"
       fill="none"
       stroke={color}
-      strokeWidth={1.8}
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round">
       {paths[name]}

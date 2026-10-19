@@ -1,20 +1,29 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
-import { ControlHeight, FontFamily, Radius } from '@/theme';
+import { BrandColors, ControlHeight, FontFamily, Radius } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ButtonProps = {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'link';
+  /**
+   * `primary`: filled, the screen's main action. `secondary`: outlined.
+   * `accent`: gold, for the brand-ink screens. `link`: text only.
+   */
+  variant?: 'primary' | 'secondary' | 'accent' | 'link';
   disabled?: boolean;
   loading?: boolean;
 };
 
 export function Button({ label, onPress, variant = 'primary', disabled, loading }: ButtonProps) {
   const theme = useTheme();
-  const isPrimary = variant === 'primary';
   const inactive = disabled || loading;
+  const look = {
+    primary: { background: theme.primary, border: undefined, label: theme.onPrimary },
+    secondary: { background: undefined, border: theme.primary, label: theme.primary },
+    accent: { background: BrandColors.gold, border: undefined, label: BrandColors.ink },
+    link: { background: undefined, border: undefined, label: theme.link },
+  }[variant];
 
   return (
     <Pressable
@@ -23,18 +32,20 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading 
       disabled={inactive}
       onPress={onPress}
       style={({ pressed }) => [
-        isPrimary ? styles.primary : styles.link,
-        isPrimary && { backgroundColor: theme.primary },
+        variant === 'link' ? styles.link : styles.filled,
+        look.background !== undefined && { backgroundColor: look.background },
+        look.border !== undefined && { borderWidth: 1.5, borderColor: look.border },
         disabled && styles.disabled,
         pressed && styles.pressed,
       ]}>
       {loading ? (
-        <ActivityIndicator color={isPrimary ? theme.onPrimary : theme.link} />
+        <ActivityIndicator color={look.label} />
       ) : (
         <Text
           style={[
-            isPrimary ? styles.primaryLabel : styles.linkLabel,
-            { color: isPrimary ? theme.onPrimary : theme.link },
+            variant === 'link' ? styles.linkLabel : styles.filledLabel,
+            variant === 'accent' && styles.accentLabel,
+            { color: look.label },
           ]}>
           {label}
         </Text>
@@ -44,7 +55,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading 
 }
 
 const styles = StyleSheet.create({
-  primary: {
+  filled: {
     height: ControlHeight.button,
     borderRadius: Radius.md,
     alignItems: 'center',
@@ -55,13 +66,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryLabel: {
+  filledLabel: {
     fontFamily: FontFamily.bold,
     fontSize: 16,
   },
+  accentLabel: {
+    fontFamily: FontFamily.extraBold,
+  },
   linkLabel: {
     fontFamily: FontFamily.semiBold,
-    fontSize: 14,
+    fontSize: 15,
   },
   disabled: {
     opacity: 0.4,
