@@ -24,6 +24,15 @@ export const Colors = {
     iconOrange: '#C4501F',
     tintGreen: '#E6F3EE',
     iconGreen: '#137A55',
+    tintNeutral: '#EDEAE3',
+    tintGold: '#FFF6DC',
+    borderGold: '#E8B33A',
+    surfaceSelected: '#F1F4F8',
+    chip: '#F1EFEA',
+    divider: '#EFECE6',
+    track: '#DDD9D0',
+    toggleOff: '#CFCBC2',
+    textDisabled: '#8A9098',
   },
   dark: {
     text: '#F2F1EC',
@@ -44,6 +53,15 @@ export const Colors = {
     iconOrange: '#F0956B',
     tintGreen: '#16302A',
     iconGreen: '#6FCFA5',
+    tintNeutral: '#232D37',
+    tintGold: '#3A3220',
+    borderGold: '#B88A20',
+    surfaceSelected: '#22324A',
+    chip: '#26313B',
+    divider: '#26313B',
+    track: '#2C3742',
+    toggleOff: '#3A4652',
+    textDisabled: '#6B7580',
   },
 } as const;
 
@@ -55,7 +73,18 @@ export const BrandColors = {
   gold: '#E8B33A',
   onInk: '#FFFFFF',
   onInkMuted: '#AEB6C0',
+  onInkSoft: '#C9D0D8',
 } as const;
+
+/**
+ * Each provider's own colour, used only in its small wallet badge (docs/ui-spec.md §3).
+ * Keyed by the provider `code` from `GET /v1/config`; a provider missing here gets a
+ * neutral badge with its initials.
+ */
+export const ProviderBrands: Record<string, { background: string; text: string; short: string }> = {
+  mtn_momo: { background: '#FFCC00', text: '#1B2631', short: 'MTN' },
+  ghanapay: { background: '#0B5D4B', text: '#FFFFFF', short: 'GP' },
+};
 
 /** Light-theme values from the spec. Each still needs a dark-theme twin with the same meaning. */
 export const DataColors = {
