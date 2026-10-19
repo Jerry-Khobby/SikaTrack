@@ -2,9 +2,9 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Icon, ThemedText, ThemedView, type IconName } from '@/components/atoms';
+import { ThemedText, ThemedView, type IconName } from '@/components/atoms';
+import { IconCircle } from '@/components/molecules';
 import { MaxContentWidth, Spacing } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 type MessageTemplateProps = {
   icon: IconName;
@@ -15,15 +15,11 @@ type MessageTemplateProps = {
 
 /** A full-screen message: illustration, title and one sentence in the middle, one action at the bottom. */
 export function MessageTemplate({ icon, title, message, action }: MessageTemplateProps) {
-  const theme = useTheme();
-
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.body}>
-          <View style={[styles.illustration, { backgroundColor: theme.tintBlue }]}>
-            <Icon name={icon} color={theme.iconBlue} size={60} />
-          </View>
+          <IconCircle icon={icon} />
           <ThemedText type="headline" accessibilityRole="header" style={styles.center}>
             {title}
           </ThemedText>
@@ -53,13 +49,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 20,
-  },
-  illustration: {
-    width: 132,
-    height: 132,
-    borderRadius: 66,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   center: {
     textAlign: 'center',
