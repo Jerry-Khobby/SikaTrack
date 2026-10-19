@@ -8,6 +8,8 @@ import { AuthStepTemplate } from '@/components/templates';
 import { useCountdown } from '@/hooks/use-countdown';
 import { useGoBack } from '@/hooks/use-go-back';
 import { OTP_LENGTH, OtpInvalidError, requestOtp, verifyOtp } from '@/services/auth';
+import { getMe } from '@/services/me';
+import { onboardingRoute } from '@/services/onboarding';
 import { formatPhoneNumber } from '@/utils/phone';
 
 const MAX_ATTEMPTS = 5;
@@ -37,12 +39,12 @@ export default function CodeScreen() {
   const verify = async (fullCode: string) => {
     setChecking(true);
     try {
-      await verifyOtp(otpRequestId, fullCode);
-      // Home (S12) isn't built yet, so every sign-in carries on to onboarding.
+      const { isNewUser } = await verifyOtp(otpRequestId, fullCode);
+      const destination = onboardingRoute(await getMe(), isNewUser) ?? '/home';
       if (router.canDismiss()) {
         router.dismissAll();
       }
-      router.replace('/onboarding');
+      router.replace(destination);
     } catch (e) {
       const nextAttempts = attempts + 1;
       setAttempts(nextAttempts);

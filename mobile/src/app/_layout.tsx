@@ -40,6 +40,7 @@ export default function RootLayout() {
         <Stack.Screen name="update-required" options={{ animation: 'fade' }} />
         <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
         <Stack.Screen name="onboarding" options={{ animation: 'fade' }} />
+        <Stack.Screen name="home" options={{ animation: 'fade' }} />
       </Stack>
     </ThemeProvider>
   );
