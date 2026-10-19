@@ -28,6 +28,16 @@ export function formatPhoneNumber(e164: string) {
   return parsePhoneNumberFromString(e164)?.formatInternational() ?? e164;
 }
 
+/** `+233241234567` → `024 123 4567`, the way the number's own country writes it. */
+export function formatNationalNumber(e164: string) {
+  return parsePhoneNumberFromString(e164)?.formatNational() ?? e164;
+}
+
+/** The country a number belongs to (`+233…` → `GH`), if it can tell. */
+export function countryOfNumber(e164: string) {
+  return parsePhoneNumberFromString(e164)?.country;
+}
+
 /** A sample mobile number for that country, written the local way (`023 123 4567`). */
 export function examplePhoneNumber(country: CountryCode) {
   return getExampleNumber(country, examples)?.formatNational();

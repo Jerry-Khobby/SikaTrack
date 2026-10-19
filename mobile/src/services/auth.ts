@@ -3,6 +3,9 @@
  * wired in. Every number gets a code and every code is accepted, except
  * 000000, which is rejected so the wrong-code state can be tried.
  */
+import { startSession } from './me';
+import { resetScan } from './sms';
+import { resetWallets } from './wallets';
 
 /** Digits in a sign-in code. */
 export const OTP_LENGTH = 6;
@@ -39,17 +42,25 @@ export class RateLimitedError extends Error {
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Which number each code was sent to, so signing in knows whose account it is. */
+const requestedNumbers = new Map<string, string>();
+
 /** `POST /v1/auth/otp/request` */
 export async function requestOtp(phoneNumber: string): Promise<OtpRequest> {
   await wait(600);
-  return { otpRequestId: `dev-${phoneNumber}-${Date.now()}`, expiresIn: 300, resendAfter: 60 };
+  const otpRequestId = `dev-${phoneNumber}-${Date.now()}`;
+  requestedNumbers.set(otpRequestId, phoneNumber);
+  return { otpRequestId, expiresIn: 300, resendAfter: 60 };
 }
 
-/** `POST /v1/auth/otp/verify` */
+/** `POST /v1/auth/otp/verify`. Every sign-in starts a brand-new account. */
 export async function verifyOtp(otpRequestId: string, code: string): Promise<OtpVerification> {
   await wait(800);
   if (code === '000000') {
     throw new OtpInvalidError();
   }
+  startSession(requestedNumbers.get(otpRequestId) ?? null);
+  resetWallets();
+  resetScan();
   return { isNewUser: true, onboardingFinished: false };
 }
