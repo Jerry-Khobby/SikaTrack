@@ -49,14 +49,38 @@ Each layer may import from its own layer and the layers below it, never from abo
 | templates | organisms, molecules, atoms, `theme` | No |
 | pages (`src/app`) | everything | Yes: this is where data is loaded |
 
-## Sign-in without a backend
-
-Until the API exists, [src/services/](src/services/) lets everyone through: any Ghanaian number
-gets a code and any code signs in, except `000000`, which is rejected so the wrong-code state can
-be seen. The countries people can sign in from come from `supportedCountries` in
-[src/services/config.ts](src/services/config.ts); every other country can be chosen but shows a
-"not available yet" note. To see the update-required screen, start with `EXPO_PUBLIC_FORCE_UPDATE=true npx expo start`.
-
 Each layer has an `index.ts` that re-exports its components, so imports read
 `import { ThemedText } from '@/components/atoms';`. File names are kebab-case
 (`money-amount.tsx`), component names PascalCase (`MoneyAmount`).
+
+## Running without a backend
+
+Until the API exists, each file in [src/services/](src/services/) stands in for its endpoints
+and keeps its data in memory, so everything starts over when the app reloads. Screens only
+read data through these files, so wiring in the real API changes nothing else.
+
+**Sign-in** lets everyone through:
+
+- Any valid number gets a code, and any code signs in, except `000000`. That one is rejected
+  so you can see the wrong-code state.
+- Every sign-in starts a new account, which then goes through onboarding.
+- People can sign in from the countries in `supportedCountries` in
+  [src/services/config.ts](src/services/config.ts). Any other country can be chosen, but it
+  shows a "not available yet" note.
+
+**Onboarding** goes through every step:
+
+- **SMS and notifications:** both permission prompts answer yes. Real ones need a development
+  build.
+- **Wallets:** the sign-in number is prefilled for the first wallet. Adding the same wallet
+  twice shows the "already on your account" error. There are no "Is this you?" name
+  suggestions yet, because those come from reading the SMS.
+- **First sync:** it replays a scan of the dataset the pipeline was built on, over about 6
+  seconds.
+
+To see the edge cases, start the app with one of these:
+
+| Command | Shows |
+| --- | --- |
+| `EXPO_PUBLIC_FORCE_UPDATE=true npx expo start` | The update-required screen |
+| `EXPO_PUBLIC_EMPTY_INBOX=true npx expo start` | A phone with no MoMo SMS at the first sync |
