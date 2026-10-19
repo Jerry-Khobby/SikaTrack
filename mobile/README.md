@@ -10,6 +10,16 @@ npm install
 npx expo start
 ```
 
+## Tests
+
+```bash
+npm test
+```
+
+Tests use Jest (`jest-expo`) and React Native Testing Library. Unit and component tests sit
+next to the file they test (`phone.test.ts` beside `phone.ts`). Screen tests live in
+`src/__tests__/screens/`, because every file inside `src/app` becomes a route.
+
 ## Code layout
 
 The UI follows [Atomic Design](https://atomicdesign.bradfrost.com/chapter-2/): small parts
