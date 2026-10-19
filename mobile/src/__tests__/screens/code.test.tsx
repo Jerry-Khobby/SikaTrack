@@ -61,14 +61,14 @@ describe('S05 · Enter the code', () => {
     expect(mockVerifyOtp).not.toHaveBeenCalled();
   });
 
-  it('submits on the last digit and signs in', async () => {
+  it('submits on the last digit and starts a new user on onboarding', async () => {
     mockVerifyOtp.mockResolvedValue({ isNewUser: true, onboardingFinished: false });
     await render(<CodeScreen />);
 
     await enterCode('123456');
 
     expect(mockVerifyOtp).toHaveBeenCalledWith('req-1', '123456');
-    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/onboarding'));
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/onboarding/name'));
   });
 
   it('clears the boxes and explains a wrong code', async () => {
