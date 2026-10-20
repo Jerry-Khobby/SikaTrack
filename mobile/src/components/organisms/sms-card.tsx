@@ -35,7 +35,8 @@ export function SmsCard({ text, count, sender, time }: SmsCardProps) {
             {count} SMS
           </ThemedText>
         )}
-        <View className={open ? 'rotate-180' : ''}>
+        {/* Flips with `open`, so the rotation is inline: a toggled transform class remounts the view. */}
+        <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
           <Icon name="chevron-down" color={theme.text} size={16} />
         </View>
       </Pressable>
