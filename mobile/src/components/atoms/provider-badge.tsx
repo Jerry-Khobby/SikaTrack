@@ -10,6 +10,8 @@ export type ProviderBadgeProps = {
   name: string;
   size?: number;
   muted?: boolean;
+  /** `tile`: a square. `tag`: a short inline label, as in transaction rows. */
+  variant?: 'tile' | 'tag';
 };
 
 function initials(name: string) {
@@ -22,27 +24,26 @@ function initials(name: string) {
 }
 
 /** A wallet provider's small coloured tile, the one place its brand colour appears. */
-export function ProviderBadge({ code, name, size = 36, muted }: ProviderBadgeProps) {
+export function ProviderBadge({ code, name, size = 36, muted, variant = 'tile' }: ProviderBadgeProps) {
   const theme = useTheme();
   const brand = muted ? undefined : ProviderBrands[code];
+  const tag = variant === 'tag';
 
   return (
     <View
       accessible={false}
       style={[
         styles.badge,
-        {
-          width: size,
-          height: size,
-          borderRadius: Math.round(size * 0.28),
-          backgroundColor: brand?.background ?? theme.border,
-        },
+        tag
+          ? { height: size, paddingHorizontal: 5, borderRadius: 4 }
+          : { width: size, height: size, borderRadius: Math.round(size * 0.28) },
+        { backgroundColor: brand?.background ?? theme.border },
       ]}>
       <Text
         style={[
           styles.label,
           {
-            fontSize: Math.max(8, Math.round(size * 0.3)),
+            fontSize: tag ? Math.round(size * 0.56) : Math.max(8, Math.round(size * 0.3)),
             color: brand?.text ?? theme.textDisabled,
           },
         ]}>
