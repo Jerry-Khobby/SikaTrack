@@ -9,3 +9,4 @@ export * from './message-template';
 export * from './onboarding-step-template';
 export * from './screen-template';
 export * from './splash-template';
+export * from './tab-screen-template';
