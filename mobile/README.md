@@ -36,7 +36,7 @@ src/
 │   └── templates/       Page layouts that place organisms, with no real content
 ├── hooks/               Shared React hooks, including every data query (queries.ts)
 ├── services/            One file per API area: calls an endpoint, maps it to the app's models
-├── theme/               Design tokens: colours, spacing, fonts
+├── theme/               Design tokens (colours, sizes, fonts) that tailwind.config.js reads
 └── utils/               Plain functions, e.g. phone number parsing and formatting
 ```
 
@@ -53,6 +53,37 @@ Each layer may import from its own layer and the layers below it, never from abo
 Each layer has an `index.ts` that re-exports its components, so imports read
 `import { ThemedText } from '@/components/atoms';`. File names are kebab-case
 (`money-amount.tsx`), component names PascalCase (`MoneyAmount`).
+
+## Styling
+
+Components are styled with Tailwind classes through
+[NativeWind](https://www.nativewind.dev/) (v4): `<View className="flex-row gap-3 rounded-lg bg-surface p-4">`.
+
+- **Tokens:** [tailwind.config.js](tailwind.config.js) builds its theme from
+  [src/theme](src/theme), so the classes and the tokens can't drift apart.
+- **Colours follow light and dark mode.** Theme colours are CSS variables that the root layout
+  switches, so use `bg-surface` or `text-content` and never add `dark:` variants. The names:
+  - text colours are `content-*`: `text-content`, `text-content-secondary`;
+  - border colours are `line-*`: `border-line`, `border-line-input`;
+  - everything else keeps its token name, kebab-cased: `bg-tint-blue`, `text-icon-red`.
+- **Fixed colours:** brand and chart colours are the same in both modes: `bg-brand-ink`,
+  `text-brand-gold`, `bg-chart-1`.
+- **Fonts:** pick a weight with `font-sans`, `font-sans-semibold`, `font-sans-bold` or
+  `font-sans-extrabold`. Never set `fontWeight`; each weight is its own font file on Android.
+- **Text:** `ThemedText` gives the type styles (`type="caption"`) and theme colours
+  (`themeColor="textSecondary"`). For your own font or colour, pass `type="none"` or
+  `themeColor="none"` and set it in `className`. Never put two classes for the same property on
+  one element: NativeWind doesn't decide between them by order.
+- **Sizes:** `inlineRem: 16` in [metro.config.js](metro.config.js) keeps Tailwind's scale in
+  real pixels (`p-4` = 16 px). Off-scale values use brackets: `text-[15px] leading-[21px]`.
+- **Inline `style` only for what classes can't express:**
+  - values computed at runtime (sizes from props, percentages, data colours);
+  - animated transforms;
+  - native shadows and `elevation`;
+  - `fontVariant: ['tabular-nums']`, which NativeWind can't apply on Android.
+- **Icons:** they take a colour string, so they still read it from `useTheme()`.
+- **Class strings must stay complete words**, not built like `` `bg-${tone}` ``, or Tailwind
+  won't see them. Use a lookup object of full class names instead.
 
 ## How data reaches a screen
 
