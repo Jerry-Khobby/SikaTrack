@@ -18,7 +18,13 @@ const SEARCH_DELAY_MS = 300;
 /** S13 · Transactions: every payment, searchable and filterable. */
 export default function TransactionsScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ counterpartyId?: string; counterpartyName?: string }>();
+  const params = useLocalSearchParams<{
+    counterpartyId?: string;
+    counterpartyName?: string;
+    from?: string;
+    to?: string;
+    category?: string;
+  }>();
   const me = useMe();
   const providerNames = useProviderNames();
   const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
@@ -36,6 +42,18 @@ export default function TransactionsScreen() {
       });
     }
   }, [params.counterpartyId, params.counterpartyName]);
+
+  // Spending opens this tab on one period ("See these transactions") or one category.
+  useEffect(() => {
+    if (params.from && params.to) {
+      setSearch('');
+      setFilters({
+        ...DEFAULT_FILTERS,
+        date: { from: params.from, to: params.to },
+        categories: params.category ? [params.category] : [],
+      });
+    }
+  }, [params.from, params.to, params.category]);
 
   useEffect(() => {
     const timer = setTimeout(() => setFilters((current) => (current.q === search ? current : { ...current, q: search })), SEARCH_DELAY_MS);

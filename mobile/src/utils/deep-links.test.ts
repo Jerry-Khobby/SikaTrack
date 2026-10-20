@@ -6,10 +6,11 @@ describe('routeForLink', () => {
     ['sikatrack://transactions', '/transactions'],
     ['sikatrack://transactions/txn_9Qe1', '/transactions/txn_9Qe1'],
     ['sikatrack://budgets/food', '/budgets'],
-    ['sikatrack://categories/food', '/spending'],
-    ['sikatrack://fees', '/spending'],
-    ['sikatrack://recurring/rec_1', '/more'],
-    ['sikatrack://balances', '/more'],
+    ['sikatrack://categories/food', '/categories/food'],
+    ['sikatrack://fees', '/spending?view=fees'],
+    ['sikatrack://recurring', '/recurring'],
+    ['sikatrack://recurring/rec_1', '/recurring/rec_1'],
+    ['sikatrack://balances', '/wallets'],
     ['sikatrack://sync', '/more'],
   ])('opens %s at %s', (link, route) => {
     expect(routeForLink(link)).toBe(route);

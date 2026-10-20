@@ -56,7 +56,8 @@ export default function TransactionDetailScreen() {
   const query = useTransaction(id);
   const update = useUpdateTransaction(id);
   const categories = useCategories();
-  const recurring = useRecurringOverview();
+  // Every series, so a stopped one still names the row.
+  const recurring = useRecurringOverview('all');
   const [note, setNote] = useState('');
   const [picking, setPicking] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -122,7 +123,11 @@ export default function TransactionDetailScreen() {
 
   return (
     <DetailTemplate onBack={goBack} gutter="narrow" refreshing={query.isRefetching} onRefresh={() => query.refetch()}>
-      <TransactionHero transaction={t} providerName={providerName} onPressCounterparty={seeAllPayments} />
+      <TransactionHero
+        transaction={t}
+        providerName={providerName}
+        onPressCounterparty={() => router.push(`/counterparties/${t.counterparty.id}`)}
+      />
 
       <TransactionCategoryCard
         categoryId={t.category.id}

@@ -129,14 +129,14 @@ export default function HomeScreen() {
               <BalancesCard
                 balances={balances.data}
                 providerNames={providerNames}
-                onPress={() => router.navigate('/more')}
+                onPress={() => router.push('/wallets')}
               />
             )}
             {spending.data && spending.data.items.length > 0 && (
               <CategoryBreakdownCard
                 spending={spending.data}
                 currency={data.currency}
-                onPressCategory={() => router.navigate('/spending')}
+                onPressCategory={(id) => router.push({ pathname: '/categories/[id]', params: { id, month } })}
                 onSeeAll={() => router.navigate('/spending')}
               />
             )}
@@ -163,7 +163,7 @@ export default function HomeScreen() {
                 icon="repeat"
                 title={`${formatMoney(recurring.data.monthlyCost, data.currency)} a month`}
                 subtitle={`in recurring payments · ${activeRecurring.length} active`}
-                onPress={() => router.navigate('/more')}
+                onPress={() => router.push('/recurring')}
               />
             )}
             {budgets.data && (
