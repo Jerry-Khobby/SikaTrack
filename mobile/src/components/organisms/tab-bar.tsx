@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '@/components/atoms';
-import { FontFamily } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type TabBarItem = {
@@ -17,18 +17,46 @@ export type TabBarProps = {
   onPress: (key: string) => void;
 };
 
-/** The five main tabs along the bottom, the current one in a soft pill. */
+/**
+ * The five main tabs along the bottom. The current tab's icon and label turn
+ * blue, and a short bar on the top edge slides over to it.
+ */
 export function TabBar({ items, onPress }: TabBarProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const [width, setWidth] = useState(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const position = useRef(new Animated.Value(0)).current;
+  const focusedIndex = Math.max(0, items.findIndex((item) => item.focused));
+  const tabWidth = items.length ? width / items.length : 0;
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+  }, []);
+
+  useEffect(() => {
+    const to = focusedIndex * tabWidth;
+    if (reduceMotion) {
+      position.setValue(to);
+    } else {
+      Animated.spring(position, { toValue: to, useNativeDriver: true, speed: 18, bounciness: 4 }).start();
+    }
+  }, [focusedIndex, tabWidth, reduceMotion, position]);
 
   return (
     <View
       accessibilityRole="tablist"
-      style={[
-        styles.bar,
-        { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: insets.bottom },
-      ]}>
+      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+      className="flex-row border-t border-line bg-surface"
+      style={{ paddingBottom: insets.bottom }}>
+      {tabWidth > 0 && (
+        // Moves with the current tab, so it keeps an animated inline style.
+        <Animated.View
+          pointerEvents="none"
+          style={{ position: 'absolute', top: -1, left: 0, width: tabWidth, transform: [{ translateX: position }] }}>
+          <View className="h-[3px] w-8 self-center rounded-b-full bg-link" />
+        </Animated.View>
+      )}
       {items.map((item) => (
         <Pressable
           key={item.key}
@@ -36,18 +64,10 @@ export function TabBar({ items, onPress }: TabBarProps) {
           accessibilityLabel={item.label}
           accessibilityState={{ selected: item.focused }}
           onPress={() => onPress(item.key)}
-          style={styles.tab}>
-          <View style={[styles.pill, item.focused && { backgroundColor: theme.tabActive }]}>
-            <Icon name={item.icon} color={item.focused ? theme.text : theme.textSecondary} size={22} />
-          </View>
+          className="h-[68px] flex-1 items-center justify-center gap-1 active:opacity-60">
+          <Icon name={item.icon} color={item.focused ? theme.link : theme.textSecondary} size={22} strokeWidth={item.focused ? 2.2 : 1.8} />
           <Text
-            style={[
-              styles.label,
-              {
-                color: item.focused ? theme.text : theme.textSecondary,
-                fontFamily: item.focused ? FontFamily.extraBold : FontFamily.semiBold,
-              },
-            ]}
+            className={`text-[11px] ${item.focused ? 'font-sans-extrabold text-link' : 'font-sans-semibold text-content-secondary'}`}
             numberOfLines={1}>
             {item.label}
           </Text>
@@ -56,27 +76,3 @@ export function TabBar({ items, onPress }: TabBarProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  bar: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-  },
-  tab: {
-    flex: 1,
-    height: 76,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  pill: {
-    width: 56,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: {
-    fontSize: 11,
-  },
-});
