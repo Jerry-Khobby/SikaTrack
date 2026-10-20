@@ -45,6 +45,13 @@ export function formatWeekdayDate(iso: string, now = Date.now()) {
   return `${WEEKDAYS[date.getUTCDay()]} ${date.getUTCDate()} ${MONTHS_SHORT[date.getUTCMonth()]}${year}`;
 }
 
+/** `1 Oct`, with the year when it isn't this year: `14 Sep 2025`. */
+export function formatDayMonth(iso: string, now = Date.now()) {
+  const date = new Date(iso);
+  const year = date.getUTCFullYear() !== new Date(now).getUTCFullYear() ? ` ${date.getUTCFullYear()}` : '';
+  return `${date.getUTCDate()} ${MONTHS_SHORT[date.getUTCMonth()]}${year}`;
+}
+
 /** Day headers in lists: `Today`, `Yesterday`, `Fri 16 Oct`. */
 export function formatDayHeader(iso: string, now = Date.now()) {
   const days = dayDifference(iso, now);
