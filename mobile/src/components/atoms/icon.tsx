@@ -67,6 +67,9 @@ const paths = {
     </>
   ),
   edit: <Path d="M4 20h4L19 9l-4-4L4 16z" />,
+  plus: <Path d="M12 5v14M5 12h14" />,
+  download: <Path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,
+  trash: <Path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />,
   home: <Path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
   list: <Path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" />,
   dots: (

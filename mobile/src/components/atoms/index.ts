@@ -2,14 +2,18 @@
  * Atoms: the smallest building blocks (text, icon, button, input, badge).
  * They take props only, hold no business logic and never fetch data.
  */
+export * from './bar-chart';
 export * from './button';
 export * from './card';
 export * from './category-glyph';
+export * from './chart-axis';
 export * from './chip';
 export * from './count-badge';
 export * from './donut-chart';
+export * from './heatmap';
 export * from './icon';
 export * from './icon-button';
+export * from './line-chart';
 export * from './logo-mark';
 export * from './pill';
 export * from './progress-bar';
