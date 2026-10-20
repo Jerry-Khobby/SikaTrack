@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { EmptyState, ScreenTitle } from '@/components/molecules';
 import { TabScreenTemplate } from '@/components/templates';
@@ -7,7 +7,7 @@ import { TabScreenTemplate } from '@/components/templates';
 export default function SpendingScreen() {
   return (
     <TabScreenTemplate>
-      <View style={styles.page}>
+      <View className="px-4 pt-[18px]">
         <ScreenTitle title="Spending" />
         <EmptyState
           icon="pie-chart"
@@ -19,9 +19,3 @@ export default function SpendingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  page: {
-    paddingTop: 18,
-    paddingHorizontal: 16,
-  },
-});

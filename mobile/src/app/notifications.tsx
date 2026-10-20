@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, Text } from 'react-native';
 
 import { Card } from '@/components/atoms';
 import { EmptyState, ErrorState, NotificationRow } from '@/components/molecules';
@@ -9,7 +9,6 @@ import { useGoBack } from '@/hooks/use-go-back';
 import { useTheme } from '@/hooks/use-theme';
 import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications } from '@/hooks/queries';
 import type { AppNotification } from '@/services/notifications';
-import { ControlHeight, FontFamily } from '@/theme';
 import { formatTimeAgo } from '@/utils/dates';
 import { routeForLink } from '@/utils/deep-links';
 
@@ -35,8 +34,8 @@ export default function NotificationsScreen() {
       accessibilityState={{ disabled: unread === 0 }}
       disabled={unread === 0 || markAll.isPending}
       onPress={() => markAll.mutate()}
-      style={styles.markAll}>
-      <Text style={[styles.markAllLabel, { color: unread === 0 ? theme.textDisabled : theme.link }]}>
+      className="h-touch justify-center px-2">
+      <Text className={`font-sans-bold text-[13px] ${unread === 0 ? 'text-content-disabled' : 'text-link'}`}>
         Mark all as read
       </Text>
     </Pressable>
@@ -47,11 +46,11 @@ export default function NotificationsScreen() {
       title="Notifications"
       onBack={goBack}
       action={action}
-      gutter={16}
+      gutter="narrow"
       refreshing={inbox.isRefetching}
       onRefresh={() => inbox.refetch()}>
       {inbox.isPending ? (
-        <ActivityIndicator style={styles.loading} color={theme.text} accessibilityLabel="Loading" />
+        <ActivityIndicator className="mt-16" color={theme.text} accessibilityLabel="Loading" />
       ) : inbox.isError ? (
         <ErrorState
           title="We couldn't load your notifications"
@@ -65,7 +64,7 @@ export default function NotificationsScreen() {
           message="Budget alerts, low balances and other heads-ups will land here."
         />
       ) : (
-        <Card padding={0} style={styles.list}>
+        <Card padded={false} className="overflow-hidden">
           {inbox.data.items.map((notification, index) => (
             <NotificationRow
               key={notification.id}
@@ -84,20 +83,3 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  markAll: {
-    height: ControlHeight.touch,
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-  },
-  markAllLabel: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-  },
-  loading: {
-    marginTop: 64,
-  },
-  list: {
-    overflow: 'hidden',
-  },
-});

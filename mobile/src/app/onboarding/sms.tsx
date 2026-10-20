@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button, ThemedText } from '@/components/atoms';
 import { BulletPoint } from '@/components/molecules';
@@ -47,13 +47,13 @@ export default function SmsPermissionScreen() {
           <Button variant="link" label="Not now" onPress={notNow} />
         </>
       }>
-      <View style={styles.preview}>
+      <View className="mt-7">
         <SmsInboxPreview senders={senders} />
       </View>
-      <ThemedText type="headline" accessibilityRole="header" style={styles.title}>
+      <ThemedText type="headline" accessibilityRole="header" className="mb-5 mt-7 tracking-[-0.5px]">
         Let SikaTrack read your MoMo SMS
       </ThemedText>
-      <View style={styles.points}>
+      <View className="gap-4">
         {config && (
           <BulletPoint
             icon="check"
@@ -70,16 +70,3 @@ export default function SmsPermissionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  preview: {
-    marginTop: 28,
-  },
-  title: {
-    marginTop: 28,
-    marginBottom: 20,
-    letterSpacing: -0.5,
-  },
-  points: {
-    gap: 16,
-  },
-});

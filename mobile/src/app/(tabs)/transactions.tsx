@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Skeleton } from '@/components/atoms';
 import { EmptyState, ErrorState, ScreenTitle, SearchField } from '@/components/molecules';
@@ -72,8 +72,8 @@ export default function TransactionsScreen() {
   };
 
   const header = (
-    <View style={styles.header}>
-      <View style={styles.top}>
+    <View className="pt-[18px]">
+      <View className="px-4 pb-2">
         <ScreenTitle title="Transactions" />
         <SearchField value={search} onChangeText={setSearch} placeholder="Search people, shops, references" />
       </View>
@@ -90,13 +90,13 @@ export default function TransactionsScreen() {
   return (
     <TabScreenTemplate header={header} scroll={false}>
       {list.isPending ? (
-        <View accessible accessibilityLabel="Loading transactions" style={styles.loading}>
+        <View accessible accessibilityLabel="Loading transactions" className="gap-2.5 px-4 pt-2.5">
           {[0, 1, 2, 3, 4].map((i) => (
             <Skeleton key={i} height={66} radius={18} />
           ))}
         </View>
       ) : list.isError ? (
-        <View style={styles.error}>
+        <View className="px-4 pt-2.5">
           <ErrorState
             title="We couldn't load your transactions"
             requestId={requestIdOf(list.error)}
@@ -150,21 +150,3 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    paddingTop: 18,
-  },
-  top: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  loading: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    gap: 10,
-  },
-  error: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-  },
-});

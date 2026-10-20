@@ -1,6 +1,5 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
 
 import { Button, ThemedText } from '@/components/atoms';
 import { TextField } from '@/components/molecules';
@@ -8,7 +7,6 @@ import { OnboardingStepTemplate } from '@/components/templates';
 import { useMe } from '@/hooks/use-me';
 import { updateMe } from '@/services/me';
 import { ONBOARDING_STEP_COUNT } from '@/services/onboarding';
-import { Spacing } from '@/theme';
 
 /** S06 · Your name. Optional. */
 export default function NameScreen() {
@@ -43,10 +41,10 @@ export default function NameScreen() {
           <Button variant="link" label="Skip" onPress={next} />
         </>
       }>
-      <ThemedText type="title" accessibilityRole="header" style={styles.title}>
+      <ThemedText type="title" accessibilityRole="header" className="mb-2 mt-10">
         What should we call you?
       </ThemedText>
-      <ThemedText type="bodySmall" themeColor="textSecondary" style={styles.subtitle}>
+      <ThemedText type="bodySmall" themeColor="textSecondary" className="mb-7">
         We'll use it to greet you on your dashboard.
       </ThemedText>
       <TextField
@@ -65,12 +63,3 @@ export default function NameScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  title: {
-    marginTop: 40,
-    marginBottom: Spacing.two,
-  },
-  subtitle: {
-    marginBottom: 28,
-  },
-});

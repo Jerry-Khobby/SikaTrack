@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 import type { CountryCode } from 'libphonenumber-js/mobile';
 import { useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
 
 import { Button, ThemedText } from '@/components/atoms';
 import { WalletChooser, WalletSheet, type WalletFormValues } from '@/components/organisms';
@@ -19,7 +18,6 @@ import {
   updateWallet,
   type Wallet,
 } from '@/services/wallets';
-import { Spacing } from '@/theme';
 import { countryOfNumber, formatNationalNumber } from '@/utils/phone';
 
 type SheetState = { mode: 'add'; provider: string } | { mode: 'edit'; wallet: Wallet };
@@ -79,10 +77,10 @@ export default function WalletsScreen() {
           loading={saving}
         />
       }>
-      <ThemedText type="title" accessibilityRole="header" style={styles.title}>
+      <ThemedText type="title" accessibilityRole="header" className="mb-2 mt-7">
         Which wallets are yours?
       </ThemedText>
-      <ThemedText type="bodySmall" themeColor="textSecondary" style={styles.subtitle}>
+      <ThemedText type="bodySmall" themeColor="textSecondary" className="mb-5">
         So money moving between your own wallets isn't counted as spending.
       </ThemedText>
       <WalletChooser
@@ -130,12 +128,3 @@ export default function WalletsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  title: {
-    marginTop: 28,
-    marginBottom: Spacing.two,
-  },
-  subtitle: {
-    marginBottom: 20,
-  },
-});

@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import { Button, Card, IconButton, ThemedText } from '@/components/atoms';
 import { ErrorState, InfoNote, NavigationRow, StatLine } from '@/components/molecules';
@@ -77,7 +77,7 @@ export default function TransactionDetailScreen() {
             onRetry={() => query.refetch()}
           />
         ) : (
-          <ActivityIndicator style={styles.loading} color={theme.text} accessibilityLabel="Loading" />
+          <ActivityIndicator className="mt-16" color={theme.text} accessibilityLabel="Loading" />
         )}
       </DetailTemplate>
     );
@@ -121,7 +121,7 @@ export default function TransactionDetailScreen() {
   ];
 
   return (
-    <DetailTemplate onBack={goBack} gutter={16} refreshing={query.isRefetching} onRefresh={() => query.refetch()}>
+    <DetailTemplate onBack={goBack} gutter="narrow" refreshing={query.isRefetching} onRefresh={() => query.refetch()}>
       <TransactionHero transaction={t} providerName={providerName} onPressCounterparty={seeAllPayments} />
 
       <TransactionCategoryCard
@@ -132,7 +132,7 @@ export default function TransactionDetailScreen() {
         onChange={() => setPicking(true)}
       />
 
-      <Card radius={18} padding={0} style={styles.details}>
+      <Card radius={18} padded={false} className="px-4 py-1">
         {details.map((row, index) => (
           <StatLine
             key={row.label}
@@ -147,7 +147,7 @@ export default function TransactionDetailScreen() {
             value={t.providerTxnId}
             trailing={
               copied ? (
-                <ThemedText type="fine" themeColor="iconSuccess" accessibilityLiveRegion="polite" style={styles.copied}>
+                <ThemedText type="fine" themeColor="iconSuccess" accessibilityLiveRegion="polite" className="px-2">
                   Copied
                 </ThemedText>
               ) : (
@@ -187,7 +187,7 @@ export default function TransactionDetailScreen() {
         time={formatDateTime(t.occurredAt)}
       />
 
-      <View style={styles.footer}>
+      <View className="mt-1">
         <Button variant="link" label={`See all payments to ${t.counterparty.name}`} onPress={seeAllPayments} />
       </View>
 
@@ -207,18 +207,3 @@ export default function TransactionDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  loading: {
-    marginTop: 64,
-  },
-  details: {
-    paddingVertical: 4,
-    paddingHorizontal: 16,
-  },
-  copied: {
-    paddingHorizontal: 8,
-  },
-  footer: {
-    marginTop: 4,
-  },
-});

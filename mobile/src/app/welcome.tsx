@@ -1,12 +1,11 @@
 import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button, ThemedText } from '@/components/atoms';
 import { Logo, type FeatureRowProps } from '@/components/molecules';
 import { FeatureList } from '@/components/organisms';
 import { ScreenTemplate } from '@/components/templates';
 import { useAppConfig } from '@/hooks/use-app-config';
-import { Spacing } from '@/theme';
 import { joinWithAnd } from '@/utils/text';
 
 const FEATURES: FeatureRowProps[] = [
@@ -33,12 +32,12 @@ export default function WelcomeScreen() {
       footer={
         <>
           {providerNames && (
-            <ThemedText type="caption" themeColor="textSecondary" style={styles.providers}>
+            <ThemedText type="caption" themeColor="textSecondary" className="mb-4 text-center">
               Works with {providerNames}.
             </ThemedText>
           )}
           <Button label="Get started" onPress={() => router.push('/sign-in/phone')} />
-          <View style={styles.privacy}>
+          <View className="mt-2">
             <Button
               variant="link"
               label="How we handle your data"
@@ -48,7 +47,7 @@ export default function WelcomeScreen() {
         </>
       }>
       <Logo />
-      <ThemedText type="display" accessibilityRole="header" style={styles.headline}>
+      <ThemedText type="display" accessibilityRole="header" className="mb-10 mt-14">
         Your MoMo,{'\n'}made clear.
       </ThemedText>
       <FeatureList items={FEATURES} />
@@ -56,16 +55,3 @@ export default function WelcomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  headline: {
-    marginTop: 56,
-    marginBottom: 40,
-  },
-  providers: {
-    textAlign: 'center',
-    marginBottom: Spacing.three,
-  },
-  privacy: {
-    marginTop: Spacing.two,
-  },
-});

@@ -1,5 +1,4 @@
 import { useRouter } from 'expo-router';
-import { StyleSheet } from 'react-native';
 
 import { Button, ThemedText } from '@/components/atoms';
 import { IconCircle } from '@/components/molecules';
@@ -29,10 +28,10 @@ export default function SmsDeniedScreen() {
         </>
       }>
       <IconCircle icon="message-dash" tone="neutral" size={120} />
-      <ThemedText type="headline" accessibilityRole="header" style={styles.center}>
+      <ThemedText type="headline" accessibilityRole="header" className="text-center">
         SikaTrack needs this to work
       </ThemedText>
-      <ThemedText type="bodySmall" themeColor="textSecondary" style={[styles.center, styles.message]}>
+      <ThemedText type="bodySmall" themeColor="textSecondary" className="max-w-[300px] text-center">
         Without your MoMo SMS there's nothing to build your transactions from. You can turn access
         on in Android settings whenever you're ready.
       </ThemedText>
@@ -40,11 +39,3 @@ export default function SmsDeniedScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: {
-    textAlign: 'center',
-  },
-  message: {
-    maxWidth: 300,
-  },
-});

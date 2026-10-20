@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { EmptyState, ErrorState, NavigationRow, StatusStrip } from '@/components/molecules';
 import {
@@ -85,7 +85,7 @@ export default function HomeScreen() {
   if (summary.isError) {
     return (
       <TabScreenTemplate header={header} refreshing={refreshing} onRefresh={refresh}>
-        <View style={styles.page}>
+        <View className="gap-3 px-4 pt-1">
           <ErrorState
             title="We couldn't load your dashboard"
             requestId={requestIdOf(summary.error)}
@@ -104,7 +104,7 @@ export default function HomeScreen() {
 
   return (
     <TabScreenTemplate header={header} refreshing={refreshing} onRefresh={refresh}>
-      <View style={styles.page}>
+      <View className="gap-3 px-4 pt-1">
         {me?.onboarding.smsPermission === 'denied' && (
           <StatusStrip
             icon="message"
@@ -147,7 +147,7 @@ export default function HomeScreen() {
       {!empty && (
         <>
           {insights.data && insights.data.length > 0 && (
-            <View style={styles.carousel}>
+            <View className="mt-3">
               <InsightCarousel
                 insights={insights.data}
                 onOpen={(insight) => {
@@ -157,7 +157,7 @@ export default function HomeScreen() {
               />
             </View>
           )}
-          <View style={[styles.page, styles.after]}>
+          <View className="gap-3 px-4 pt-3">
             {recurring.data && activeRecurring.length > 0 && (
               <NavigationRow
                 icon="repeat"
@@ -201,16 +201,3 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  page: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    gap: 12,
-  },
-  carousel: {
-    marginTop: 12,
-  },
-  after: {
-    paddingTop: 12,
-  },
-});

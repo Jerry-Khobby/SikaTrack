@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import { Button, TextLink, ThemedText } from '@/components/atoms';
 import { InfoNote, PhoneField } from '@/components/molecules';
@@ -10,7 +10,6 @@ import { useAppConfig } from '@/hooks/use-app-config';
 import { useGoBack } from '@/hooks/use-go-back';
 import { useTheme } from '@/hooks/use-theme';
 import { OTP_LENGTH, RateLimitedError, requestOtp } from '@/services/auth';
-import { FontFamily, Spacing } from '@/theme';
 import { findCountry, listCountries, type Country } from '@/utils/countries';
 import { examplePhoneNumber, formatPhoneInput, parsePhoneNumber } from '@/utils/phone';
 import { joinWithAnd } from '@/utils/text';
@@ -90,9 +89,9 @@ export default function PhoneScreen() {
             disabled={!phoneNumber}
             loading={sending}
           />
-          <ThemedText type="fine" themeColor="textSecondary" style={styles.terms}>
+          <ThemedText type="fine" themeColor="textSecondary" className="mt-[14px] text-center">
             By continuing you agree to the{' '}
-            <ThemedText type="fine" style={styles.termsLabel}>
+            <ThemedText type="none" className="font-sans-semibold text-[12px] leading-[18px]">
               Terms
             </ThemedText>{' '}
             and <TextLink onPress={() => router.push('/privacy')}>Privacy Policy</TextLink>.
@@ -114,7 +113,7 @@ export default function PhoneScreen() {
             onSubmitEditing={sendCode}
           />
           {!supported && (
-            <View style={styles.notice}>
+            <View className="mt-4">
               <InfoNote
                 tone="warning"
                 icon="globe"
@@ -138,15 +137,3 @@ export default function PhoneScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  notice: {
-    marginTop: Spacing.three,
-  },
-  terms: {
-    marginTop: 14,
-    textAlign: 'center',
-  },
-  termsLabel: {
-    fontFamily: FontFamily.semiBold,
-  },
-});

@@ -1,6 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet } from 'react-native';
 
 import { TextLink, ThemedText } from '@/components/atoms';
 import { CodeEntry } from '@/components/organisms';
@@ -92,7 +91,7 @@ export default function CodeScreen() {
       }
       onBack={goBack}
       footer={
-        <ThemedText type="fine" themeColor="textSecondary" style={styles.footer}>
+        <ThemedText type="fine" themeColor="textSecondary" className="text-center">
           The code submits on its own after the last digit.
         </ThemedText>
       }>
@@ -112,8 +111,3 @@ export default function CodeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  footer: {
-    textAlign: 'center',
-  },
-});

@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button, ThemedText } from '@/components/atoms';
 import { IconCircle } from '@/components/molecules';
@@ -9,7 +9,6 @@ import { OnboardingStepTemplate } from '@/components/templates';
 import { useInitialScan } from '@/hooks/use-initial-scan';
 import { ONBOARDING_STEP_COUNT } from '@/services/onboarding';
 import { startInitialScan } from '@/services/sms';
-import { Spacing } from '@/theme';
 
 /** S09 · First sync: read the MoMo SMS history once and show it turning into transactions. */
 export default function FirstSyncScreen() {
@@ -39,18 +38,18 @@ export default function FirstSyncScreen() {
           onPress={() => router.push('/onboarding/notifications')}
         />
       }>
-      <View style={styles.illustration}>
+      <View className="mt-11 h-[180px] items-center justify-center">
         {done ? <IconCircle icon="check" size={140} /> : <SyncIllustration />}
       </View>
       <ThemedText
         type="headline"
         accessibilityRole="header"
         accessibilityLiveRegion="polite"
-        style={styles.title}>
+        className="mb-[18px] mt-9 text-center tracking-[-0.5px]">
         {title}
       </ThemedText>
       {empty ? (
-        <ThemedText type="bodySmall" themeColor="textSecondary" style={styles.center}>
+        <ThemedText type="bodySmall" themeColor="textSecondary" className="text-center">
           We didn't find any MoMo messages on this phone. New ones will appear as they arrive.
         </ThemedText>
       ) : (
@@ -63,7 +62,7 @@ export default function FirstSyncScreen() {
             done={done}
           />
           {!done && (
-            <ThemedText type="callout" themeColor="textSecondary" style={styles.leave}>
+            <ThemedText type="callout" themeColor="textSecondary" className="mt-4 text-center">
               You can leave this screen; we'll keep going.
             </ThemedText>
           )}
@@ -73,24 +72,3 @@ export default function FirstSyncScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  illustration: {
-    marginTop: 44,
-    height: 180,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    marginTop: 36,
-    marginBottom: 18,
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  center: {
-    textAlign: 'center',
-  },
-  leave: {
-    marginTop: Spacing.three,
-    textAlign: 'center',
-  },
-});

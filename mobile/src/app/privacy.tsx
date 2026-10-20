@@ -1,5 +1,3 @@
-import { StyleSheet } from 'react-native';
-
 import { ThemedText } from '@/components/atoms';
 import { InfoCard, type InfoCardProps } from '@/components/molecules';
 import { DetailTemplate } from '@/components/templates';
@@ -38,7 +36,7 @@ export default function PrivacyScreen() {
 
   return (
     <DetailTemplate title="How we handle your data" onBack={goBack}>
-      <ThemedText type="bodySmall" themeColor="textSecondary" style={styles.intro}>
+      <ThemedText type="bodySmall" themeColor="textSecondary" className="mb-1">
         The short version: we read your MoMo messages, nothing else, and only you see what we build
         from them.
       </ThemedText>
@@ -54,8 +52,3 @@ export default function PrivacyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  intro: {
-    marginBottom: 4,
-  },
-});

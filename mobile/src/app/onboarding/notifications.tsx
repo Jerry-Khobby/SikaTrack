@@ -1,6 +1,5 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
 
 import { Button, ThemedText } from '@/components/atoms';
 import { NotificationPreferences, type NotificationOption } from '@/components/organisms';
@@ -9,7 +8,6 @@ import { useMe } from '@/hooks/use-me';
 import { updateMe, type Me, type NotifyKey } from '@/services/me';
 import { ONBOARDING_STEP_COUNT } from '@/services/onboarding';
 import { requestNotificationPermission } from '@/services/permissions';
-import { Spacing } from '@/theme';
 import { formatMoney } from '@/utils/format';
 
 function notificationOptions(settings: Me['settings']): NotificationOption<NotifyKey>[] {
@@ -73,10 +71,10 @@ export default function NotificationsScreen() {
           <Button variant="link" label="Not now" onPress={next} />
         </>
       }>
-      <ThemedText type="title" accessibilityRole="header" style={styles.title}>
+      <ThemedText type="title" accessibilityRole="header" className="mb-2 mt-7">
         Stay ahead of your money
       </ThemedText>
-      <ThemedText type="bodySmall" themeColor="textSecondary" style={styles.subtitle}>
+      <ThemedText type="bodySmall" themeColor="textSecondary" className="mb-5">
         Pick what you'd like a heads-up about. You can change these any time.
       </ThemedText>
       {me && values && (
@@ -90,12 +88,3 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  title: {
-    marginTop: 28,
-    marginBottom: Spacing.two,
-  },
-  subtitle: {
-    marginBottom: 20,
-  },
-});
