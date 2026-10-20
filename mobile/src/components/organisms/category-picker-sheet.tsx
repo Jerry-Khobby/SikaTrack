@@ -19,6 +19,12 @@ export type CategoryPickerSheetProps = {
   error?: string;
   onSave: (choice: CategoryChoice) => void;
   onClose: () => void;
+  /** `Change category` by default; S20 uses it for `Default category`. */
+  title?: string;
+  /** The "Always use this for …" toggle; S20 sets a default already, so it hides it. */
+  showAlways?: boolean;
+  /** The link that clears the choice, e.g. `Go back to automatic`. */
+  resetLabel?: string;
 };
 
 const GROUP_ORDER: CategoryGroup[] = ['spending', 'money_in', 'own_money'];
@@ -33,6 +39,9 @@ export function CategoryPickerSheet({
   error,
   onSave,
   onClose,
+  title = 'Change category',
+  showAlways = true,
+  resetLabel = 'Go back to automatic',
 }: CategoryPickerSheetProps) {
   const [selected, setSelected] = useState(currentId);
   const [always, setAlways] = useState(false);
@@ -40,21 +49,23 @@ export function CategoryPickerSheet({
 
   return (
     <BottomSheet
-      title="Change category"
+      title={title}
       tall
       onClose={onClose}
       footer={
         <View className="flex-1 gap-2.5">
-          <ToggleRow
-            title={`Always use this for ${counterpartyName}`}
-            description="Also changes their past payments."
-            value={always}
-            onValueChange={setAlways}
-          />
+          {showAlways && (
+            <ToggleRow
+              title={`Always use this for ${counterpartyName}`}
+              description="Also changes their past payments."
+              value={always}
+              onValueChange={setAlways}
+            />
+          )}
           {userOverride && (
             <ThemedText type="callout" className="text-center">
               <TextLink bold onPress={() => onSave({ category: null, applyToCounterparty: false })}>
-                Go back to automatic
+                {resetLabel}
               </TextLink>
             </ThemedText>
           )}

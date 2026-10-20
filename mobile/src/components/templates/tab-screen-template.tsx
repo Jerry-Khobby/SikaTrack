@@ -16,10 +16,12 @@ type TabScreenTemplateProps = {
   scroll?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
+  /** Floats over the bottom-right of the content, e.g. "+ New budget". */
+  floating?: ReactNode;
 };
 
 /** One tab's page: safe area at the top, the tab bar below, and the content between. */
-export function TabScreenTemplate({ header, children, scroll = true, refreshing, onRefresh }: TabScreenTemplateProps) {
+export function TabScreenTemplate({ header, children, scroll = true, refreshing, onRefresh, floating }: TabScreenTemplateProps) {
   const theme = useTheme();
 
   return (
@@ -28,7 +30,7 @@ export function TabScreenTemplate({ header, children, scroll = true, refreshing,
         {header}
         {scroll ? (
           <ScrollView
-            contentContainerClassName="pb-6"
+            contentContainerClassName={floating ? 'pb-24' : 'pb-6'}
             showsVerticalScrollIndicator={false}
             refreshControl={
               onRefresh ? (
@@ -40,6 +42,7 @@ export function TabScreenTemplate({ header, children, scroll = true, refreshing,
         ) : (
           <View className="flex-1">{children}</View>
         )}
+        {floating && <View className="absolute bottom-4 right-4">{floating}</View>}
       </SafeAreaView>
     </ThemedView>
   );
