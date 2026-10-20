@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconButton, ThemedText, ThemedView } from '@/components/atoms';
-import { MaxContentWidth, Spacing } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type DetailTemplateProps = {
@@ -13,8 +12,8 @@ type DetailTemplateProps = {
   /** A control at the right of the header, e.g. "Mark all as read". */
   action?: ReactNode;
   children: ReactNode;
-  /** Side gutters for the content; 20 by default. */
-  gutter?: number;
+  /** `regular` (20 px gutters) or `narrow` (16 px), as the page's design asks. */
+  gutter?: 'regular' | 'narrow';
   refreshing?: boolean;
   onRefresh?: () => void;
 };
@@ -25,18 +24,18 @@ export function DetailTemplate({
   onBack,
   action,
   children,
-  gutter = 20,
+  gutter = 'regular',
   refreshing,
   onRefresh,
 }: DetailTemplateProps) {
   const theme = useTheme();
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
+    <ThemedView className="flex-1 flex-row justify-center">
+      <SafeAreaView className="max-w-content flex-1">
+        <View className="flex-row items-center gap-1 px-3 pb-2 pt-3">
           <IconButton icon="chevron-left" accessibilityLabel="Back" onPress={onBack} />
-          <View style={styles.title}>
+          <View className="flex-1">
             {title && (
               <ThemedText type="heading" accessibilityRole="header">
                 {title}
@@ -45,9 +44,9 @@ export function DetailTemplate({
           </View>
           {action}
         </View>
-        <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+        <KeyboardAvoidingView behavior="padding" className="flex-1">
           <ScrollView
-            contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}
+            contentContainerClassName={`gap-3 pb-8 pt-2 ${gutter === 'narrow' ? 'px-4' : 'px-5'}`}
             keyboardShouldPersistTaps="handled"
             refreshControl={
               onRefresh ? (
@@ -61,34 +60,3 @@ export function DetailTemplate({
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  safeArea: {
-    flex: 1,
-    maxWidth: MaxContentWidth,
-  },
-  flex: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingTop: 12,
-    paddingHorizontal: 12,
-    paddingBottom: Spacing.two,
-  },
-  title: {
-    flex: 1,
-  },
-  content: {
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.five,
-    gap: 12,
-  },
-});

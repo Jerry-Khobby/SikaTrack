@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText, ThemedView, type IconName } from '@/components/atoms';
 import { IconCircle } from '@/components/molecules';
-import { MaxContentWidth, Spacing } from '@/theme';
 
 type MessageTemplateProps = {
   icon: IconName;
@@ -16,14 +15,14 @@ type MessageTemplateProps = {
 /** A full-screen message: illustration, title and one sentence in the middle, one action at the bottom. */
 export function MessageTemplate({ icon, title, message, action }: MessageTemplateProps) {
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.body}>
+    <ThemedView className="flex-1 flex-row justify-center">
+      <SafeAreaView className="max-w-content flex-1 p-6">
+        <View className="flex-1 items-center justify-center gap-5">
           <IconCircle icon={icon} />
-          <ThemedText type="headline" accessibilityRole="header" style={styles.center}>
+          <ThemedText type="headline" accessibilityRole="header" className="text-center">
             {title}
           </ThemedText>
-          <ThemedText themeColor="textSecondary" style={[styles.center, styles.message]}>
+          <ThemedText type="none" themeColor="textSecondary" className="max-w-[290px] text-center font-sans text-[16px] leading-[24px]">
             {message}
           </ThemedText>
         </View>
@@ -32,29 +31,3 @@ export function MessageTemplate({ icon, title, message, action }: MessageTemplat
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  safeArea: {
-    flex: 1,
-    maxWidth: MaxContentWidth,
-    padding: Spacing.four,
-  },
-  body: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-  },
-  center: {
-    textAlign: 'center',
-  },
-  message: {
-    maxWidth: 290,
-    lineHeight: 24,
-  },
-});

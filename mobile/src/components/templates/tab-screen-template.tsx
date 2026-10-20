@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedView } from '@/components/atoms';
-import { MaxContentWidth } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type TabScreenTemplateProps = {
@@ -24,12 +23,12 @@ export function TabScreenTemplate({ header, children, scroll = true, refreshing,
   const theme = useTheme();
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+    <ThemedView className="flex-1 flex-row justify-center">
+      <SafeAreaView edges={['top', 'left', 'right']} className="max-w-content flex-1">
         {header}
         {scroll ? (
           <ScrollView
-            contentContainerStyle={styles.content}
+            contentContainerClassName="pb-6"
             showsVerticalScrollIndicator={false}
             refreshControl={
               onRefresh ? (
@@ -39,27 +38,9 @@ export function TabScreenTemplate({ header, children, scroll = true, refreshing,
             {children}
           </ScrollView>
         ) : (
-          <View style={styles.flex}>{children}</View>
+          <View className="flex-1">{children}</View>
         )}
       </SafeAreaView>
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  safeArea: {
-    flex: 1,
-    maxWidth: MaxContentWidth,
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    paddingBottom: 24,
-  },
-});

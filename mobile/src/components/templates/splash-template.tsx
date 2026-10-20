@@ -1,9 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
-
-import { ThemedText } from '@/components/atoms';
-import { BrandColors } from '@/theme';
+import { Text, View } from 'react-native';
 
 type SplashTemplateProps = {
   children: ReactNode;
@@ -13,28 +10,12 @@ type SplashTemplateProps = {
 /** Full-screen brand ink with the content centred and a small line at the bottom. */
 export function SplashTemplate({ children, footer }: SplashTemplateProps) {
   return (
-    <View style={styles.container}>
+    <View className="flex-1 items-center justify-center bg-brand-ink">
       <StatusBar style="light" />
       {children}
       {footer && (
-        <ThemedText type="caption" style={styles.footer}>
-          {footer}
-        </ThemedText>
+        <Text className="absolute bottom-12 font-sans text-[13px] leading-[18px] text-brand-on-ink-muted">{footer}</Text>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: BrandColors.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 48,
-    color: BrandColors.onInkMuted,
-  },
-});

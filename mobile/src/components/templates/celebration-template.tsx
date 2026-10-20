@@ -1,9 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BrandColors, DataColors, Spacing } from '@/theme';
+import { BrandColors, DataColors } from '@/theme';
 
 type CelebrationTemplateProps = {
   children: ReactNode;
@@ -24,13 +24,11 @@ const CONFETTI = [
 /** A brand-ink screen with confetti, the content centred and one action at the bottom. */
 export function CelebrationTemplate({ children, action }: CelebrationTemplateProps) {
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-brand-ink">
       <StatusBar style="light" />
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={styles.confetti}>
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" className="absolute inset-0">
         {CONFETTI.map((piece, index) => (
+          // Each piece has its own place, size and angle, so it keeps an inline style.
           <View
             key={index}
             style={{
@@ -46,34 +44,10 @@ export function CelebrationTemplate({ children, action }: CelebrationTemplatePro
           />
         ))}
       </View>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.body}>{children}</View>
+      <SafeAreaView className="flex-1 p-6">
+        <View className="flex-1 items-center justify-center gap-[22px]">{children}</View>
         {action}
       </SafeAreaView>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: BrandColors.ink,
-  },
-  confetti: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  },
-  safeArea: {
-    flex: 1,
-    padding: Spacing.four,
-  },
-  body: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 22,
-  },
-});

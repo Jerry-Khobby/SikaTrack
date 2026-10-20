@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedView } from '@/components/atoms';
-import { MaxContentWidth, Spacing } from '@/theme';
 
 type ScreenTemplateProps = {
   children: ReactNode;
@@ -14,39 +13,17 @@ type ScreenTemplateProps = {
 /** The page frame every screen sits in: themed background, safe area and side gutters. */
 export function ScreenTemplate({ children, footer }: ScreenTemplateProps) {
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+    <ThemedView className="flex-1 flex-row justify-center">
+      <SafeAreaView className="max-w-content flex-1">
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerClassName="grow px-6 pb-6 pt-8"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           {children}
-          <View style={styles.spacer} />
+          <View className="min-h-[24px] flex-1" />
           {footer}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  safeArea: {
-    flex: 1,
-    maxWidth: MaxContentWidth,
-  },
-  content: {
-    flexGrow: 1,
-    paddingTop: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.four,
-  },
-  spacer: {
-    flex: 1,
-    minHeight: Spacing.four,
-  },
-});

@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconButton, ThemedText, ThemedView } from '@/components/atoms';
-import { MaxContentWidth, Spacing } from '@/theme';
 
 type AuthStepTemplateProps = {
   title: string;
@@ -16,26 +15,26 @@ type AuthStepTemplateProps = {
 /** One step of sign-in: back arrow, title and subtitle, the form, and a footer that rides above the keyboard. */
 export function AuthStepTemplate({ title, subtitle, onBack, children, footer }: AuthStepTemplateProps) {
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView behavior="padding" style={styles.flex}>
+    <ThemedView className="flex-1 flex-row justify-center">
+      <SafeAreaView className="max-w-content flex-1">
+        <KeyboardAvoidingView behavior="padding" className="flex-1">
           <ScrollView
-            contentContainerStyle={styles.content}
+            contentContainerClassName="grow px-6 pb-6 pt-3"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}>
-            <View style={styles.back}>
+            <View className="-ml-3 self-start">
               <IconButton icon="chevron-left" accessibilityLabel="Back" onPress={onBack} />
             </View>
-            <ThemedText type="title" accessibilityRole="header" style={styles.title}>
+            <ThemedText type="title" accessibilityRole="header" className="mb-2 mt-6">
               {title}
             </ThemedText>
             {subtitle && (
-              <ThemedText type="bodySmall" themeColor="textSecondary" style={styles.subtitle}>
+              <ThemedText type="bodySmall" themeColor="textSecondary" className="mb-7">
                 {subtitle}
               </ThemedText>
             )}
             {children}
-            <View style={styles.spacer} />
+            <View className="min-h-[24px] flex-1" />
             {footer}
           </ScrollView>
         </KeyboardAvoidingView>
@@ -43,39 +42,3 @@ export function AuthStepTemplate({ title, subtitle, onBack, children, footer }: 
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  safeArea: {
-    flex: 1,
-    maxWidth: MaxContentWidth,
-  },
-  flex: {
-    flex: 1,
-  },
-  content: {
-    flexGrow: 1,
-    paddingTop: 12,
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.four,
-  },
-  back: {
-    marginLeft: -12,
-    alignSelf: 'flex-start',
-  },
-  title: {
-    marginTop: Spacing.four,
-    marginBottom: Spacing.two,
-  },
-  subtitle: {
-    marginBottom: 28,
-  },
-  spacer: {
-    flex: 1,
-    minHeight: Spacing.four,
-  },
-});
