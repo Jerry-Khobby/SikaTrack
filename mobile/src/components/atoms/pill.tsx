@@ -1,7 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
-
-import { FontFamily } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Text, View } from 'react-native';
 
 export type PillTone = 'blue' | 'green' | 'red' | 'amber' | 'neutral';
 
@@ -10,34 +7,21 @@ export type PillProps = {
   tone?: PillTone;
 };
 
+const TONES: Record<PillTone, { box: string; text: string }> = {
+  blue: { box: 'bg-tint-blue', text: 'text-link' },
+  green: { box: 'bg-tint-success', text: 'text-icon-success' },
+  red: { box: 'bg-tint-red', text: 'text-icon-red' },
+  amber: { box: 'bg-tint-amber', text: 'text-icon-amber' },
+  neutral: { box: 'bg-avatar', text: 'text-content-body' },
+};
+
 /** A small status label: "Processing", "Confirmed", "Low", "Queued". */
 export function Pill({ label, tone = 'neutral' }: PillProps) {
-  const theme = useTheme();
-  const colors = {
-    blue: { background: theme.tintBlue, text: theme.link },
-    green: { background: theme.tintSuccess, text: theme.iconSuccess },
-    red: { background: theme.tintRed, text: theme.iconRed },
-    amber: { background: theme.tintAmber, text: theme.iconAmber },
-    neutral: { background: theme.avatar, text: theme.textBody },
-  }[tone];
+  const colors = TONES[tone];
 
   return (
-    <View style={[styles.pill, { backgroundColor: colors.background }]}>
-      <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
+    <View className={`self-center rounded-lg px-[7px] py-px ${colors.box}`}>
+      <Text className={`font-sans-extrabold text-[10px] leading-[15px] ${colors.text}`}>{label}</Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  pill: {
-    paddingHorizontal: 7,
-    paddingVertical: 1,
-    borderRadius: 8,
-    alignSelf: 'center',
-  },
-  label: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 10,
-    lineHeight: 15,
-  },
-});

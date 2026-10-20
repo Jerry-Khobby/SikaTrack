@@ -1,7 +1,5 @@
 import { View } from 'react-native';
 
-import { useTheme } from '@/hooks/use-theme';
-
 export type ProgressBarProps = {
   /** From 0 to 1; more than 1 shows a full bar. */
   progress: number;
@@ -13,27 +11,19 @@ export type ProgressBarProps = {
 };
 
 export function ProgressBar({ progress, accessibilityLabel, height = 10, color, trackColor }: ProgressBarProps) {
-  const theme = useTheme();
   const percent = Math.round(Math.min(1, Math.max(0, progress)) * 100);
+  const rounded = { height, borderRadius: height / 2 };
 
   return (
     <View
       accessibilityRole="progressbar"
       accessibilityLabel={accessibilityLabel}
       accessibilityValue={{ min: 0, max: 100, now: percent }}
-      style={{
-        height,
-        borderRadius: height / 2,
-        backgroundColor: trackColor ?? theme.track,
-        overflow: 'hidden',
-      }}>
+      className="overflow-hidden bg-track"
+      style={[rounded, trackColor ? { backgroundColor: trackColor } : null]}>
       <View
-        style={{
-          width: `${percent}%`,
-          height: '100%',
-          borderRadius: height / 2,
-          backgroundColor: color ?? theme.primary,
-        }}
+        className="h-full bg-primary"
+        style={[{ width: `${percent}%`, borderRadius: height / 2 }, color ? { backgroundColor: color } : null]}
       />
     </View>
   );

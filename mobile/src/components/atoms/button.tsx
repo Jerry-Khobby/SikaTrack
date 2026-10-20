@@ -1,6 +1,5 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, Text } from 'react-native';
 
-import { BrandColors, ControlHeight, FontFamily, Radius } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ButtonProps = {
@@ -15,15 +14,20 @@ export type ButtonProps = {
   loading?: boolean;
 };
 
+const LOOK = {
+  primary: { box: 'h-button rounded-md bg-primary', label: 'font-sans-bold text-base text-on-primary' },
+  secondary: {
+    box: 'h-button rounded-md border-[1.5px] border-primary',
+    label: 'font-sans-bold text-base text-primary',
+  },
+  accent: { box: 'h-button rounded-md bg-brand-gold', label: 'font-sans-extrabold text-base text-brand-ink' },
+  link: { box: 'h-touch', label: 'font-sans-semibold text-[15px] text-link' },
+};
+
 export function Button({ label, onPress, variant = 'primary', disabled, loading }: ButtonProps) {
   const theme = useTheme();
   const inactive = disabled || loading;
-  const look = {
-    primary: { background: theme.primary, border: undefined, label: theme.onPrimary },
-    secondary: { background: undefined, border: theme.primary, label: theme.primary },
-    accent: { background: BrandColors.gold, border: undefined, label: BrandColors.ink },
-    link: { background: undefined, border: undefined, label: theme.link },
-  }[variant];
+  const look = LOOK[variant];
 
   return (
     <Pressable
@@ -31,56 +35,12 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading 
       accessibilityState={{ disabled: inactive, busy: loading }}
       disabled={inactive}
       onPress={onPress}
-      style={({ pressed }) => [
-        variant === 'link' ? styles.link : styles.filled,
-        look.background !== undefined && { backgroundColor: look.background },
-        look.border !== undefined && { borderWidth: 1.5, borderColor: look.border },
-        disabled && styles.disabled,
-        pressed && styles.pressed,
-      ]}>
+      className={`items-center justify-center ${look.box} ${disabled ? 'opacity-40' : ''} active:opacity-80`}>
       {loading ? (
-        <ActivityIndicator color={look.label} />
+        <ActivityIndicator color={variant === 'primary' ? theme.onPrimary : theme.text} />
       ) : (
-        <Text
-          style={[
-            variant === 'link' ? styles.linkLabel : styles.filledLabel,
-            variant === 'accent' && styles.accentLabel,
-            { color: look.label },
-          ]}>
-          {label}
-        </Text>
+        <Text className={look.label}>{label}</Text>
       )}
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  filled: {
-    height: ControlHeight.button,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  link: {
-    height: ControlHeight.touch,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filledLabel: {
-    fontFamily: FontFamily.bold,
-    fontSize: 16,
-  },
-  accentLabel: {
-    fontFamily: FontFamily.extraBold,
-  },
-  linkLabel: {
-    fontFamily: FontFamily.semiBold,
-    fontSize: 15,
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  pressed: {
-    opacity: 0.8,
-  },
-});

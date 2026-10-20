@@ -1,22 +1,21 @@
 import type { ReactNode } from 'react';
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
-
-import { useTheme } from '@/hooks/use-theme';
+import { Pressable, View } from 'react-native';
 
 export type CardProps = {
   children: ReactNode;
   /** Makes the whole card one button. */
   onPress?: () => void;
   accessibilityLabel?: string;
-  padding?: number;
+  /** 16 px all round (`p-4`). Turn off to set the padding in `className`. */
+  padded?: boolean;
   radius?: number;
-  style?: StyleProp<ViewStyle>;
+  /** Extra classes, e.g. `mt-3`, `overflow-hidden` or a padding with `padded={false}`. */
+  className?: string;
 };
 
 /** A white rounded surface on the page background. */
-export function Card({ children, onPress, accessibilityLabel, padding = 16, radius = 20, style }: CardProps) {
-  const theme = useTheme();
-  const base = { backgroundColor: theme.surface, borderRadius: radius, padding };
+export function Card({ children, onPress, accessibilityLabel, padded = true, radius = 20, className }: CardProps) {
+  const classes = `bg-surface ${padded ? 'p-4' : ''} ${className ?? ''}`;
 
   if (onPress) {
     return (
@@ -24,10 +23,15 @@ export function Card({ children, onPress, accessibilityLabel, padding = 16, radi
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         onPress={onPress}
-        style={({ pressed }) => [base, pressed && { opacity: 0.85 }, style]}>
+        className={`${classes} active:opacity-[0.85]`}
+        style={{ borderRadius: radius }}>
         {children}
       </Pressable>
     );
   }
-  return <View style={[base, style]}>{children}</View>;
+  return (
+    <View className={classes} style={{ borderRadius: radius }}>
+      {children}
+    </View>
+  );
 }

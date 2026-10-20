@@ -1,7 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
-import { FontFamily, ProviderBrands } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { ProviderBrands } from '@/theme';
 
 export type ProviderBadgeProps = {
   /** The provider `code` from the server config, e.g. `mtn_momo`. */
@@ -25,40 +24,27 @@ function initials(name: string) {
 
 /** A wallet provider's small coloured tile, the one place its brand colour appears. */
 export function ProviderBadge({ code, name, size = 36, muted, variant = 'tile' }: ProviderBadgeProps) {
-  const theme = useTheme();
   const brand = muted ? undefined : ProviderBrands[code];
   const tag = variant === 'tag';
 
   return (
     <View
       accessible={false}
+      className={`items-center justify-center ${brand ? '' : 'bg-line'}`}
       style={[
-        styles.badge,
         tag
           ? { height: size, paddingHorizontal: 5, borderRadius: 4 }
           : { width: size, height: size, borderRadius: Math.round(size * 0.28) },
-        { backgroundColor: brand?.background ?? theme.border },
+        brand ? { backgroundColor: brand.background } : null,
       ]}>
       <Text
+        className={`font-sans-extrabold ${brand ? '' : 'text-content-disabled'}`}
         style={[
-          styles.label,
-          {
-            fontSize: tag ? Math.round(size * 0.56) : Math.max(8, Math.round(size * 0.3)),
-            color: brand?.text ?? theme.textDisabled,
-          },
+          { fontSize: tag ? Math.round(size * 0.56) : Math.max(8, Math.round(size * 0.3)) },
+          brand ? { color: brand.text } : null,
         ]}>
         {brand?.short ?? initials(name)}
       </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: {
-    fontFamily: FontFamily.extraBold,
-  },
-});

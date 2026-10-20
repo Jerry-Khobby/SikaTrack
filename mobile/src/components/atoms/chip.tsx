@@ -1,7 +1,4 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
-
-import { FontFamily } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Pressable, Text } from 'react-native';
 
 export type ChipProps = {
   label: string;
@@ -11,44 +8,15 @@ export type ChipProps = {
 
 /** A small rounded choice, e.g. a suggested name. */
 export function Chip({ label, onPress, selected }: ChipProps) {
-  const theme = useTheme();
-
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.chip,
-        { backgroundColor: selected ? theme.tintBlue : theme.chip },
-        pressed && styles.pressed,
-      ]}>
-      <Text
-        style={[
-          styles.label,
-          {
-            color: selected ? theme.link : theme.text,
-            fontFamily: selected ? FontFamily.bold : FontFamily.semiBold,
-          },
-        ]}>
+      className={`min-h-[32px] items-center justify-center rounded-2xl px-3 active:opacity-70 ${selected ? 'bg-tint-blue' : 'bg-chip'}`}>
+      <Text className={`text-[12px] ${selected ? 'font-sans-bold text-link' : 'font-sans-semibold text-content'}`}>
         {label}
       </Text>
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  chip: {
-    minHeight: 32,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: {
-    fontSize: 12,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-});

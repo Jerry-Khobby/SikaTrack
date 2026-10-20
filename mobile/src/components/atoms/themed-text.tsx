@@ -1,94 +1,69 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
+import { Text, type TextProps } from 'react-native';
 
-import { FontFamily, ThemeColor } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
+export type TextType =
+  | 'display'
+  | 'title'
+  | 'headline'
+  | 'heading'
+  | 'subheading'
+  | 'body'
+  | 'bodySmall'
+  | 'callout'
+  | 'caption'
+  | 'label'
+  | 'overline'
+  | 'fine'
+  /** No type styles: the caller sets font, size and line height in `className`. */
+  | 'none';
+
+export type TextColor =
+  | 'text'
+  | 'textBody'
+  | 'textSecondary'
+  | 'textDisabled'
+  | 'link'
+  | 'error'
+  | 'iconSuccess'
+  /** No colour class: the caller sets the colour in `className`. */
+  | 'none';
 
 export type ThemedTextProps = TextProps & {
-  type?:
-    | 'display'
-    | 'title'
-    | 'headline'
-    | 'heading'
-    | 'subheading'
-    | 'body'
-    | 'bodySmall'
-    | 'callout'
-    | 'caption'
-    | 'label'
-    | 'overline'
-    | 'fine';
-  themeColor?: ThemeColor;
+  type?: TextType;
+  themeColor?: TextColor;
 };
 
-export function ThemedText({ style, type = 'body', themeColor, ...rest }: ThemedTextProps) {
-  const theme = useTheme();
+const TYPE_CLASSES: Record<TextType, string> = {
+  display: 'font-sans-extrabold text-[40px] leading-[43px] tracking-[-1px]',
+  title: 'font-sans-extrabold text-[28px] leading-[34px] tracking-[-0.5px]',
+  headline: 'font-sans-extrabold text-[26px] leading-[32px]',
+  heading: 'font-sans-bold text-[20px] leading-[26px]',
+  subheading: 'font-sans-bold text-[16px] leading-[22px]',
+  body: 'font-sans text-[16px] leading-[23px]',
+  bodySmall: 'font-sans text-[15px] leading-[23px]',
+  callout: 'font-sans text-[14px] leading-[22px]',
+  caption: 'font-sans text-[13px] leading-[18px]',
+  label: 'font-sans-bold text-[13px] leading-[18px]',
+  overline: 'font-sans-bold text-[12px] leading-[16px] tracking-[0.6px] uppercase',
+  fine: 'font-sans text-[12px] leading-[18px]',
+  none: '',
+};
 
-  return <Text style={[{ color: theme[themeColor ?? 'text'] }, styles[type], style]} {...rest} />;
+const COLOR_CLASSES: Record<TextColor, string> = {
+  text: 'text-content',
+  textBody: 'text-content-body',
+  textSecondary: 'text-content-secondary',
+  textDisabled: 'text-content-disabled',
+  link: 'text-link',
+  error: 'text-error',
+  iconSuccess: 'text-icon-success',
+  none: '',
+};
+
+/**
+ * Text in one of the app's type styles and theme colours. Extra `className`s
+ * add layout (margins, alignment); for a different font or colour use
+ * `type="none"` or a plain `Text`, so two classes never fight over one property.
+ */
+export function ThemedText({ type = 'body', themeColor = 'text', className, ...rest }: ThemedTextProps) {
+  return <Text className={`${TYPE_CLASSES[type]} ${COLOR_CLASSES[themeColor]} ${className ?? ''}`} {...rest} />;
 }
-
-const styles = StyleSheet.create({
-  display: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 40,
-    lineHeight: 43,
-    letterSpacing: -1,
-  },
-  title: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: -0.5,
-  },
-  headline: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 26,
-    lineHeight: 32,
-  },
-  heading: {
-    fontFamily: FontFamily.bold,
-    fontSize: 20,
-    lineHeight: 26,
-  },
-  subheading: {
-    fontFamily: FontFamily.bold,
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  body: {
-    fontFamily: FontFamily.regular,
-    fontSize: 16,
-    lineHeight: 23,
-  },
-  bodySmall: {
-    fontFamily: FontFamily.regular,
-    fontSize: 15,
-    lineHeight: 23,
-  },
-  callout: {
-    fontFamily: FontFamily.regular,
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  caption: {
-    fontFamily: FontFamily.regular,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  label: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  overline: {
-    fontFamily: FontFamily.bold,
-    fontSize: 12,
-    lineHeight: 16,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-  fine: {
-    fontFamily: FontFamily.regular,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-});

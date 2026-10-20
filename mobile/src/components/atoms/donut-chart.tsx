@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 
 export type DonutSegment = { value: number; color: string };
@@ -49,19 +49,7 @@ export function DonutChart({ segments, size = 132, thickness = 18, accessibility
             })}
         </G>
       </Svg>
-      <View style={styles.center}>{children}</View>
+      <View className="absolute inset-0 items-center justify-center">{children}</View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  center: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

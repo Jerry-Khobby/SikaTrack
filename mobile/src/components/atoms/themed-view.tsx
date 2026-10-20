@@ -1,16 +1,6 @@
 import { View, type ViewProps } from 'react-native';
 
-import { ThemeColor } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
-
-export type ThemedViewProps = ViewProps & {
-  lightColor?: string;
-  darkColor?: string;
-  type?: ThemeColor;
-};
-
-export function ThemedView({ style, lightColor, darkColor, type, ...otherProps }: ThemedViewProps) {
-  const theme = useTheme();
-
-  return <View style={[{ backgroundColor: theme[type ?? 'background'] }, style]} {...otherProps} />;
+/** A view on the page background colour. */
+export function ThemedView({ className, ...rest }: ViewProps) {
+  return <View className={`bg-background ${className ?? ''}`} {...rest} />;
 }
