@@ -1,20 +1,10 @@
 import type { CountryCode } from 'libphonenumber-js/mobile';
 import { useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Chip, IconButton, ProviderBadge, ThemedText } from '@/components/atoms';
 import { TextField } from '@/components/molecules';
-import { FontFamily, Radius, Spacing } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { findCountry } from '@/utils/countries';
 import { formatNationalNumber, formatPhoneInput, parsePhoneNumber } from '@/utils/phone';
 
@@ -51,7 +41,6 @@ export function WalletSheet({
   onSave,
   onClose,
 }: WalletSheetProps) {
-  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const editing = mode === 'edit';
   const [provider, setProvider] = useState(initial.provider);
@@ -90,30 +79,28 @@ export function WalletSheet({
 
   return (
     <Modal visible transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior="padding" style={styles.flex}>
-        <Pressable accessibilityLabel="Close" onPress={onClose} style={styles.backdrop} />
+      <KeyboardAvoidingView behavior="padding" className="flex-1 justify-end">
+        <Pressable accessibilityLabel="Close" onPress={onClose} className="absolute inset-0 bg-overlay" />
         <View
           accessibilityViewIsModal
-          style={[
-            styles.sheet,
-            { backgroundColor: theme.surface, paddingBottom: Spacing.four + insets.bottom },
-          ]}>
-          <View style={[styles.handle, { backgroundColor: theme.borderInput }]} />
-          <View style={styles.header}>
-            <ThemedText type="heading" accessibilityRole="header" style={styles.title}>
+          className="max-h-[92%] rounded-t-3xl bg-surface px-5 pt-2.5"
+          style={{ paddingBottom: 24 + insets.bottom }}>
+          <View className="h-1 w-10 self-center rounded-sm bg-line-input" />
+          <View className="mb-[18px] mt-3 flex-row items-center">
+            <ThemedText type="none" accessibilityRole="header" className="flex-1 font-sans-extrabold text-[20px] leading-[26px]">
               {editing ? 'Edit wallet' : 'Add a wallet'}
             </ThemedText>
-            <View style={styles.close}>
+            <View className="-mr-2.5">
               <IconButton icon="close" accessibilityLabel="Close" onPress={onClose} />
             </View>
           </View>
 
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-[18px]">
             <View>
-              <ThemedText type="label" style={styles.fieldLabel}>
+              <ThemedText type="label" className="mb-2">
                 Provider
               </ThemedText>
-              <View style={styles.providers}>
+              <View className="flex-row flex-wrap gap-2">
                 {providers.map((option) => {
                   const selected = option.code === provider;
                   return (
@@ -124,24 +111,11 @@ export function WalletSheet({
                       accessibilityState={{ checked: selected, disabled: editing }}
                       disabled={editing}
                       onPress={() => setProvider(option.code)}
-                      style={[
-                        styles.provider,
-                        {
-                          borderColor: selected ? theme.borderFocus : theme.borderInput,
-                          borderWidth: selected ? 2 : 1.5,
-                          backgroundColor: selected ? theme.surfaceSelected : theme.surface,
-                        },
-                        editing && !selected && styles.disabled,
-                      ]}>
+                      className={`h-12 grow basis-[45%] flex-row items-center justify-center gap-2 rounded-sm ${
+                        selected ? 'border-2 border-line-focus bg-surface-selected' : 'border-[1.5px] border-line-input bg-surface'
+                      } ${editing && !selected ? 'opacity-40' : ''}`}>
                       <ProviderBadge code={option.code} name={option.name} size={24} />
-                      <Text
-                        style={[
-                          styles.providerName,
-                          {
-                            color: theme.text,
-                            fontFamily: selected ? FontFamily.bold : FontFamily.semiBold,
-                          },
-                        ]}>
+                      <Text className={`text-[14px] text-content ${selected ? 'font-sans-bold' : 'font-sans-semibold'}`}>
                         {option.name}
                       </Text>
                     </Pressable>
@@ -170,23 +144,17 @@ export function WalletSheet({
                 autoCorrect={false}
               />
               {nameSuggestions.length > 0 && (
-                <View style={styles.suggestions}>
+                <View className="mt-2.5 flex-row flex-wrap items-center gap-2">
                   <ThemedText type="fine" themeColor="textSecondary">
                     Is this you?
                   </ThemedText>
                   {nameSuggestions.map((name) => (
-                    <Chip
-                      key={name}
-                      label={name}
-                      selected={name === accountName}
-                      onPress={() => setAccountName(name)}
-                    />
+                    <Chip key={name} label={name} selected={name === accountName} onPress={() => setAccountName(name)} />
                   ))}
                 </View>
               )}
-              <ThemedText type="fine" themeColor="textSecondary" style={styles.nameHint}>
-                It must match your MoMo SMS exactly, so we can spot transfers between your own
-                wallets.
+              <ThemedText type="fine" themeColor="textSecondary" className="mt-1.5">
+                It must match your MoMo SMS exactly, so we can spot transfers between your own wallets.
               </ThemedText>
             </View>
 
@@ -210,81 +178,3 @@ export function WalletSheet({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(27, 38, 49, 0.5)',
-  },
-  sheet: {
-    maxHeight: '92%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 10,
-    paddingHorizontal: 20,
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 18,
-  },
-  title: {
-    flex: 1,
-    fontFamily: FontFamily.extraBold,
-  },
-  close: {
-    marginRight: -10,
-  },
-  form: {
-    gap: 18,
-  },
-  fieldLabel: {
-    marginBottom: Spacing.two,
-  },
-  providers: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-  },
-  provider: {
-    flexGrow: 1,
-    flexBasis: '45%',
-    height: 48,
-    borderRadius: Radius.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-  },
-  providerName: {
-    fontSize: 14,
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  suggestions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: Spacing.two,
-    marginTop: 10,
-  },
-  nameHint: {
-    marginTop: 6,
-  },
-});

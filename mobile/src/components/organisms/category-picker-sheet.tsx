@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button, TextLink, ThemedText } from '@/components/atoms';
 import { CategoryTile, ToggleRow } from '@/components/molecules';
@@ -44,7 +44,7 @@ export function CategoryPickerSheet({
       tall
       onClose={onClose}
       footer={
-        <View style={styles.footer}>
+        <View className="flex-1 gap-2.5">
           <ToggleRow
             title={`Always use this for ${counterpartyName}`}
             description="Also changes their past payments."
@@ -52,7 +52,7 @@ export function CategoryPickerSheet({
             onValueChange={setAlways}
           />
           {userOverride && (
-            <ThemedText type="callout" style={styles.automatic}>
+            <ThemedText type="callout" className="text-center">
               <TextLink bold onPress={() => onSave({ category: null, applyToCounterparty: false })}>
                 Go back to automatic
               </TextLink>
@@ -76,10 +76,10 @@ export function CategoryPickerSheet({
         if (!items.length) return null;
         return (
           <View key={group}>
-            <ThemedText type="overline" themeColor="textSecondary" style={styles.group}>
+            <ThemedText type="overline" themeColor="textSecondary" className="mb-2.5">
               {CATEGORY_GROUP_LABELS[group]}
             </ThemedText>
-            <View style={styles.grid}>
+            <View className="flex-row flex-wrap gap-2">
               {items.map((category) => (
                 <CategoryTile
                   key={category.id}
@@ -97,21 +97,3 @@ export function CategoryPickerSheet({
     </BottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  footer: {
-    flex: 1,
-    gap: 10,
-  },
-  automatic: {
-    textAlign: 'center',
-  },
-  group: {
-    marginBottom: 10,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-});

@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Card, Icon, ThemedText } from '@/components/atoms';
-import { FontFamily } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type SmsCardProps = {
@@ -21,31 +20,33 @@ export function SmsCard({ text, count, sender, time }: SmsCardProps) {
   const [open, setOpen] = useState(false);
 
   return (
-    <Card padding={0} radius={18} style={styles.card}>
+    <Card padded={false} radius={18} className="overflow-hidden">
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen(!open)}
-        style={styles.toggle}>
+        className="h-14 flex-row items-center gap-2.5 px-4">
         <Icon name="message" color={theme.text} size={18} />
-        <ThemedText style={styles.title}>View the SMS</ThemedText>
+        <ThemedText type="none" className="flex-1 font-sans-bold text-[15px]">
+          View the SMS
+        </ThemedText>
         {count > 1 && (
           <ThemedText type="fine" themeColor="textSecondary">
             {count} SMS
           </ThemedText>
         )}
-        <View style={open && styles.flipped}>
+        <View className={open ? 'rotate-180' : ''}>
           <Icon name="chevron-down" color={theme.text} size={16} />
         </View>
       </Pressable>
       {open && (
-        <View style={styles.body}>
-          <View style={[styles.bubble, { backgroundColor: theme.chip }]}>
-            <ThemedText style={styles.sms} selectable>
+        <View className="px-4 pb-4">
+          <View className="rounded-[14px] rounded-bl bg-chip px-[14px] py-3">
+            <ThemedText type="none" className="font-mono text-[12px] leading-[19px]" selectable>
               {text}
             </ThemedText>
           </View>
-          <ThemedText type="fine" themeColor="textSecondary" style={styles.from}>
+          <ThemedText type="none" themeColor="textSecondary" className="mt-1.5 font-sans text-[11px] leading-[18px]">
             {sender ? `From ${sender} · ${time}` : time}
           </ThemedText>
         </View>
@@ -53,45 +54,3 @@ export function SmsCard({ text, count, sender, time }: SmsCardProps) {
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    overflow: 'hidden',
-  },
-  toggle: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-  },
-  title: {
-    flex: 1,
-    fontFamily: FontFamily.bold,
-    fontSize: 15,
-  },
-  flipped: {
-    transform: [{ rotate: '180deg' }],
-  },
-  body: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  bubble: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
-    borderBottomLeftRadius: 4,
-  },
-  sms: {
-    fontFamily: 'monospace',
-    fontSize: 12,
-    lineHeight: 19,
-  },
-  from: {
-    marginTop: 6,
-    fontSize: 11,
-  },
-});

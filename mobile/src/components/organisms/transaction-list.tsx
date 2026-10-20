@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, SectionList, View } from 'react-native';
 
 import { DayHeader, TransactionRow } from '@/components/molecules';
 import { useTheme } from '@/hooks/use-theme';
@@ -43,12 +43,7 @@ export function TransactionList({
         const last = index === section.data.length - 1;
         return (
           <View
-            style={[
-              styles.cell,
-              { backgroundColor: theme.surface },
-              first && styles.first,
-              last && styles.last,
-            ]}>
+            className={`mx-4 overflow-hidden bg-surface ${first ? 'rounded-t-lg' : ''} ${last ? 'rounded-b-lg' : ''}`}>
             <TransactionRow
               transaction={item}
               providerName={providerNames[item.provider] ?? item.provider}
@@ -63,31 +58,9 @@ export function TransactionList({
       onEndReachedThreshold={0.5}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.text} />}
       ListEmptyComponent={ListEmptyComponent}
-      ListFooterComponent={loadingMore ? <ActivityIndicator style={styles.more} color={theme.text} /> : undefined}
-      contentContainerStyle={styles.content}
+      ListFooterComponent={loadingMore ? <ActivityIndicator className="py-4" color={theme.text} /> : undefined}
+      contentContainerClassName="grow pb-4"
       showsVerticalScrollIndicator={false}
     />
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    paddingBottom: 16,
-    flexGrow: 1,
-  },
-  cell: {
-    marginHorizontal: 16,
-    overflow: 'hidden',
-  },
-  first: {
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-  },
-  last: {
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 18,
-  },
-  more: {
-    paddingVertical: 16,
-  },
-});

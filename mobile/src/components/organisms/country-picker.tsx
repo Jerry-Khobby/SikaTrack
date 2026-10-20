@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { Modal, SectionList, StyleSheet, View } from 'react-native';
+import { Modal, SectionList, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconButton, ThemedText, ThemedView } from '@/components/atoms';
 import { CountryRow, SearchField } from '@/components/molecules';
-import { Spacing } from '@/theme';
 import type { Country } from '@/utils/countries';
 
 export type CountryPickerProps = {
@@ -57,20 +56,16 @@ export function CountryPicker({
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={close}>
       <SafeAreaProvider>
-        <ThemedView style={styles.flex}>
-          <SafeAreaView style={styles.flex}>
-            <View style={styles.header}>
+        <ThemedView className="flex-1">
+          <SafeAreaView className="flex-1">
+            <View className="flex-row items-center gap-1 px-3 pb-2 pt-3">
               <IconButton icon="close" accessibilityLabel="Close" onPress={close} />
               <ThemedText type="heading" accessibilityRole="header">
                 Choose your country
               </ThemedText>
             </View>
-            <View style={styles.search}>
-              <SearchField
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Search by country or code"
-              />
+            <View className="px-6 pb-2">
+              <SearchField value={query} onChangeText={setQuery} placeholder="Search by country or code" />
             </View>
             <SectionList
               sections={sections}
@@ -78,7 +73,7 @@ export function CountryPicker({
               keyboardShouldPersistTaps="handled"
               stickySectionHeadersEnabled={false}
               renderSectionHeader={({ section }) => (
-                <ThemedText type="label" themeColor="textSecondary" style={styles.sectionTitle}>
+                <ThemedText type="label" themeColor="textSecondary" className="px-6 pb-2 pt-4">
                   {section.title}
                 </ThemedText>
               )}
@@ -93,11 +88,11 @@ export function CountryPicker({
                 />
               )}
               ListEmptyComponent={
-                <ThemedText themeColor="textSecondary" style={styles.empty}>
+                <ThemedText themeColor="textSecondary" className="px-6 pt-6">
                   No country matches “{query}”.
                 </ThemedText>
               }
-              contentContainerStyle={styles.list}
+              contentContainerClassName="pb-8"
             />
           </SafeAreaView>
         </ThemedView>
@@ -105,33 +100,3 @@ export function CountryPicker({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingTop: 12,
-    paddingHorizontal: 12,
-    paddingBottom: Spacing.two,
-  },
-  search: {
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.two,
-  },
-  sectionTitle: {
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two,
-  },
-  list: {
-    paddingBottom: Spacing.five,
-  },
-  empty: {
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
-  },
-});

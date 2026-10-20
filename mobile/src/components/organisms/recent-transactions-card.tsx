@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Card } from '@/components/atoms';
 import { SectionHeader, TransactionRow } from '@/components/molecules';
@@ -20,8 +20,8 @@ export function RecentTransactionsCard({
   onSeeAll,
 }: RecentTransactionsCardProps) {
   return (
-    <Card padding={0} style={styles.card}>
-      <View style={styles.header}>
+    <Card padded={false} className="overflow-hidden py-1.5">
+      <View className="px-4 pt-0.5">
         <SectionHeader title="Recent" actionLabel="See all" onAction={onSeeAll} />
       </View>
       {transactions.map((transaction) => (
@@ -36,14 +36,3 @@ export function RecentTransactionsCard({
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    paddingVertical: 6,
-    overflow: 'hidden',
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 2,
-  },
-});

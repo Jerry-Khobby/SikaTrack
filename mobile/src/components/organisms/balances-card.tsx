@@ -1,8 +1,7 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Card, ThemedText } from '@/components/atoms';
 import { WalletBalanceRow } from '@/components/molecules';
-import { FontFamily } from '@/theme';
 import type { Balances } from '@/services/balances';
 import { formatDateTime } from '@/utils/dates';
 import { formatMoney } from '@/utils/format';
@@ -18,13 +17,18 @@ export type BalancesCardProps = {
 export function BalancesCard({ balances, providerNames, onPress }: BalancesCardProps) {
   return (
     <Card onPress={onPress} accessibilityLabel={`Total balance ${formatMoney(balances.total, balances.currency)}`}>
-      <View style={styles.header}>
-        <ThemedText type="caption" themeColor="textSecondary" style={styles.label}>
+      <View className="flex-row items-baseline justify-between">
+        <ThemedText type="none" themeColor="textSecondary" className="font-sans-semibold text-[13px] leading-[18px]">
           Total balance
         </ThemedText>
-        <ThemedText style={styles.total}>{formatMoney(balances.total, balances.currency)}</ThemedText>
+        <ThemedText
+          type="none"
+          className="font-sans-extrabold text-[20px] leading-[26px]"
+          style={{ fontVariant: ['tabular-nums'] }}>
+          {formatMoney(balances.total, balances.currency)}
+        </ThemedText>
       </View>
-      <View style={styles.rows}>
+      <View className="mt-3">
         {balances.wallets.map((wallet) => {
           const providerName = providerNames[wallet.provider] ?? wallet.provider;
           return (
@@ -43,23 +47,3 @@ export function BalancesCard({ balances, providerNames, onPress }: BalancesCardP
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-  },
-  label: {
-    fontFamily: FontFamily.semiBold,
-  },
-  total: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 20,
-    lineHeight: 26,
-    fontVariant: ['tabular-nums'],
-  },
-  rows: {
-    marginTop: 12,
-  },
-});

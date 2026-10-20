@@ -1,7 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { CounterpartyGlyph, Icon, Pill, ProviderBadge, ThemedText } from '@/components/atoms';
-import { FontFamily } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { TransactionDetail } from '@/services/transactions';
 import { formatDateTime } from '@/utils/dates';
@@ -20,10 +19,11 @@ export function TransactionHero({ transaction: t, providerName, onPressCounterpa
   const amount = formatDirectedMoney(t.amount, t.direction, t.currency, { signed: true });
 
   return (
-    <View style={styles.hero}>
+    <View className="items-center pb-5 pt-1">
       <Text
         accessibilityRole="header"
-        style={[styles.amount, { color: moneyIn ? theme.moneyIn : theme.text }]}
+        className={`font-sans-extrabold text-[40px] leading-[48px] tracking-[-1px] ${moneyIn ? 'text-money-in' : 'text-content'}`}
+        style={{ fontVariant: ['tabular-nums'] }}
         adjustsFontSizeToFit
         numberOfLines={1}>
         {amount}
@@ -32,16 +32,16 @@ export function TransactionHero({ transaction: t, providerName, onPressCounterpa
         accessibilityRole="button"
         accessibilityLabel={`${t.counterparty.name}, see their payments`}
         onPress={onPressCounterparty}
-        style={({ pressed }) => [styles.counterparty, { backgroundColor: theme.surface }, pressed && { opacity: 0.7 }]}>
-        <View style={[styles.kind, { backgroundColor: theme.avatar }]}>
+        className="mt-2.5 max-w-full flex-row items-center gap-2 rounded-[20px] bg-surface py-1.5 pl-1.5 pr-[14px] active:opacity-70">
+        <View className="h-7 w-7 items-center justify-center rounded-[14px] bg-avatar">
           <CounterpartyGlyph kind={t.counterparty.kind} color={theme.text} />
         </View>
-        <ThemedText style={styles.name} numberOfLines={1}>
+        <ThemedText type="none" className="shrink font-sans-bold text-[15px]" numberOfLines={1}>
           {t.counterparty.name}
         </ThemedText>
         <Icon name="chevron-right" color={theme.text} size={14} />
       </Pressable>
-      <View style={styles.meta}>
+      <View className="mt-2.5 flex-row items-center gap-2">
         <ThemedText type="caption" themeColor="textSecondary">
           {formatDateTime(t.occurredAt)}
         </ThemedText>
@@ -54,47 +54,3 @@ export function TransactionHero({ transaction: t, providerName, onPressCounterpa
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  hero: {
-    alignItems: 'center',
-    paddingTop: 4,
-    paddingBottom: 20,
-  },
-  amount: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 40,
-    lineHeight: 48,
-    letterSpacing: -1,
-    fontVariant: ['tabular-nums'],
-  },
-  counterparty: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 6,
-    paddingLeft: 6,
-    paddingRight: 14,
-    borderRadius: 20,
-    maxWidth: '100%',
-  },
-  kind: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  name: {
-    flexShrink: 1,
-    fontFamily: FontFamily.bold,
-    fontSize: 15,
-  },
-  meta: {
-    marginTop: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-});

@@ -1,8 +1,7 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Card, ThemedText } from '@/components/atoms';
 import { BudgetProgress, NavigationRow } from '@/components/molecules';
-import { FontFamily } from '@/theme';
 import type { Budget } from '@/services/budgets';
 import { formatMoneyShort } from '@/utils/format';
 
@@ -29,13 +28,15 @@ export function BudgetsCard({ budgets, daysLeft, currency, onPress }: BudgetsCar
 
   return (
     <Card onPress={onPress} accessibilityLabel="Budgets" radius={18}>
-      <View style={styles.header}>
-        <ThemedText style={styles.title}>Budgets</ThemedText>
+      <View className="flex-row items-center justify-between">
+        <ThemedText type="none" className="font-sans-extrabold text-[16px] leading-[22px]">
+          Budgets
+        </ThemedText>
         <ThemedText type="fine" themeColor="textSecondary">
           {daysLeft} day{daysLeft === 1 ? '' : 's'} left
         </ThemedText>
       </View>
-      <View style={styles.list}>
+      <View className="mt-3 gap-3">
         {budgets.map((budget) => (
           <BudgetProgress
             key={budget.id}
@@ -49,20 +50,3 @@ export function BudgetsCard({ budgets, daysLeft, currency, onPress }: BudgetsCar
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  list: {
-    marginTop: 12,
-    gap: 12,
-  },
-});

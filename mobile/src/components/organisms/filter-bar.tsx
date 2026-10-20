@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView } from 'react-native';
 
 import { FilterChip } from '@/components/molecules';
 import { DEFAULT_FILTERS, type TransactionFilters } from '@/services/transactions';
@@ -30,7 +30,7 @@ export function FilterBar({ filters, categoryNames, walletNames, onOpenFilters, 
   const moreActive = filters.minAmount !== null || filters.maxAmount !== null || filters.includeOwnTransfers;
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-2 px-4 pb-2.5 pt-1">
       <FilterChip label={dateLabel(filters)} active chevron onPress={onOpenFilters} />
       {filters.counterparty && (
         <FilterChip
@@ -80,12 +80,3 @@ export function FilterBar({ filters, categoryNames, walletNames, onOpenFilters, 
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 10,
-  },
-});

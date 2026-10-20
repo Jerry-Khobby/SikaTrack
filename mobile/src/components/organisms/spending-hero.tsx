@@ -1,7 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { ChangeBadge, StatTile } from '@/components/molecules';
-import { BrandColors, FontFamily } from '@/theme';
 import type { MonthSummary } from '@/services/summary';
 import { formatMonthName } from '@/utils/dates';
 import {
@@ -30,13 +29,19 @@ export function SpendingHero({ summary, month, onPress }: SpendingHeroProps) {
       accessibilityRole={onPress && !empty ? 'button' : undefined}
       disabled={!onPress || empty}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.92 }]}>
-      <Text style={styles.label}>Money out this month</Text>
+      className="rounded-[22px] bg-brand-ink p-5 active:opacity-[0.92]">
+      <Text className="font-sans-semibold text-[13px] leading-[18px] text-brand-on-ink-muted">Money out this month</Text>
       {empty ? (
-        <Text style={styles.emptyTitle}>No spending in {formatMonthName(month)} yet</Text>
+        <Text className="mt-1.5 font-sans-extrabold text-[24px] leading-[30px] text-brand-on-ink">
+          No spending in {formatMonthName(month)} yet
+        </Text>
       ) : (
         <>
-          <Text style={styles.amount} adjustsFontSizeToFit numberOfLines={1}>
+          <Text
+            className="mt-1.5 font-sans-extrabold text-[38px] leading-[46px] tracking-[-1px] text-brand-on-ink"
+            style={{ fontVariant: ['tabular-nums'] }}
+            adjustsFontSizeToFit
+            numberOfLines={1}>
             {formatMoney(summary.moneyOut, currency)}
           </Text>
           {change && (
@@ -46,16 +51,16 @@ export function SpendingHero({ summary, month, onPress }: SpendingHeroProps) {
               good={change.down}
             />
           )}
-          <View style={styles.tiles}>
+          <View className="mt-[18px] flex-row gap-2">
             <StatTile
               label="Money in"
               value={formatDirectedMoney(summary.moneyIn, 'in', currency, { whole: true })}
-              valueColor={BrandColors.moneyInOnInk}
+              tone="moneyIn"
             />
             <StatTile label="Net" value={formatSignedMoney(summary.net, currency, { whole: true })} />
             <StatTile label="Fees & tax" value={formatMoney(summary.fees, currency)} />
           </View>
-          <Text style={styles.footnote}>
+          <Text className="mt-3 font-sans text-[12px] leading-[17px] text-brand-on-ink-muted">
             {formatMoney(summary.avgDailySpend, currency)} a day on average ·{' '}
             {formatCount(summary.spendingTransactions)} payment{summary.spendingTransactions === 1 ? '' : 's'}
           </Text>
@@ -64,45 +69,3 @@ export function SpendingHero({ summary, month, onPress }: SpendingHeroProps) {
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: 22,
-    padding: 20,
-    backgroundColor: BrandColors.ink,
-  },
-  label: {
-    fontFamily: FontFamily.semiBold,
-    fontSize: 13,
-    lineHeight: 18,
-    color: BrandColors.onInkMuted,
-  },
-  amount: {
-    marginTop: 6,
-    fontFamily: FontFamily.extraBold,
-    fontSize: 38,
-    lineHeight: 46,
-    letterSpacing: -1,
-    color: BrandColors.onInk,
-    fontVariant: ['tabular-nums'],
-  },
-  emptyTitle: {
-    marginTop: 6,
-    fontFamily: FontFamily.extraBold,
-    fontSize: 24,
-    lineHeight: 30,
-    color: BrandColors.onInk,
-  },
-  tiles: {
-    marginTop: 18,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  footnote: {
-    marginTop: 12,
-    fontFamily: FontFamily.regular,
-    fontSize: 12,
-    lineHeight: 17,
-    color: BrandColors.onInkMuted,
-  },
-});

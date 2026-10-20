@@ -1,7 +1,6 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Icon, ThemedText } from '@/components/atoms';
-import { ControlHeight, FontFamily } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatMonthLong } from '@/utils/dates';
 
@@ -30,8 +29,12 @@ export function MonthPickerSheet({ months, selected, onSelect, onClose }: MonthP
               accessibilityRole="radio"
               accessibilityState={{ checked: active }}
               onPress={() => onSelect(month)}
-              style={[styles.row, index < months.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.divider }]}>
-              <ThemedText style={[styles.label, active && styles.active]}>{formatMonthLong(month)}</ThemedText>
+              className={`min-h-button flex-row items-center justify-between ${index < months.length - 1 ? 'border-b border-divider' : ''}`}>
+              <ThemedText
+                type="none"
+                className={`text-[16px] leading-[23px] ${active ? 'font-sans-extrabold' : 'font-sans-semibold'}`}>
+                {formatMonthLong(month)}
+              </ThemedText>
               {active && <Icon name="check" color={theme.link} size={20} />}
             </Pressable>
           );
@@ -40,18 +43,3 @@ export function MonthPickerSheet({ months, selected, onSelect, onClose }: MonthP
     </BottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: ControlHeight.button,
-  },
-  label: {
-    fontFamily: FontFamily.semiBold,
-  },
-  active: {
-    fontFamily: FontFamily.extraBold,
-  },
-});

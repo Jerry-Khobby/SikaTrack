@@ -1,8 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ToggleRow } from '@/components/molecules';
-import { Spacing } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 export type NotificationOption<Key extends string> = {
   key: Key;
@@ -22,10 +20,8 @@ export function NotificationPreferences<Key extends string>({
   values,
   onChange,
 }: NotificationPreferencesProps<Key>) {
-  const theme = useTheme();
-
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface }]}>
+    <View className="rounded-lg bg-surface px-4 py-1">
       {options.map((option, index) => (
         <ToggleRow
           key={option.key}
@@ -39,11 +35,3 @@ export function NotificationPreferences<Key extends string>({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: 18,
-  },
-});

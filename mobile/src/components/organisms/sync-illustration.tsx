@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, StyleSheet, View } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, View } from 'react-native';
 
 import { DataColors } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -44,14 +44,14 @@ export function SyncIllustration() {
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.card, { backgroundColor: theme.surface }]}>
+      className="h-[180px] w-[240px] self-center overflow-hidden rounded-3xl bg-surface">
       {bubbles.map((bubble) => {
         const p = phase(bubble.offset);
         return (
           <Animated.View
             key={bubble.left}
             style={[
-              styles.bubble,
+              BUBBLE,
               {
                 left: bubble.left,
                 top: bubble.top,
@@ -68,12 +68,12 @@ export function SyncIllustration() {
           />
         );
       })}
-      <View style={styles.bars}>
+      <View className="absolute inset-x-0 bottom-[26px] flex-row items-end justify-center gap-2.5">
         {BAR_HEIGHTS.map((height, index) => (
           <Animated.View
             key={index}
             style={[
-              styles.bar,
+              BAR,
               {
                 height,
                 backgroundColor: DataColors.categories[index % DataColors.categories.length],
@@ -96,33 +96,12 @@ export function SyncIllustration() {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    alignSelf: 'center',
-    width: 240,
-    height: 180,
-    borderRadius: 24,
-    overflow: 'hidden',
-  },
-  bubble: {
-    position: 'absolute',
-    height: 20,
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-  },
-  bars: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 26,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  bar: {
-    width: 22,
-    borderRadius: 6,
-    transformOrigin: 'bottom',
-  },
-});
+/** Animated views take inline styles: these are the fixed parts of the bubbles and bars. */
+const BUBBLE = {
+  position: 'absolute',
+  height: 20,
+  borderTopLeftRadius: 10,
+  borderTopRightRadius: 10,
+} as const;
+
+const BAR = { width: 22, borderRadius: 6, transformOrigin: 'bottom' } as const;

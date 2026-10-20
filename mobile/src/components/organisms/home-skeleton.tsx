@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Card, Skeleton } from '@/components/atoms';
 import { BrandColors } from '@/theme';
@@ -6,40 +6,40 @@ import { BrandColors } from '@/theme';
 /** Home in grey blocks while it loads, never a full-screen spinner (docs/ui-spec.md §3). */
 export function HomeSkeleton() {
   return (
-    <View accessible accessibilityLabel="Loading your dashboard" accessibilityState={{ busy: true }} style={styles.page}>
-      <View style={styles.header}>
-        <View style={styles.flex}>
+    <View accessible accessibilityLabel="Loading your dashboard" accessibilityState={{ busy: true }} className="px-4 pt-[18px]">
+      <View className="flex-row items-center gap-2.5 pb-[14px] pl-1">
+        <View className="flex-1">
           <Skeleton width={200} height={24} />
-          <View style={styles.gap10}>
+          <View className="mt-2.5">
             <Skeleton width={96} height={32} radius={16} />
           </View>
         </View>
         <Skeleton width={48} height={48} radius={24} />
       </View>
-      <View style={styles.hero}>
+      <View className="rounded-[22px] bg-brand-ink p-5">
         <Skeleton width={140} height={12} radius={6} color={BrandColors.inkSkeleton} />
-        <View style={styles.gap12}>
+        <View className="mt-3">
           <Skeleton width={220} height={38} radius={10} color={BrandColors.inkSkeleton} />
         </View>
-        <View style={styles.tiles}>
+        <View className="mt-[18px] flex-row gap-2">
           {[0, 1, 2].map((i) => (
-            <View key={i} style={styles.flex}>
+            <View key={i} className="flex-1">
               <Skeleton height={52} radius={12} color={BrandColors.inkTile} />
             </View>
           ))}
         </View>
       </View>
-      <Card style={styles.card}>
-        <View style={styles.between}>
+      <Card className="mt-3">
+        <View className="flex-row justify-between">
           <Skeleton width={100} height={14} />
           <Skeleton width={80} height={20} />
         </View>
         {[0, 1].map((i) => (
-          <View key={i} style={styles.walletRow}>
+          <View key={i} className="mt-[14px] flex-row items-center gap-2.5">
             <Skeleton width={32} height={32} radius={9} />
-            <View style={styles.flex}>
+            <View className="flex-1">
               <Skeleton width={110} height={12} />
-              <View style={styles.gap6}>
+              <View className="mt-1.5">
                 <Skeleton width={80} height={10} />
               </View>
             </View>
@@ -47,9 +47,9 @@ export function HomeSkeleton() {
           </View>
         ))}
       </Card>
-      <Card style={[styles.card, styles.donutRow]}>
+      <Card className="mt-3 flex-row items-center gap-4">
         <Skeleton width={128} height={128} radius={64} />
-        <View style={[styles.flex, styles.lines]}>
+        <View className="flex-1 gap-[14px]">
           <Skeleton height={12} />
           <Skeleton width="80%" height={12} />
           <Skeleton width="65%" height={12} />
@@ -58,60 +58,3 @@ export function HomeSkeleton() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  page: {
-    paddingTop: 18,
-    paddingHorizontal: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingLeft: 4,
-    paddingBottom: 14,
-  },
-  flex: {
-    flex: 1,
-  },
-  gap6: {
-    marginTop: 6,
-  },
-  gap10: {
-    marginTop: 10,
-  },
-  gap12: {
-    marginTop: 12,
-  },
-  hero: {
-    borderRadius: 22,
-    padding: 20,
-    backgroundColor: BrandColors.ink,
-  },
-  tiles: {
-    marginTop: 18,
-    flexDirection: 'row',
-    gap: 8,
-  },
-  card: {
-    marginTop: 12,
-  },
-  between: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  walletRow: {
-    marginTop: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  donutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  lines: {
-    gap: 14,
-  },
-});

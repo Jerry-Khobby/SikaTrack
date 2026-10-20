@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView } from 'react-native';
 
 import { InsightCard } from '@/components/molecules';
 import type { Insight } from '@/services/insights';
@@ -14,7 +14,7 @@ export function InsightCarousel({ insights, onOpen }: InsightCarouselProps) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.row}
+      contentContainerClassName="gap-2.5 px-4"
       accessibilityLabel="Insights">
       {insights.map((insight) => (
         <InsightCard
@@ -28,10 +28,3 @@ export function InsightCarousel({ insights, onOpen }: InsightCarouselProps) {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    gap: 10,
-    paddingHorizontal: 16,
-  },
-});

@@ -1,7 +1,6 @@
-import { StyleSheet, TextInput } from 'react-native';
+import { TextInput } from 'react-native';
 
 import { Card, ThemedText } from '@/components/atoms';
-import { FontFamily } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type NoteCardProps = {
@@ -16,8 +15,8 @@ export function NoteCard({ value, onChangeText, onBlur }: NoteCardProps) {
   const theme = useTheme();
 
   return (
-    <Card radius={18} padding={0} style={styles.card}>
-      <ThemedText type="fine" themeColor="textSecondary" style={styles.label}>
+    <Card radius={18} padded={false} className="px-4 py-[14px]">
+      <ThemedText type="fine" themeColor="textSecondary" className="mb-1.5">
         Note
       </ThemedText>
       <TextInput
@@ -30,24 +29,8 @@ export function NoteCard({ value, onChangeText, onBlur }: NoteCardProps) {
         selectionColor={theme.link}
         returnKeyType="done"
         maxLength={280}
-        style={[styles.input, { color: theme.text }]}
+        className="min-h-[24px] p-0 font-sans text-[15px] text-content"
       />
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  label: {
-    marginBottom: 6,
-  },
-  input: {
-    padding: 0,
-    minHeight: 24,
-    fontFamily: FontFamily.regular,
-    fontSize: 15,
-  },
-});

@@ -1,8 +1,8 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Card, DonutChart, ThemedText } from '@/components/atoms';
 import { LegendRow, SectionHeader } from '@/components/molecules';
-import { DataColors, FontFamily } from '@/theme';
+import { DataColors } from '@/theme';
 import type { CategorySpending } from '@/services/summary';
 import { formatMoney, formatMoneyWhole, formatShare } from '@/utils/format';
 import { toPesewas } from '@/utils/money';
@@ -34,14 +34,19 @@ export function CategoryBreakdownCard({ spending, currency, onPressCategory, onS
   return (
     <Card>
       <SectionHeader title="Spending by category" actionLabel="See all" onAction={onSeeAll} />
-      <View style={styles.body}>
+      <View className="mt-1 flex-row items-center gap-4">
         <DonutChart segments={segments} accessibilityLabel={`Spending donut: ${description}`}>
-          <ThemedText type="fine" themeColor="textSecondary" style={styles.centerLabel}>
+          <ThemedText type="none" themeColor="textSecondary" className="font-sans text-[11px] leading-[18px]">
             Total
           </ThemedText>
-          <ThemedText style={styles.centerValue}>{formatMoneyWhole(spending.total, currency)}</ThemedText>
+          <ThemedText
+            type="none"
+            className="font-sans-extrabold text-[15px] leading-[20px]"
+            style={{ fontVariant: ['tabular-nums'] }}>
+            {formatMoneyWhole(spending.total, currency)}
+          </ThemedText>
         </DonutChart>
-        <View style={styles.legend}>
+        <View className="min-w-0 flex-1">
           {top.slice(0, TOP_IN_LIST).map((item, index) => (
             <LegendRow
               key={item.category.id}
@@ -56,25 +61,3 @@ export function CategoryBreakdownCard({ spending, currency, onPressCategory, onS
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  body: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginTop: 4,
-  },
-  centerLabel: {
-    fontSize: 11,
-  },
-  centerValue: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 15,
-    lineHeight: 20,
-    fontVariant: ['tabular-nums'],
-  },
-  legend: {
-    flex: 1,
-    minWidth: 0,
-  },
-});

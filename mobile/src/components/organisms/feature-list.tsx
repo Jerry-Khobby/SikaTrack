@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { FeatureRow, type FeatureRowProps } from '@/components/molecules';
 
@@ -8,16 +8,10 @@ export type FeatureListProps = {
 
 export function FeatureList({ items }: FeatureListProps) {
   return (
-    <View style={styles.list}>
+    <View className="gap-[22px]">
       {items.map((item) => (
         <FeatureRow key={item.text} {...item} />
       ))}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  list: {
-    gap: 22,
-  },
-});

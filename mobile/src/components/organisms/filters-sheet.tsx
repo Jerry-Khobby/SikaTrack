@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button, ThemedText } from '@/components/atoms';
 import {
@@ -10,7 +10,6 @@ import {
   TextField,
   ToggleRow,
 } from '@/components/molecules';
-import { FontFamily } from '@/theme';
 import type { AccountWallet } from '@/services/balances';
 import type { Category } from '@/services/categories';
 import { DEFAULT_FILTERS, type TransactionFilters } from '@/services/transactions';
@@ -32,7 +31,11 @@ export type FiltersSheetProps = {
 const COLLAPSED_CATEGORIES = 7;
 
 function Label({ children }: { children: string }) {
-  return <ThemedText style={styles.label}>{children}</ThemedText>;
+  return (
+    <ThemedText type="none" className="mb-2.5 font-sans-extrabold text-[13px] leading-[18px]">
+      {children}
+    </ThemedText>
+  );
 }
 
 /** S14 · Filters: date, direction, categories, wallet, amount and own transfers. */
@@ -96,17 +99,17 @@ export function FiltersSheet({
       onClose={onClose}
       footer={
         <>
-          <View style={styles.reset}>
+          <View className="flex-1">
             <Button variant="secondary" label="Reset" onPress={reset} />
           </View>
-          <View style={styles.apply}>
+          <View className="flex-[2]">
             <Button label="Show results" onPress={apply} disabled={Boolean(rangeError || amountError)} />
           </View>
         </>
       }>
       <View>
         <Label>Date</Label>
-        <View style={styles.wrap}>
+        <View className="flex-row flex-wrap gap-2">
           {DATE_PRESETS.map((preset) => (
             <FilterChip
               key={preset.id}
@@ -121,17 +124,17 @@ export function FiltersSheet({
           <FilterChip label="Custom" icon="calendar" active={custom} onPress={() => setCustom(true)} />
         </View>
         {custom && (
-          <View style={styles.customRange}>
-            <View style={styles.half}>
+          <View className="mt-2.5 flex-row gap-2.5">
+            <View className="flex-1">
               <TextField label="From" value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
             </View>
-            <View style={styles.half}>
+            <View className="flex-1">
               <TextField label="To" value={to} onChangeText={setTo} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
             </View>
           </View>
         )}
         {rangeError && (
-          <ThemedText type="fine" themeColor="error" style={styles.error}>
+          <ThemedText type="fine" themeColor="error" className="mt-1.5">
             {rangeError}
           </ThemedText>
         )}
@@ -153,7 +156,7 @@ export function FiltersSheet({
 
       <View>
         <Label>Categories</Label>
-        <View style={styles.grid}>
+        <View className="flex-row flex-wrap gap-2">
           {shown.map((category) => (
             <CategoryTile
               key={category.id}
@@ -163,16 +166,14 @@ export function FiltersSheet({
               onPress={() => toggleCategory(category.id)}
             />
           ))}
-          {hidden > 0 && (
-            <CategoryTile icon="dots" name={`${hidden} more`} onPress={() => setShowAllCategories(true)} />
-          )}
+          {hidden > 0 && <CategoryTile icon="dots" name={`${hidden} more`} onPress={() => setShowAllCategories(true)} />}
         </View>
       </View>
 
       {wallets.length > 0 && (
         <View>
           <Label>Wallet</Label>
-          <View style={styles.wrap}>
+          <View className="flex-row flex-wrap gap-2">
             {wallets.map((wallet) => (
               <FilterChip
                 key={wallet.id}
@@ -187,12 +188,12 @@ export function FiltersSheet({
 
       <View>
         <Label>Amount</Label>
-        <View style={styles.customRange}>
+        <View className="mt-2.5 flex-row gap-2.5">
           <AmountInput currency={currency} placeholder="Min" accessibilityLabel="Minimum amount" value={min} onChangeText={setMin} />
           <AmountInput currency={currency} placeholder="Max" accessibilityLabel="Maximum amount" value={max} onChangeText={setMax} />
         </View>
         {amountError && (
-          <ThemedText type="fine" themeColor="error" style={styles.error}>
+          <ThemedText type="fine" themeColor="error" className="mt-1.5">
             {amountError}
           </ThemedText>
         )}
@@ -207,39 +208,3 @@ export function FiltersSheet({
     </BottomSheet>
   );
 }
-
-const styles = StyleSheet.create({
-  label: {
-    marginBottom: 10,
-    fontFamily: FontFamily.extraBold,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  wrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  customRange: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 10,
-  },
-  half: {
-    flex: 1,
-  },
-  error: {
-    marginTop: 6,
-  },
-  reset: {
-    flex: 1,
-  },
-  apply: {
-    flex: 2,
-  },
-});

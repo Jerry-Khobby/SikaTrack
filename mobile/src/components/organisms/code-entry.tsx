@@ -1,8 +1,7 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 
 import { ThemedText } from '@/components/atoms';
 import { CodeInput, InfoNote, ResendCountdown } from '@/components/molecules';
-import { ControlHeight, Spacing } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type CodeEntryProps = {
@@ -38,7 +37,7 @@ export function CodeEntry({
   return (
     <View>
       {checking ? (
-        <View style={styles.checking}>
+        <View className="h-input items-center justify-center">
           <ActivityIndicator color={theme.text} accessibilityLabel="Checking the code" />
         </View>
       ) : (
@@ -52,41 +51,19 @@ export function CodeEntry({
         />
       )}
       {error && (
-        <ThemedText
-          type="caption"
-          themeColor="error"
-          accessibilityLiveRegion="polite"
-          style={styles.error}>
+        <ThemedText type="caption" themeColor="error" accessibilityLiveRegion="polite" className="mt-3">
           {error}
         </ThemedText>
       )}
-      <View style={styles.timing}>
+      <View className="mt-6 gap-1.5">
         <ResendCountdown secondsLeft={secondsUntilResend} onResend={onResend} />
         <ThemedText type="callout" themeColor="textSecondary">
           The code expires in {expiresInMinutes} minutes.
         </ThemedText>
       </View>
-      <View style={styles.note}>
+      <View className="mt-6">
         <InfoNote icon="message" text="We'll fill the code in for you when the SMS arrives." />
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  checking: {
-    height: ControlHeight.input,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  error: {
-    marginTop: 12,
-  },
-  timing: {
-    marginTop: Spacing.four,
-    gap: 6,
-  },
-  note: {
-    marginTop: Spacing.four,
-  },
-});
