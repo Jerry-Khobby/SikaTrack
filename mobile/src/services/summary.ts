@@ -1,7 +1,12 @@
 import { api } from '@/api/client';
-import type { ApiCategorySummary, ApiSummary, ApiTrend } from '@/api/types';
+import type { ApiCategorySummary, ApiCounterpartySummary, ApiHabits, ApiSummary, ApiTrend, DayPart } from '@/api/types';
 
-import { toCategoryRef, type CategoryRef } from './categories';
+import type { Granularity } from '@/utils/periods';
+
+import { toCategoryRef, toCounterparty, type CategoryRef, type Counterparty } from './categories';
+
+export type { DayPart };
+export type { Granularity };
 
 export type MonthSummary = {
   period: { from: string; to: string; days: number };
@@ -58,9 +63,12 @@ export async function getMonthSummary(month: string): Promise<MonthSummary> {
   };
 }
 
-/** `GET /v1/summary/categories?month=`: spending by category, largest first. */
-export async function getCategorySpending(month: string): Promise<CategorySpending> {
-  const s = await api.get<ApiCategorySummary>('/v1/summary/categories', { month });
+/**
+ * `GET /v1/summary/categories?month=&group=`: spending (or money in) by
+ * category, largest first.
+ */
+export async function getCategorySpending(month: string, group: 'spending' | 'money_in' = 'spending'): Promise<CategorySpending> {
+  const s = await api.get<ApiCategorySummary>('/v1/summary/categories', { month, group });
   return {
     total: s.total,
     items: s.items.map((item) => ({
@@ -80,4 +88,63 @@ export async function listMonthsWithData(): Promise<string[]> {
     .filter((item) => Number(item.money_out) > 0 || Number(item.money_in) > 0)
     .map((item) => item.period)
     .sort((a, b) => b.localeCompare(a));
+}
+
+
+export type TrendPoint = {
+  /** `2026-10` for a month; the day (or a week's Monday) as `2026-10-12`. */
+  period: string;
+  moneyOut: string;
+  moneyIn: string;
+  /** Fees and tax together. */
+  fees: string;
+};
+
+/** `GET /v1/summary/trend?granularity=&from=&to=`: one point per period, zeros included. */
+export async function getTrend(granularity: Granularity, range: { from: string; to: string }): Promise<TrendPoint[]> {
+  const trend = await api.get<ApiTrend>('/v1/summary/trend', { granularity, from: range.from, to: range.to });
+  return trend.items.map((item) => ({
+    period: item.period,
+    moneyOut: item.money_out,
+    moneyIn: item.money_in,
+    fees: item.fees,
+  }));
+}
+
+export type Habits = {
+  /** `weekday` 1 (Monday) to 7 (Sunday). */
+  grid: { weekday: number; dayPart: DayPart; amount: string }[];
+  byHour: { hour: number; amount: string }[];
+  peak: { weekday: number; dayPart: DayPart } | null;
+  /** Fraction, e.g. `"0.280"`. */
+  weekendShare: string;
+  medianPayment: string;
+};
+
+/** `GET /v1/summary/habits?month=`: when in the week and day the money goes. */
+export async function getHabits(month: string): Promise<Habits> {
+  const h = await api.get<ApiHabits>('/v1/summary/habits', { month });
+  return {
+    grid: h.grid.map((cell) => ({ weekday: cell.weekday, dayPart: cell.day_part, amount: cell.amount })),
+    byHour: h.by_hour,
+    peak: h.peak ? { weekday: h.peak.weekday, dayPart: h.peak.day_part } : null,
+    weekendShare: h.weekend_share,
+    medianPayment: h.median_payment,
+  };
+}
+
+export type CounterpartyTotal = { counterparty: Counterparty; amount: string; transactions: number };
+
+/** `GET /v1/summary/counterparties?month=&direction=&limit=`: who got (or sent) the most. */
+export async function getTopCounterparties(
+  month: string,
+  direction: 'in' | 'out',
+  limit = 10,
+): Promise<CounterpartyTotal[]> {
+  const s = await api.get<ApiCounterpartySummary>('/v1/summary/counterparties', { month, direction, limit });
+  return s.items.map((item) => ({
+    counterparty: toCounterparty(item.counterparty),
+    amount: item.amount,
+    transactions: item.transactions,
+  }));
 }

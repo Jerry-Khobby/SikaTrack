@@ -65,10 +65,46 @@ export type ApiTrend = {
   items: { period: string; money_out: Money; money_in: Money; fees: Money }[];
 };
 
+/** `GET /v1/summary/counterparties` */
+export type ApiCounterpartySummary = {
+  items: { counterparty: ApiCounterpartyRef; amount: Money; transactions: number }[];
+};
+
+export type DayPart = 'morning' | 'afternoon' | 'evening' | 'night';
+
+/** `GET /v1/summary/habits`. `weekday` is ISO: 1 is Monday, 7 is Sunday. */
+export type ApiHabits = {
+  grid: { weekday: number; day_part: DayPart; amount: Money }[];
+  by_hour: { hour: number; amount: Money }[];
+  peak: { weekday: number; day_part: DayPart } | null;
+  weekend_share: string;
+  median_payment: Money;
+};
+
+/** One item of `GET /v1/counterparties`, and `GET /v1/counterparties/{id}`. */
+export type ApiCounterparty = {
+  id: string;
+  name: string;
+  original_name: string;
+  alias: string | null;
+  kind: CounterpartyKind;
+  default_category: string | null;
+  money_out: Money;
+  transactions: number;
+  last_seen_at: string;
+};
+
 /** `GET /v1/balances` */
 export type ApiBalances = {
   total: Money;
   items: { wallet_id: string; provider: string; balance: Money; as_of: string }[];
+};
+
+/** `GET /v1/balances/history`: end-of-day balance per wallet, carried forward on days with no SMS. */
+export type ApiBalanceHistory = {
+  items: { date: string; wallet_id: string; balance: Money }[];
+  days_below_threshold: number;
+  threshold: Money;
 };
 
 /** `GET /v1/wallets` */
@@ -95,21 +131,24 @@ export type ApiInsight = {
 /** `GET /v1/recurring` */
 export type ApiRecurringList = {
   monthly_cost: Money;
-  items: {
-    id: string;
-    label: string;
-    counterparty: ApiCounterpartyRef;
-    category: ApiCategoryRef;
-    rhythm: string;
-    interval_days: number;
-    typical_amount: Money;
-    payments: number;
-    first_paid_at: string;
-    last_paid_at: string;
-    status: 'active' | 'stopped';
-    monthly_cost: Money;
-    user_state: 'expected' | 'cancel_planned' | 'not_recurring' | null;
-  }[];
+  items: ApiRecurringItem[];
+};
+
+/** One series: an item of `GET /v1/recurring`, and `GET /v1/recurring/{id}`. */
+export type ApiRecurringItem = {
+  id: string;
+  label: string;
+  counterparty: ApiCounterpartyRef;
+  category: ApiCategoryRef;
+  rhythm: string;
+  interval_days: number;
+  typical_amount: Money;
+  payments: number;
+  first_paid_at: string;
+  last_paid_at: string;
+  status: 'active' | 'stopped';
+  monthly_cost: Money;
+  user_state: 'expected' | 'cancel_planned' | 'not_recurring' | null;
 };
 
 /** `GET /v1/budgets` */

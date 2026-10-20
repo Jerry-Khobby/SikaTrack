@@ -1,6 +1,7 @@
 import { api, type Query } from '@/api/client';
 import type { ApiPage, ApiTransaction, ApiTransactionDetail, ApiTransactionPatch, TransactionType } from '@/api/types';
 import { presetRange, type DatePreset } from '@/utils/dates';
+import { toPesewas } from '@/utils/money';
 
 import { toCategoryRef, toCounterparty, type CategoryRef, type Counterparty } from './categories';
 
@@ -67,7 +68,7 @@ export const DEFAULT_FILTERS: TransactionFilters = {
 
 export const PAGE_SIZE = 50;
 
-function toTransaction(t: ApiTransaction): Transaction {
+export function toTransaction(t: ApiTransaction): Transaction {
   return {
     id: t.id,
     status: t.status,
@@ -151,6 +152,23 @@ export async function listTransactions(
     cursor: cursor ?? undefined,
   });
   return { items: page.items.map(toTransaction), nextCursor: page.next_cursor };
+}
+
+/**
+ * S17e's list: every payment in the range that cost a fee or tax, biggest
+ * first. The API has no fee filter, so it reads every page of the range.
+ */
+export async function listFeePayments(range: { from: string; to: string }) {
+  const filters: TransactionFilters = { ...DEFAULT_FILTERS, date: range, direction: 'out' };
+  const items: Transaction[] = [];
+  let cursor: string | null = null;
+  do {
+    const page: TransactionPage = await listTransactions(filters, cursor, 100);
+    items.push(...page.items);
+    cursor = page.nextCursor;
+  } while (cursor);
+  const cost = (t: Transaction) => toPesewas(t.fee) + toPesewas(t.tax);
+  return items.filter((t) => cost(t) > 0).sort((a, b) => cost(b) - cost(a));
 }
 
 /** `GET /v1/transactions?limit=5`: Home's recent list. */
