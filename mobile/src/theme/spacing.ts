@@ -1,12 +1,8 @@
-export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
-} as const;
+/**
+ * Sizes Tailwind reads from here (tailwind.config.js): `rounded-sm`/`md`/`lg`/`xl`,
+ * `h-touch`, `h-button`, `h-input` and `max-w-content`. Everyday spacing uses
+ * Tailwind's own scale (`p-4` = 16 px).
+ */
 
 export const Radius = {
   sm: 12,
