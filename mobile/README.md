@@ -85,6 +85,25 @@ Components are styled with Tailwind classes through
 - **Class strings must stay complete words**, not built like `` `bg-${tone}` ``, or Tailwind
   won't see them. Use a lookup object of full class names instead.
 
+## Charts
+
+Every chart has to let you read its numbers, not just its shape. The chart atoms (`BarChart`,
+`LineChart`, `Heatmap` in `src/components/atoms`) follow these rules:
+
+- **A y-axis of round values with the unit on top** (`GHS · 4K · 2K · 0`), worked out by
+  `niceTicks` in [src/utils/chart-scale.ts](src/utils/chart-scale.ts), plus hairline
+  gridlines and a label under each bar or along the line.
+- **Exact figures on tap.** Tapping a bar or a day shows its exact amounts under the chart.
+  Short charts (fees, a category's six months) write the value over every bar. Heatmap cells
+  have their amount written in them.
+- **One axis per chart.** Two measures on different scales get two charts, never a second
+  y-axis. That's why fees aren't drawn on the Trend chart: they have their own chart under
+  **Fees**, and the Trend readout lists them.
+- **Colour follows the thing, never its rank.** Categorical colours come from `DataColors`
+  in a fixed order. Past five, the rest share the neutral "Other" colour.
+- **Screen readers hear every value.** Each bar, cell and point has its own label, e.g.
+  `October 2026: out GHS 2,723.40, in GHS 1,480.00`.
+
 ## How data reaches a screen
 
 ```text
@@ -118,9 +137,9 @@ you add in onboarding.
 Still to wire in when the backend is ready:
 
 - **Access token:** sign-in has to call `setAccessToken` in `api/client.ts`.
-- **Account, wallet and config stand-ins:** `services/me.ts`, `services/wallets.ts`,
-  `services/auth.ts` and `services/config.ts` still keep their data in memory. They need to
-  move onto `api` like the others.
+- **Account and config stand-ins:** `services/me.ts`, `services/auth.ts` and
+  `services/config.ts` still keep their data in memory. They need to move onto `api` like the
+  others. Wallets already go through `api` (`/v1/wallets`).
 
 ## Running without a backend
 
@@ -145,6 +164,17 @@ everything starts over when the app reloads.
   suggestions yet, because those come from reading the SMS.
 - **First sync:** it replays a scan of the dataset the pipeline was built on, over about 6
   seconds.
+
+**Budgets, wallets and recurring payments** start from sample data in
+[src/api/dev-server/catalog.ts](src/api/dev-server/catalog.ts):
+
+- **Budgets:** four budgets. Creating, editing and deleting them works until the app reloads.
+  The Budgets tab hides when `features.budgets` is off in `services/config.ts`.
+- **Wallets:** two sample wallets. Balances and the balance history come from their
+  transactions.
+- **Recurring:** five series, one for each state. DStv and MTN Bundle are expected. Netflix is
+  planned to cancel but still charging. Kwesi Ofori is waiting for review. Boomplay has
+  stopped.
 
 To see the edge cases, start the app with one of these:
 
