@@ -54,6 +54,12 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
             <Stack.Screen name="transactions/[id]" />
             <Stack.Screen name="notifications" />
+            <Stack.Screen name="wallets" />
+            <Stack.Screen name="recurring/index" />
+            <Stack.Screen name="recurring/[id]" />
+            <Stack.Screen name="categories/[id]" />
+            <Stack.Screen name="counterparties/index" />
+            <Stack.Screen name="counterparties/[id]" />
           </Stack>
         </View>
       </ThemeProvider>
