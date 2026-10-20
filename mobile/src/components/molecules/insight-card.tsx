@@ -1,7 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { Icon, ThemedText, type IconName } from '@/components/atoms';
-import { FontFamily } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type InsightSeverity = 'info' | 'tip' | 'warning';
@@ -13,21 +12,17 @@ export type InsightCardProps = {
   onPress?: () => void;
 };
 
-const LOOK: Record<InsightSeverity, { label: string; icon: IconName }> = {
-  warning: { label: 'Heads-up', icon: 'alert' },
-  info: { label: 'Insight', icon: 'info' },
-  tip: { label: 'Tip', icon: 'lightbulb' },
+const LOOK: Record<InsightSeverity, { label: string; icon: IconName; box: string; accent: string }> = {
+  warning: { label: 'Heads-up', icon: 'alert', box: 'bg-tint-amber', accent: 'text-icon-amber' },
+  info: { label: 'Insight', icon: 'info', box: 'bg-tint-blue', accent: 'text-link' },
+  tip: { label: 'Tip', icon: 'lightbulb', box: 'bg-tint-success', accent: 'text-icon-success' },
 };
 
 /** A short card from `GET /v1/insights`, coloured by severity: info blue, tip green, warning amber. */
 export function InsightCard({ severity, title, body, onPress }: InsightCardProps) {
   const theme = useTheme();
-  const colors = {
-    warning: { background: theme.tintAmber, accent: theme.iconAmber },
-    info: { background: theme.tintBlue, accent: theme.link },
-    tip: { background: theme.tintSuccess, accent: theme.iconSuccess },
-  }[severity];
   const look = LOOK[severity];
+  const iconColor = { warning: theme.iconAmber, info: theme.link, tip: theme.iconSuccess }[severity];
 
   return (
     <Pressable
@@ -35,43 +30,21 @@ export function InsightCard({ severity, title, body, onPress }: InsightCardProps
       accessibilityLabel={`${look.label}: ${title}. ${body}`}
       disabled={!onPress}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, { backgroundColor: colors.background }, pressed && { opacity: 0.85 }]}>
-      <View style={styles.eyebrow}>
-        <Icon name={look.icon} color={colors.accent} size={16} />
-        <Text style={[styles.eyebrowText, { color: colors.accent }]}>{look.label}</Text>
+      className={`w-[262px] rounded-lg px-4 py-[14px] active:opacity-[0.85] ${look.box}`}>
+      <View className="flex-row items-center gap-2">
+        <Icon name={look.icon} color={iconColor} size={16} />
+        <Text className={`font-sans-extrabold text-[12px] ${look.accent}`}>{look.label}</Text>
       </View>
-      <ThemedText style={styles.title}>{title}</ThemedText>
-      <ThemedText type="caption" themeColor="textBody" style={styles.body} numberOfLines={2}>
+      <ThemedText type="none" className="mt-2 font-sans-extrabold text-[15px] leading-[20px]">
+        {title}
+      </ThemedText>
+      <ThemedText
+        type="none"
+        themeColor="textBody"
+        className="mt-1 font-sans text-[13px] leading-[19px]"
+        numberOfLines={2}>
         {body}
       </ThemedText>
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    width: 262,
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  eyebrow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  eyebrowText: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 12,
-  },
-  title: {
-    marginTop: 8,
-    fontFamily: FontFamily.extraBold,
-    fontSize: 15,
-    lineHeight: 20,
-  },
-  body: {
-    marginTop: 4,
-    lineHeight: 19,
-  },
-});

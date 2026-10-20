@@ -1,8 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { IconButton, ProviderBadge, ThemedText } from '@/components/atoms';
-import { Spacing } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 export type WalletCardProps = {
   providerCode: string;
@@ -14,12 +12,10 @@ export type WalletCardProps = {
 
 /** One of the user's own wallets, with an edit button. */
 export function WalletCard({ providerCode, providerName, title, subtitle, onEdit }: WalletCardProps) {
-  const theme = useTheme();
-
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface }]}>
+    <View className="flex-row items-center gap-3 rounded-2xl bg-surface py-[14px] pl-[14px] pr-1">
       <ProviderBadge code={providerCode} name={providerName} size={42} />
-      <View style={styles.text}>
+      <View className="min-w-0 flex-1">
         <ThemedText type="subheading" numberOfLines={1}>
           {title}
         </ThemedText>
@@ -31,18 +27,3 @@ export function WalletCard({ providerCode, providerName, title, subtitle, onEdit
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    paddingRight: Spacing.one,
-    borderRadius: 16,
-  },
-  text: {
-    flex: 1,
-    minWidth: 0,
-  },
-});

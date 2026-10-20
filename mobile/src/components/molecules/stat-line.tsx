@@ -1,9 +1,7 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ThemedText } from '@/components/atoms';
-import { FontFamily } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 export type StatLineProps = {
   label: string;
@@ -15,22 +13,20 @@ export type StatLineProps = {
 
 /** A label on the left and its figure on the right. */
 export function StatLine({ label, value, divider, trailing }: StatLineProps) {
-  const theme = useTheme();
-
   return (
     <View
       accessible={!trailing}
       accessibilityLabel={trailing ? undefined : `${label}: ${value}`}
-      style={[
-        styles.row,
-        trailing ? styles.withTrailing : null,
-        divider && { borderBottomWidth: 1, borderBottomColor: theme.divider },
-      ]}>
+      className={`flex-row items-center justify-between gap-3 ${trailing ? 'py-0.5' : 'py-3'} ${divider ? 'border-b border-divider' : ''}`}>
       <ThemedText type="bodySmall" themeColor="textSecondary">
         {label}
       </ThemedText>
-      <View style={styles.right}>
-        <ThemedText type="bodySmall" style={styles.value} selectable={Boolean(trailing)}>
+      <View className="shrink flex-row items-center gap-1">
+        <ThemedText
+          type="none"
+          className="shrink text-right font-sans-bold text-[15px] leading-[23px]"
+          style={{ fontVariant: ['tabular-nums'] }}
+          selectable={Boolean(trailing)}>
           {value}
         </ThemedText>
         {trailing}
@@ -38,28 +34,3 @@ export function StatLine({ label, value, divider, trailing }: StatLineProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    gap: 12,
-  },
-  withTrailing: {
-    paddingVertical: 2,
-  },
-  right: {
-    flexShrink: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  value: {
-    flexShrink: 1,
-    fontFamily: FontFamily.bold,
-    fontVariant: ['tabular-nums'],
-    textAlign: 'right',
-  },
-});

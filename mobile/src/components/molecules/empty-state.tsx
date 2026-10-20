@@ -1,8 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button, ThemedText, type IconName } from '@/components/atoms';
-import { FontFamily } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 import { IconCircle } from './icon-circle';
 
@@ -15,68 +13,40 @@ export type EmptyStateProps = {
   onAction?: () => void;
 };
 
+const BARS = [
+  { height: 22, className: 'bg-line' },
+  { height: 38, className: 'bg-line' },
+  { height: 30, className: 'bg-line' },
+  { height: 50, className: 'bg-line-input' },
+];
+
 /** Why a screen is empty, and the action that fills it (docs/ui-spec.md §3). */
 export function EmptyState({ title, message, icon, actionLabel, onAction }: EmptyStateProps) {
-  const theme = useTheme();
-
   return (
-    <View style={styles.empty}>
+    <View className="items-center gap-[14px] px-6 py-8">
       {icon ? (
         <IconCircle icon={icon} tone="neutral" size={96} />
       ) : (
-        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.chart, { backgroundColor: theme.surface }]}>
-          {[22, 38, 30, 50].map((height, index) => (
-            <View key={index} style={[styles.bar, { height, backgroundColor: index === 3 ? theme.borderInput : theme.border }]} />
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          className="h-[132px] w-[132px] flex-row items-end justify-center gap-2 rounded-[66px] bg-surface pb-9">
+          {BARS.map((bar, index) => (
+            <View key={index} className={`w-4 rounded-[5px] ${bar.className}`} style={{ height: bar.height }} />
           ))}
         </View>
       )}
-      <ThemedText type="heading" accessibilityRole="header" style={styles.title}>
+      <ThemedText type="none" accessibilityRole="header" className="text-center font-sans-extrabold text-[18px] leading-[26px]">
         {title}
       </ThemedText>
-      <ThemedText type="callout" themeColor="textSecondary" style={styles.message}>
+      <ThemedText type="callout" themeColor="textSecondary" className="max-w-[290px] text-center">
         {message}
       </ThemedText>
       {actionLabel && onAction && (
-        <View style={styles.action}>
+        <View className="mt-1.5 min-w-[200px]">
           <Button variant="secondary" label={actionLabel} onPress={onAction} />
         </View>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  empty: {
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-  },
-  chart: {
-    width: 132,
-    height: 132,
-    borderRadius: 66,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    gap: 8,
-    paddingBottom: 36,
-  },
-  bar: {
-    width: 16,
-    borderRadius: 5,
-  },
-  title: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 18,
-    textAlign: 'center',
-  },
-  message: {
-    maxWidth: 290,
-    textAlign: 'center',
-  },
-  action: {
-    marginTop: 6,
-    minWidth: 200,
-  },
-});

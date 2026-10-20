@@ -1,7 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ThemedText, type IconName } from '@/components/atoms';
-import { Spacing } from '@/theme';
 
 import { IconTile, type IconTone } from './icon-tile';
 
@@ -13,21 +12,9 @@ export type FeatureRowProps = {
 
 export function FeatureRow({ icon, tone, text }: FeatureRowProps) {
   return (
-    <View style={styles.row}>
+    <View className="flex-row items-start gap-4">
       <IconTile icon={icon} tone={tone} />
-      <ThemedText style={styles.text}>{text}</ThemedText>
+      <ThemedText className="flex-1 pt-0.5">{text}</ThemedText>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.three,
-  },
-  text: {
-    flex: 1,
-    paddingTop: Spacing.half,
-  },
-});

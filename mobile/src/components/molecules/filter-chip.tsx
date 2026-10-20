@@ -1,7 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { Icon, type IconName } from '@/components/atoms';
-import { FontFamily } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type FilterChipProps = {
@@ -24,22 +23,18 @@ export function FilterChip({ label, onPress, active, onClear, chevron, icon, siz
 
   return (
     <View
-      style={[
-        styles.chip,
-        size === 'small' && styles.small,
-        active
-          ? { backgroundColor: theme.primary }
-          : { backgroundColor: theme.surface, borderColor: theme.borderInput, borderWidth: 1 },
-      ]}>
+      className={`flex-row items-center px-3 ${size === 'small' ? 'h-8 rounded-2xl' : 'h-9 rounded-[18px]'} ${
+        active ? 'bg-primary' : 'border border-line-input bg-surface'
+      }`}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityState={{ selected: active }}
         onPress={onPress}
         hitSlop={{ top: 6, bottom: 6 }}
-        style={styles.main}>
+        className="h-full flex-row items-center gap-1.5">
         {icon && <Icon name={icon} color={color} size={14} />}
-        <Text style={[styles.label, { color, fontFamily: active ? FontFamily.bold : FontFamily.semiBold }]}>
+        <Text className={`text-[13px] ${active ? 'font-sans-bold text-on-primary' : 'font-sans-semibold text-content'}`}>
           {label}
         </Text>
         {chevron && <Icon name="chevron-down" color={color} size={14} />}
@@ -50,36 +45,10 @@ export function FilterChip({ label, onPress, active, onClear, chevron, icon, siz
           accessibilityLabel={`Clear ${label}`}
           onPress={onClear}
           hitSlop={8}
-          style={styles.clear}>
+          className="ml-1.5">
           <Icon name="close" color={color} size={14} />
         </Pressable>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  chip: {
-    height: 36,
-    borderRadius: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-  },
-  small: {
-    height: 32,
-    borderRadius: 16,
-  },
-  main: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: '100%',
-  },
-  label: {
-    fontSize: 13,
-  },
-  clear: {
-    marginLeft: 6,
-  },
-});

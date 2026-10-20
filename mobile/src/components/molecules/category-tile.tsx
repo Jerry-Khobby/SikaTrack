@@ -1,7 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { CategoryGlyph, Icon, type IconName } from '@/components/atoms';
-import { FontFamily, Radius } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type CategoryTileProps = {
@@ -25,55 +24,24 @@ export function CategoryTile({ categoryId, icon, name, selected, tick, onPress }
       accessibilityLabel={name}
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[
-        styles.tile,
-        selected
-          ? { borderWidth: 2, borderColor: theme.borderFocus, backgroundColor: theme.surfaceSelected }
-          : { borderWidth: 1, borderColor: theme.border, backgroundColor: theme.surface },
-      ]}>
+      className={`h-[76px] grow basis-[22%] items-center justify-center gap-1.5 rounded-md p-1 ${
+        selected ? 'border-2 border-line-focus bg-surface-selected' : 'border border-line bg-surface'
+      }`}>
       {icon ? (
         <Icon name={icon} color={theme.text} size={20} />
       ) : (
         <CategoryGlyph categoryId={categoryId} color={theme.text} />
       )}
       <Text
-        style={[styles.name, { color: theme.text, fontFamily: selected ? FontFamily.bold : FontFamily.semiBold }]}
+        className={`text-center text-[11px] leading-[13px] text-content ${selected ? 'font-sans-bold' : 'font-sans-semibold'}`}
         numberOfLines={2}>
         {name}
       </Text>
       {tick && selected && (
-        <View style={[styles.tick, { backgroundColor: theme.primary }]}>
+        <View className="absolute right-[5px] top-[5px] h-[18px] w-[18px] items-center justify-center rounded-[9px] bg-primary">
           <Icon name="check" color={theme.onPrimary} size={11} strokeWidth={3.5} />
         </View>
       )}
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  tile: {
-    flexBasis: '22%',
-    flexGrow: 1,
-    height: 76,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: 4,
-  },
-  name: {
-    fontSize: 11,
-    lineHeight: 13,
-    textAlign: 'center',
-  },
-  tick: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

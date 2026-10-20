@@ -1,7 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { LogoMark, ThemedText } from '@/components/atoms';
-import { BrandColors, FontFamily } from '@/theme';
 
 export type LogoProps = {
   /** `splash`: large and stacked, on the brand ink. `inline`: small, beside the wordmark. */
@@ -11,46 +10,21 @@ export type LogoProps = {
 export function Logo({ variant = 'inline' }: LogoProps) {
   if (variant === 'splash') {
     return (
-      <View accessibilityRole="image" accessibilityLabel="SikaTrack" style={styles.splash}>
+      <View accessibilityRole="image" accessibilityLabel="SikaTrack" className="items-center gap-5">
         <LogoMark size={88} />
-        <ThemedText style={styles.splashWordmark}>
-          Sika<ThemedText style={[styles.splashWordmark, styles.gold]}>Track</ThemedText>
-        </ThemedText>
+        <Text className="font-sans-extrabold text-[34px] leading-[42px] tracking-[-0.5px] text-brand-on-ink">
+          Sika<Text className="text-brand-gold">Track</Text>
+        </Text>
       </View>
     );
   }
 
   return (
-    <View accessibilityRole="image" accessibilityLabel="SikaTrack" style={styles.inline}>
+    <View accessibilityRole="image" accessibilityLabel="SikaTrack" className="flex-row items-center gap-2.5">
       <LogoMark size={40} />
-      <ThemedText type="heading" style={styles.inlineWordmark}>
+      <ThemedText type="none" className="font-sans-extrabold text-[20px] leading-[26px]">
         SikaTrack
       </ThemedText>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  splash: {
-    alignItems: 'center',
-    gap: 20,
-  },
-  splashWordmark: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 34,
-    lineHeight: 42,
-    letterSpacing: -0.5,
-    color: BrandColors.onInk,
-  },
-  gold: {
-    color: BrandColors.gold,
-  },
-  inline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  inlineWordmark: {
-    fontFamily: FontFamily.extraBold,
-  },
-});

@@ -1,7 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ProgressBar, ThemedText } from '@/components/atoms';
-import { FontFamily } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type BudgetState = 'on_track' | 'warning' | 'over';
@@ -15,53 +14,32 @@ export type BudgetProgressProps = {
   state: BudgetState;
 };
 
+const TEXT_CLASSES: Record<BudgetState, string> = {
+  on_track: 'text-icon-success',
+  warning: 'text-icon-amber',
+  over: 'text-icon-red',
+};
+
 /** A budget's name, how much of it is spent, and a bar coloured by its status. */
 export function BudgetProgress({ name, spent, used, state }: BudgetProgressProps) {
   const theme = useTheme();
-  const colors = {
-    on_track: { bar: theme.statusGood, text: theme.iconSuccess },
-    warning: { bar: theme.statusWarning, text: theme.iconAmber },
-    over: { bar: theme.statusBad, text: theme.iconRed },
-  }[state];
+  const bar = { on_track: theme.statusGood, warning: theme.statusWarning, over: theme.statusBad }[state];
 
   return (
-    <View style={styles.budget}>
-      <View style={styles.line}>
-        <ThemedText style={styles.name} numberOfLines={1}>
+    <View className="gap-1.5">
+      <View className="flex-row justify-between gap-3">
+        <ThemedText type="none" className="shrink font-sans-bold text-[13px] leading-[18px]" numberOfLines={1}>
           {name}
         </ThemedText>
-        <ThemedText style={[styles.spent, { color: colors.text }]}>{spent}</ThemedText>
+        <ThemedText
+          type="none"
+          themeColor="none"
+          className={`font-sans-bold text-[13px] leading-[18px] ${TEXT_CLASSES[state]}`}
+          style={{ fontVariant: ['tabular-nums'] }}>
+          {spent}
+        </ThemedText>
       </View>
-      <ProgressBar
-        progress={used}
-        height={8}
-        color={colors.bar}
-        trackColor={theme.divider}
-        accessibilityLabel={`${name}: ${spent}`}
-      />
+      <ProgressBar progress={used} height={8} color={bar} trackColor={theme.divider} accessibilityLabel={`${name}: ${spent}`} />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  budget: {
-    gap: 6,
-  },
-  line: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  name: {
-    flexShrink: 1,
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  spent: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    lineHeight: 18,
-    fontVariant: ['tabular-nums'],
-  },
-});

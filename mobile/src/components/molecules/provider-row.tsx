@@ -1,8 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { ProviderBadge, ThemedText } from '@/components/atoms';
-import { FontFamily } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 export type ProviderRowProps = {
   code: string;
@@ -14,18 +12,13 @@ export type ProviderRowProps = {
 
 /** A wallet provider with an Add button, or greyed out as "Coming soon". */
 export function ProviderRow({ code, name, supported, onAdd, divider }: ProviderRowProps) {
-  const theme = useTheme();
-
   return (
-    <View
-      style={[
-        styles.row,
-        divider && { borderBottomWidth: 1, borderBottomColor: theme.divider },
-      ]}>
+    <View className={`flex-row items-center gap-3 px-[14px] py-3 ${divider ? 'border-b border-divider' : ''}`}>
       <ProviderBadge code={code} name={name} muted={!supported} />
       <ThemedText
+        type="none"
         themeColor={supported ? 'text' : 'textDisabled'}
-        style={styles.name}
+        className="flex-1 font-sans-semibold text-[15px]"
         numberOfLines={1}>
         {name}
       </ThemedText>
@@ -35,47 +28,14 @@ export function ProviderRow({ code, name, supported, onAdd, divider }: ProviderR
           accessibilityLabel={`Add ${name}`}
           onPress={onAdd}
           hitSlop={4}
-          style={({ pressed }) => [
-            styles.add,
-            { borderColor: theme.primary },
-            pressed && { backgroundColor: theme.tintBlue },
-          ]}>
-          <Text style={[styles.addLabel, { color: theme.primary }]}>Add</Text>
+          className="h-9 justify-center rounded-[18px] border-[1.5px] border-primary px-[14px] active:bg-tint-blue">
+          <Text className="font-sans-bold text-[14px] text-primary">Add</Text>
         </Pressable>
       ) : (
-        <ThemedText type="label" themeColor="textDisabled" style={styles.soon}>
+        <ThemedText type="none" themeColor="textDisabled" className="font-sans-bold text-[12px]">
           Coming soon
         </ThemedText>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  name: {
-    flex: 1,
-    fontFamily: FontFamily.semiBold,
-    fontSize: 15,
-  },
-  add: {
-    height: 36,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    justifyContent: 'center',
-  },
-  addLabel: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14,
-  },
-  soon: {
-    fontSize: 12,
-  },
-});

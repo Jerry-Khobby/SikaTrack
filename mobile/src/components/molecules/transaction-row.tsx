@@ -1,7 +1,6 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { CategoryGlyph, Icon, Pill, ProviderBadge, ThemedText } from '@/components/atoms';
-import { FontFamily } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Transaction } from '@/services/transactions';
 import { formatDirectedMoney, formatMoney } from '@/utils/format';
@@ -26,6 +25,7 @@ export function TransactionRow({ transaction: t, providerName, timeLabel, onPres
   const processing = t.status === 'provisional';
   const gap = t.flags.includes('balance_gap');
   const muted = t.isOwnTransfer;
+  const amountColor = moneyIn ? 'text-money-in' : muted ? 'text-content-secondary' : 'text-content';
 
   return (
     <Pressable
@@ -42,12 +42,8 @@ export function TransactionRow({ transaction: t, providerName, timeLabel, onPres
         .filter(Boolean)
         .join(', ')}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        divider && { borderBottomWidth: 1, borderBottomColor: theme.divider },
-        pressed && { backgroundColor: theme.unreadRow },
-      ]}>
-      <View style={[styles.avatar, { backgroundColor: moneyIn ? theme.tintOrange : theme.avatar }]}>
+      className={`flex-row items-center gap-3 px-[14px] py-3 active:bg-unread-row ${divider ? 'border-b border-divider' : ''}`}>
+      <View className={`h-[42px] w-[42px] items-center justify-center rounded-[21px] ${moneyIn ? 'bg-tint-orange' : 'bg-avatar'}`}>
         {muted ? (
           <Icon name="swap" color={theme.textSecondary} size={20} />
         ) : (
@@ -58,32 +54,35 @@ export function TransactionRow({ transaction: t, providerName, timeLabel, onPres
           />
         )}
       </View>
-      <View style={styles.middle}>
-        <View style={styles.titleLine}>
+      <View className="min-w-0 flex-1">
+        <View className="flex-row items-center gap-1.5">
           <ThemedText
-            style={styles.name}
+            type="none"
             themeColor={muted ? 'textSecondary' : 'text'}
+            className="shrink font-sans-bold text-[15px] leading-[21px]"
             numberOfLines={1}>
             {t.counterparty.name}
           </ThemedText>
           {processing && <Pill label="Processing" tone="blue" />}
           {gap && <Icon name="alert" color={theme.iconAmber} size={15} />}
         </View>
-        <View style={styles.meta}>
-          <ThemedText type="fine" themeColor="textSecondary" numberOfLines={1} style={styles.metaText}>
+        <View className="mt-0.5 flex-row items-center gap-[5px]">
+          <ThemedText type="fine" themeColor="textSecondary" numberOfLines={1} className="shrink">
             {t.category.name} · {timeLabel}
           </ThemedText>
           <ProviderBadge code={t.provider} name={providerName} variant="tag" size={16} />
         </View>
       </View>
-      <View style={styles.amounts}>
+      <View className="items-end">
         <ThemedText
-          style={[styles.amount, moneyIn && { color: theme.moneyIn }]}
-          themeColor={muted ? 'textSecondary' : 'text'}>
+          type="none"
+          themeColor="none"
+          className={`font-sans-bold text-[15px] leading-[21px] ${amountColor}`}
+          style={{ fontVariant: ['tabular-nums'] }}>
           {amount}
         </ThemedText>
         {hasFee && (
-          <ThemedText type="fine" themeColor="textSecondary" style={styles.fee}>
+          <ThemedText type="none" themeColor="textSecondary" className="font-sans text-[11px] leading-[15px]">
             fee {formatMoney(t.fee, '').trim()}
           </ThemedText>
         )}
@@ -91,57 +90,3 @@ export function TransactionRow({ transaction: t, providerName, timeLabel, onPres
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  middle: {
-    flex: 1,
-    minWidth: 0,
-  },
-  titleLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  name: {
-    flexShrink: 1,
-    fontFamily: FontFamily.bold,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  meta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 2,
-  },
-  metaText: {
-    flexShrink: 1,
-  },
-  amounts: {
-    alignItems: 'flex-end',
-  },
-  amount: {
-    fontFamily: FontFamily.bold,
-    fontSize: 15,
-    lineHeight: 21,
-    fontVariant: ['tabular-nums'],
-  },
-  fee: {
-    fontSize: 11,
-    lineHeight: 15,
-  },
-});

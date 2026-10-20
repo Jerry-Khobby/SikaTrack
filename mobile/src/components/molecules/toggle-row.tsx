@@ -1,8 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ThemedText, Toggle } from '@/components/atoms';
-import { FontFamily } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 export type ToggleRowProps = {
   title: string;
@@ -14,17 +12,13 @@ export type ToggleRowProps = {
 
 /** A setting with a title, one line about it, and a switch. */
 export function ToggleRow({ title, description, value, onValueChange, divider }: ToggleRowProps) {
-  const theme = useTheme();
-
   return (
-    <View
-      style={[
-        styles.row,
-        divider && { borderBottomWidth: 1, borderBottomColor: theme.divider },
-      ]}>
-      <View style={styles.text}>
-        <ThemedText style={styles.title}>{title}</ThemedText>
-        <ThemedText type="caption" themeColor="textSecondary" style={styles.description}>
+    <View className={`flex-row items-center gap-[14px] py-[14px] ${divider ? 'border-b border-divider' : ''}`}>
+      <View className="min-w-0 flex-1">
+        <ThemedText type="none" className="font-sans-bold text-[15px] leading-[21px]">
+          {title}
+        </ThemedText>
+        <ThemedText type="none" themeColor="textSecondary" className="mt-[3px] font-sans text-[13px] leading-[19px]">
           {description}
         </ThemedText>
       </View>
@@ -32,25 +26,3 @@ export function ToggleRow({ title, description, value, onValueChange, divider }:
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 14,
-  },
-  text: {
-    flex: 1,
-    minWidth: 0,
-  },
-  title: {
-    fontFamily: FontFamily.bold,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  description: {
-    marginTop: 3,
-    lineHeight: 19,
-  },
-});

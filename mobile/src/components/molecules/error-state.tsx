@@ -1,8 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button, ThemedText } from '@/components/atoms';
-import { FontFamily } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 import { IconCircle } from './icon-circle';
 
@@ -21,51 +19,23 @@ export function ErrorState({
   requestId,
   onRetry,
 }: ErrorStateProps) {
-  const theme = useTheme();
-
   return (
-    <View accessibilityRole="alert" style={[styles.card, { backgroundColor: theme.surface }]}>
+    <View accessibilityRole="alert" className="items-center gap-3 rounded-[22px] bg-surface px-5 py-8">
       <IconCircle icon="alert" tone="neutral" size={64} />
-      <ThemedText type="heading" style={styles.title}>
+      <ThemedText type="none" className="text-center font-sans-extrabold text-[18px] leading-[26px]">
         {title}
       </ThemedText>
-      <ThemedText type="callout" themeColor="textSecondary" style={styles.message}>
+      <ThemedText type="callout" themeColor="textSecondary" className="max-w-[270px] text-center">
         {message}
       </ThemedText>
-      <View style={styles.action}>
+      <View className="min-w-[180px]">
         <Button variant="secondary" label="Try again" onPress={onRetry} />
       </View>
       {requestId && (
-        <ThemedText type="fine" themeColor="textSecondary" selectable style={styles.ref}>
+        <ThemedText type="none" themeColor="textSecondary" selectable className="font-mono text-[11px] leading-[18px]">
           Ref: {requestId}
         </ThemedText>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 32,
-    paddingHorizontal: 20,
-    borderRadius: 22,
-  },
-  title: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 18,
-    textAlign: 'center',
-  },
-  message: {
-    maxWidth: 270,
-    textAlign: 'center',
-  },
-  action: {
-    minWidth: 180,
-  },
-  ref: {
-    fontFamily: 'monospace',
-    fontSize: 11,
-  },
-});

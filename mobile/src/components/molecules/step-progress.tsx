@@ -1,8 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ThemedText } from '@/components/atoms';
-import { FontFamily } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 export type StepProgressProps = {
   step: number;
@@ -13,40 +11,23 @@ export type StepProgressProps = {
 
 /** One segment per step; the steps done so far are filled in. */
 export function StepProgress({ step, total, showLabel }: StepProgressProps) {
-  const theme = useTheme();
   const label = `Step ${step} of ${total}`;
 
   return (
     <View accessible accessibilityRole="progressbar" accessibilityLabel={label}>
-      <View style={styles.segments}>
+      <View className="flex-row gap-1.5">
         {Array.from({ length: total }, (_, index) => (
-          <View
-            key={index}
-            style={[styles.segment, { backgroundColor: index < step ? theme.primary : theme.track }]}
-          />
+          <View key={index} className={`h-[5px] flex-1 rounded-[3px] ${index < step ? 'bg-primary' : 'bg-track'}`} />
         ))}
       </View>
       {showLabel && (
-        <ThemedText type="caption" themeColor="textSecondary" style={styles.label}>
+        <ThemedText
+          type="none"
+          themeColor="textSecondary"
+          className="mt-3 font-sans-semibold text-[13px] leading-[18px]">
           {label}
         </ThemedText>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  segments: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  segment: {
-    flex: 1,
-    height: 5,
-    borderRadius: 3,
-  },
-  label: {
-    marginTop: 12,
-    fontFamily: FontFamily.semiBold,
-  },
-});

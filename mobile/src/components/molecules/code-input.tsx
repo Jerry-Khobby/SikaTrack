@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, TextInput, View } from 'react-native';
+import { Animated, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/atoms';
-import { ControlHeight, FontFamily, Radius } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 export type CodeInputProps = {
   value: string;
@@ -28,7 +26,6 @@ export function CodeInput({
   editable = true,
   shakeKey = 0,
 }: CodeInputProps) {
-  const theme = useTheme();
   const [focused, setFocused] = useState(false);
   const shake = useRef(new Animated.Value(0)).current;
 
@@ -40,24 +37,23 @@ export function CodeInput({
   }, [shakeKey, shake]);
 
   return (
-    <Animated.View style={[styles.row, { transform: [{ translateX: shake }] }]}>
+    // The shake is an animated transform, so this row keeps an inline style.
+    <Animated.View style={{ flexDirection: 'row', gap: 10, transform: [{ translateX: shake }] }}>
       {Array.from({ length }, (_, index) => {
         const active = editable && focused && index === Math.min(value.length, length - 1);
+        const border = invalid
+          ? 'border-2 border-error'
+          : active
+            ? 'border-2 border-line-focus'
+            : 'border-[1.5px] border-line-input';
         return (
-          <View
-            key={index}
-            style={[
-              styles.box,
-              {
-                backgroundColor: theme.surface,
-                borderColor: invalid ? theme.error : active ? theme.borderFocus : theme.borderInput,
-                borderWidth: invalid || active ? 2 : 1.5,
-              },
-            ]}>
+          <View key={index} className={`h-input flex-1 items-center justify-center rounded-sm bg-surface ${border}`}>
             {value[index] ? (
-              <ThemedText style={styles.digit}>{value[index]}</ThemedText>
+              <ThemedText type="none" className="font-sans-bold text-[26px] leading-[32px]">
+                {value[index]}
+              </ThemedText>
             ) : (
-              active && <View style={[styles.caret, { backgroundColor: theme.borderFocus }]} />
+              active && <View className="h-[26px] w-0.5 bg-line-focus" />
             )}
           </View>
         );
@@ -76,41 +72,8 @@ export function CodeInput({
         maxLength={length}
         caretHidden
         selectionColor="transparent"
-        style={styles.hiddenInput}
+        className="absolute inset-0 bg-transparent text-[1px] text-transparent"
       />
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  box: {
-    flex: 1,
-    height: ControlHeight.input,
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  digit: {
-    fontFamily: FontFamily.bold,
-    fontSize: 26,
-    lineHeight: 32,
-  },
-  caret: {
-    width: 2,
-    height: 26,
-  },
-  hiddenInput: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    color: 'transparent',
-    backgroundColor: 'transparent',
-    fontSize: 1,
-  },
-});

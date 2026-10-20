@@ -11,28 +11,23 @@ export type IconTileProps = {
   size?: number;
 };
 
-const toneColors = {
-  blue: { background: 'tintBlue', icon: 'iconBlue' },
-  orange: { background: 'tintOrange', icon: 'iconOrange' },
-  green: { background: 'tintGreen', icon: 'iconGreen' },
-} as const;
+const TONE_CLASSES: Record<IconTone, string> = {
+  blue: 'bg-tint-blue',
+  orange: 'bg-tint-orange',
+  green: 'bg-tint-green',
+};
+
+const ICON_COLORS = { blue: 'iconBlue', orange: 'iconOrange', green: 'iconGreen' } as const;
 
 /** An icon on a soft tinted square. */
 export function IconTile({ icon, tone = 'blue', size = 44 }: IconTileProps) {
   const theme = useTheme();
-  const colors = toneColors[tone];
 
   return (
     <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: Math.round(size * 0.31),
-        backgroundColor: theme[colors.background],
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-      <Icon name={icon} color={theme[colors.icon]} size={Math.round(size / 2)} />
+      className={`items-center justify-center ${TONE_CLASSES[tone]}`}
+      style={{ width: size, height: size, borderRadius: Math.round(size * 0.31) }}>
+      <Icon name={icon} color={theme[ICON_COLORS[tone]]} size={Math.round(size / 2)} />
     </View>
   );
 }

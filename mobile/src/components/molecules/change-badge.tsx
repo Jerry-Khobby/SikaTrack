@@ -1,6 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
-
-import { BrandColors, FontFamily } from '@/theme';
+import { Text, View } from 'react-native';
 
 export type ChangeBadgeProps = {
   /** E.g. `30.5% vs September`. */
@@ -16,25 +14,10 @@ export function ChangeBadge({ text, down, good }: ChangeBadgeProps) {
     <View
       accessible
       accessibilityLabel={`${down ? 'Down' : 'Up'} ${text}`}
-      style={[styles.badge, { backgroundColor: good ? BrandColors.goodOnInkTint : BrandColors.badOnInkTint }]}>
-      <Text style={[styles.text, { color: good ? BrandColors.goodOnInk : BrandColors.badOnInk }]}>
+      className={`mt-1.5 self-start rounded-[10px] px-[9px] py-[3px] ${good ? 'bg-brand-good-on-ink-tint' : 'bg-brand-bad-on-ink-tint'}`}>
+      <Text className={`font-sans-bold text-[13px] leading-[18px] ${good ? 'text-brand-good-on-ink' : 'text-brand-bad-on-ink'}`}>
         {down ? '▼' : '▲'} {text}
       </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    alignSelf: 'flex-start',
-    marginTop: 6,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  text: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-});

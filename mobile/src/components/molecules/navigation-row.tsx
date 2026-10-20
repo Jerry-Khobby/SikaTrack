@@ -1,7 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Card, Icon, ThemedText, type IconName } from '@/components/atoms';
-import { FontFamily } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 import { IconTile } from './icon-tile';
@@ -18,11 +17,13 @@ export function NavigationRow({ icon, title, subtitle, onPress }: NavigationRowP
   const theme = useTheme();
 
   return (
-    <Card onPress={onPress} accessibilityLabel={`${title}, ${subtitle}`} radius={18} padding={14}>
-      <View style={styles.row}>
+    <Card onPress={onPress} accessibilityLabel={`${title}, ${subtitle}`} radius={18} padded={false} className="p-[14px]">
+      <View className="flex-row items-center gap-3">
         <IconTile icon={icon} size={40} />
-        <View style={styles.text}>
-          <ThemedText style={styles.title}>{title}</ThemedText>
+        <View className="min-w-0 flex-1">
+          <ThemedText type="none" className="font-sans-extrabold text-[15px] leading-[21px]">
+            {title}
+          </ThemedText>
           <ThemedText type="fine" themeColor="textSecondary">
             {subtitle}
           </ThemedText>
@@ -32,20 +33,3 @@ export function NavigationRow({ icon, title, subtitle, onPress }: NavigationRowP
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  text: {
-    flex: 1,
-    minWidth: 0,
-  },
-  title: {
-    fontFamily: FontFamily.extraBold,
-    fontSize: 15,
-    lineHeight: 21,
-  },
-});

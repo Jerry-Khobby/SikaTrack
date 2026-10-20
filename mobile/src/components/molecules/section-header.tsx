@@ -1,8 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { ThemedText } from '@/components/atoms';
-import { ControlHeight, FontFamily } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 export type SectionHeaderProps = {
   title: string;
@@ -12,11 +10,9 @@ export type SectionHeaderProps = {
 
 /** A card's title with an optional "See all" on the right. */
 export function SectionHeader({ title, actionLabel, onAction }: SectionHeaderProps) {
-  const theme = useTheme();
-
   return (
-    <View style={styles.row}>
-      <ThemedText type="subheading" accessibilityRole="header" style={styles.title}>
+    <View className="min-h-touch flex-row items-center justify-between">
+      <ThemedText type="none" accessibilityRole="header" className="font-sans-extrabold text-[16px] leading-[22px]">
         {title}
       </ThemedText>
       {actionLabel && onAction && (
@@ -24,31 +20,10 @@ export function SectionHeader({ title, actionLabel, onAction }: SectionHeaderPro
           accessibilityRole="button"
           accessibilityLabel={`${actionLabel}: ${title}`}
           onPress={onAction}
-          style={styles.action}>
-          <Text style={[styles.actionLabel, { color: theme.link }]}>{actionLabel}</Text>
+          className="h-touch justify-center px-1">
+          <Text className="font-sans-bold text-[13px] text-link">{actionLabel}</Text>
         </Pressable>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: ControlHeight.touch,
-  },
-  title: {
-    fontFamily: FontFamily.extraBold,
-  },
-  action: {
-    height: ControlHeight.touch,
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  actionLabel: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-  },
-});

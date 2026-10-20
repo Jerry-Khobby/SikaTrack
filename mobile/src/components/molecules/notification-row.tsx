@@ -1,7 +1,6 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Icon, ThemedText, type IconName } from '@/components/atoms';
-import { FontFamily } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { NotificationKind } from '@/services/notifications';
 
@@ -30,79 +29,41 @@ const KINDS: Record<NotificationKind, { icon: IconName; tone: Tone }> = {
   sync_problem: { icon: 'alert', tone: 'amber' },
 };
 
+const TONE_CLASSES: Record<Tone, string> = {
+  blue: 'bg-tint-blue',
+  red: 'bg-tint-red',
+  amber: 'bg-tint-amber',
+  green: 'bg-tint-success',
+};
+
 export function NotificationRow({ kind, title, body, time, unread, onPress, divider }: NotificationRowProps) {
   const theme = useTheme();
   const look = KINDS[kind] ?? { icon: 'bell', tone: 'blue' };
-  const colors = {
-    blue: { background: theme.tintBlue, icon: theme.link },
-    red: { background: theme.tintRed, icon: theme.iconRed },
-    amber: { background: theme.tintAmber, icon: theme.iconAmber },
-    green: { background: theme.tintSuccess, icon: theme.iconSuccess },
-  }[look.tone];
+  const iconColor = { blue: theme.link, red: theme.iconRed, amber: theme.iconAmber, green: theme.iconSuccess }[look.tone];
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${unread ? 'Unread. ' : ''}${title}. ${body}. ${time}`}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        unread && { backgroundColor: theme.unreadRow },
-        divider && { borderBottomWidth: 1, borderBottomColor: theme.divider },
-        pressed && { opacity: 0.7 },
-      ]}>
-      <View style={[styles.icon, { backgroundColor: colors.background }]}>
-        <Icon name={look.icon} color={colors.icon} size={20} />
+      className={`flex-row gap-3 px-4 py-[14px] active:opacity-70 ${unread ? 'bg-unread-row' : ''} ${divider ? 'border-b border-divider' : ''}`}>
+      <View className={`h-10 w-10 items-center justify-center rounded-[20px] ${TONE_CLASSES[look.tone]}`}>
+        <Icon name={look.icon} color={iconColor} size={20} />
       </View>
-      <View style={styles.text}>
-        <ThemedText style={[styles.title, { fontFamily: unread ? FontFamily.extraBold : FontFamily.semiBold }]}>
+      <View className="min-w-0 flex-1">
+        <ThemedText
+          type="none"
+          className={`text-[14px] leading-[19px] ${unread ? 'font-sans-extrabold' : 'font-sans-semibold'}`}>
           {title}
         </ThemedText>
-        <ThemedText type="caption" themeColor="textBody" style={styles.body}>
+        <ThemedText type="none" themeColor="textBody" className="mt-0.5 font-sans text-[13px] leading-[19px]">
           {body}
         </ThemedText>
-        <ThemedText type="fine" themeColor="textSecondary" style={styles.time}>
+        <ThemedText type="fine" themeColor="textSecondary" className="mt-1">
           {time}
         </ThemedText>
       </View>
-      {unread && <View style={[styles.dot, { backgroundColor: theme.unreadDot }]} />}
+      {unread && <View className="mt-1.5 h-[9px] w-[9px] rounded-[5px] bg-unread-dot" />}
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  icon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  text: {
-    flex: 1,
-    minWidth: 0,
-  },
-  title: {
-    fontSize: 14,
-    lineHeight: 19,
-  },
-  body: {
-    marginTop: 2,
-    lineHeight: 19,
-  },
-  time: {
-    marginTop: 4,
-  },
-  dot: {
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    marginTop: 6,
-  },
-});

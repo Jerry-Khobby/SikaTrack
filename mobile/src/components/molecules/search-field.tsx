@@ -1,7 +1,6 @@
-import { StyleSheet, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 
 import { Icon } from '@/components/atoms';
-import { FontFamily, Radius } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type SearchFieldProps = {
@@ -15,7 +14,7 @@ export function SearchField({ value, onChangeText, placeholder, autoFocus }: Sea
   const theme = useTheme();
 
   return (
-    <View style={[styles.field, { backgroundColor: theme.surface, borderColor: theme.borderInput }]}>
+    <View className="h-12 flex-row items-center gap-2.5 rounded-md border-[1.5px] border-line-input bg-surface px-[14px]">
       <Icon name="search" color={theme.textSecondary} size={20} />
       <TextInput
         accessibilityLabel={placeholder}
@@ -27,26 +26,8 @@ export function SearchField({ value, onChangeText, placeholder, autoFocus }: Sea
         autoFocus={autoFocus}
         autoCorrect={false}
         returnKeyType="search"
-        style={[styles.input, { color: theme.text }]}
+        className="h-full flex-1 font-sans text-[16px] text-content"
       />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  field: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    height: 48,
-    paddingHorizontal: 14,
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
-  },
-  input: {
-    flex: 1,
-    height: '100%',
-    fontFamily: FontFamily.regular,
-    fontSize: 16,
-  },
-});

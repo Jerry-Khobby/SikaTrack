@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Icon, ThemedText, type IconName } from '@/components/atoms';
 import { useTheme } from '@/hooks/use-theme';
@@ -13,28 +13,13 @@ export function BulletPoint({ icon, text }: BulletPointProps) {
   const theme = useTheme();
 
   return (
-    <View style={styles.row}>
-      <View style={styles.icon}>
+    <View className="flex-row items-start gap-[14px]">
+      <View className="pt-px">
         <Icon name={icon} color={theme.iconGreen} size={20} />
       </View>
-      <ThemedText type="bodySmall" style={styles.text}>
+      <ThemedText type="none" className="flex-1 font-sans text-[15px] leading-[22px]">
         {text}
       </ThemedText>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 14,
-  },
-  icon: {
-    paddingTop: 1,
-  },
-  text: {
-    flex: 1,
-    lineHeight: 22,
-  },
-});

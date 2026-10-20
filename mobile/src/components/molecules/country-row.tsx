@@ -1,7 +1,6 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
 import { Icon, ThemedText } from '@/components/atoms';
-import { Spacing } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Country } from '@/utils/countries';
 
@@ -20,9 +19,9 @@ export function CountryRow({ country, selected, onPress }: CountryRowProps) {
       accessibilityLabel={`${country.name}, ${country.dialCode}`}
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && { backgroundColor: theme.tintBlue }]}>
-      <Text style={styles.flag}>{country.flag}</Text>
-      <ThemedText style={styles.name} numberOfLines={1}>
+      className="min-h-[56px] flex-row items-center gap-3 px-6 active:bg-tint-blue">
+      <Text className="text-[22px]">{country.flag}</Text>
+      <ThemedText className="flex-1" numberOfLines={1}>
         {country.name}
       </ThemedText>
       <ThemedText type="callout" themeColor="textSecondary">
@@ -32,19 +31,3 @@ export function CountryRow({ country, selected, onPress }: CountryRowProps) {
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    minHeight: 56,
-    paddingHorizontal: Spacing.four,
-  },
-  flag: {
-    fontSize: 22,
-  },
-  name: {
-    flex: 1,
-  },
-});

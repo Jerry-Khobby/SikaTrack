@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { Icon, ThemedText } from '@/components/atoms';
-import { ControlHeight, FontFamily, Radius, Spacing } from '@/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Country } from '@/utils/countries';
 
@@ -36,33 +35,27 @@ export function PhoneField({
 }: PhoneFieldProps) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
-  const highlighted = Boolean(error) || focused;
+  const border = error
+    ? 'border-2 border-error'
+    : focused
+      ? 'border-2 border-line-focus'
+      : 'border-[1.5px] border-line-input';
 
   return (
     <View>
-      <ThemedText type="label" style={styles.label}>
+      <ThemedText type="label" className="mb-2">
         {label}
       </ThemedText>
-      <View
-        style={[
-          styles.field,
-          {
-            backgroundColor: theme.surface,
-            borderColor: error ? theme.error : focused ? theme.borderFocus : theme.borderInput,
-            borderWidth: highlighted ? 2 : 1.5,
-          },
-        ]}>
+      <View className={`h-input flex-row items-center overflow-hidden rounded-md bg-surface ${border}`}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Country: ${country.name}, ${country.dialCode}. Change country`}
           onPress={onPressCountry}
-          style={({ pressed }) => [
-            styles.country,
-            { borderRightColor: theme.border },
-            pressed && { backgroundColor: theme.tintBlue },
-          ]}>
-          <Text style={styles.flag}>{country.flag}</Text>
-          <ThemedText style={styles.dialCode}>{country.dialCode}</ThemedText>
+          className="h-full flex-row items-center gap-1.5 border-r border-line pl-[14px] pr-2.5 active:bg-tint-blue">
+          <Text className="text-[20px]">{country.flag}</Text>
+          <ThemedText type="none" className="font-sans-bold text-[17px] leading-[22px]">
+            {country.dialCode}
+          </ThemedText>
           <Icon name="chevron-down" color={theme.textSecondary} size={16} />
         </Pressable>
         <TextInput
@@ -81,7 +74,7 @@ export function PhoneField({
           placeholder={placeholder}
           placeholderTextColor={theme.textSecondary}
           selectionColor={theme.link}
-          style={[styles.input, { color: theme.text }, !editable && styles.disabled]}
+          className={`h-full min-w-0 flex-1 px-[14px] font-sans-semibold text-[19px] tracking-[0.5px] text-content ${editable ? '' : 'opacity-40'}`}
         />
       </View>
       {(error || hint) && (
@@ -89,55 +82,10 @@ export function PhoneField({
           type="caption"
           themeColor={error ? 'error' : 'textSecondary'}
           accessibilityLiveRegion={error ? 'polite' : 'none'}
-          style={styles.hint}>
+          className="mt-2.5">
           {error ?? hint}
         </ThemedText>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  label: {
-    marginBottom: Spacing.two,
-  },
-  field: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: ControlHeight.input,
-    borderRadius: Radius.md,
-    overflow: 'hidden',
-  },
-  country: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: '100%',
-    paddingLeft: 14,
-    paddingRight: 10,
-    borderRightWidth: 1,
-  },
-  flag: {
-    fontSize: 20,
-  },
-  dialCode: {
-    fontFamily: FontFamily.bold,
-    fontSize: 17,
-    lineHeight: 22,
-  },
-  input: {
-    flex: 1,
-    minWidth: 0,
-    height: '100%',
-    paddingHorizontal: 14,
-    fontFamily: FontFamily.semiBold,
-    fontSize: 19,
-    letterSpacing: 0.5,
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  hint: {
-    marginTop: 10,
-  },
-});

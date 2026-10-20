@@ -1,8 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Pill, ProviderBadge, ThemedText } from '@/components/atoms';
-import { FontFamily } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 export type WalletBalanceRowProps = {
   providerCode: string;
@@ -16,59 +14,30 @@ export type WalletBalanceRowProps = {
 
 /** One wallet's latest balance, in red with "Low" under the alert amount. */
 export function WalletBalanceRow({ providerCode, providerName, label, asOf, balance, isLow }: WalletBalanceRowProps) {
-  const theme = useTheme();
-
   return (
     <View
       accessible
       accessibilityLabel={`${label}: ${balance}${isLow ? ', low' : ''}, ${asOf}`}
-      style={[styles.row, { borderTopColor: theme.divider }]}>
+      className="flex-row items-center gap-2.5 border-t border-divider py-2">
       <ProviderBadge code={providerCode} name={providerName} size={32} />
-      <View style={styles.text}>
-        <ThemedText style={styles.label} numberOfLines={1}>
+      <View className="min-w-0 flex-1">
+        <ThemedText type="none" className="font-sans-bold text-[14px] leading-[19px]" numberOfLines={1}>
           {label}
         </ThemedText>
-        <ThemedText type="fine" themeColor="textSecondary" style={styles.asOf}>
+        <ThemedText type="none" themeColor="textSecondary" className="font-sans text-[11px] leading-[15px]">
           {asOf}
         </ThemedText>
       </View>
-      <View style={styles.amount}>
+      <View className="flex-row items-center gap-1.5">
         {isLow && <Pill label="Low" tone="red" />}
-        <ThemedText style={[styles.balance, isLow && { color: theme.iconRed }]}>{balance}</ThemedText>
+        <ThemedText
+          type="none"
+          themeColor="none"
+          className={`font-sans-bold text-[15px] ${isLow ? 'text-icon-red' : 'text-content'}`}
+          style={{ fontVariant: ['tabular-nums'] }}>
+          {balance}
+        </ThemedText>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-  },
-  text: {
-    flex: 1,
-    minWidth: 0,
-  },
-  label: {
-    fontFamily: FontFamily.bold,
-    fontSize: 14,
-    lineHeight: 19,
-  },
-  asOf: {
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  amount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  balance: {
-    fontFamily: FontFamily.bold,
-    fontSize: 15,
-    fontVariant: ['tabular-nums'],
-  },
-});

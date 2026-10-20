@@ -1,45 +1,24 @@
-import { StyleSheet, Text, View } from 'react-native';
-
-import { BrandColors, FontFamily } from '@/theme';
+import { Text, View } from 'react-native';
 
 export type StatTileProps = {
   label: string;
   value: string;
-  /** The value's colour on brand ink; white by default. */
-  valueColor?: string;
+  /** The value's colour on brand ink: white, or orange for money in. */
+  tone?: 'default' | 'moneyIn';
 };
 
 /** A small labelled figure inside the brand-ink hero card. */
-export function StatTile({ label, value, valueColor = BrandColors.onInk }: StatTileProps) {
+export function StatTile({ label, value, tone = 'default' }: StatTileProps) {
   return (
-    <View accessible accessibilityLabel={`${label}: ${value}`} style={styles.tile}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, { color: valueColor }]} numberOfLines={1} adjustsFontSizeToFit>
+    <View accessible accessibilityLabel={`${label}: ${value}`} className="min-w-0 flex-1 rounded-sm bg-brand-ink-tile p-2.5">
+      <Text className="font-sans text-[11px] leading-[15px] text-brand-on-ink-muted">{label}</Text>
+      <Text
+        className={`mt-[3px] font-sans-extrabold text-[15px] leading-[20px] ${tone === 'moneyIn' ? 'text-brand-money-in-on-ink' : 'text-brand-on-ink'}`}
+        style={{ fontVariant: ['tabular-nums'] }}
+        numberOfLines={1}
+        adjustsFontSizeToFit>
         {value}
       </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  tile: {
-    flex: 1,
-    minWidth: 0,
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor: BrandColors.inkTile,
-  },
-  label: {
-    fontFamily: FontFamily.regular,
-    fontSize: 11,
-    lineHeight: 15,
-    color: BrandColors.onInkMuted,
-  },
-  value: {
-    marginTop: 3,
-    fontFamily: FontFamily.extraBold,
-    fontSize: 15,
-    lineHeight: 20,
-    fontVariant: ['tabular-nums'],
-  },
-});

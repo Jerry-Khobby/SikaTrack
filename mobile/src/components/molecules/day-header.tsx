@@ -1,8 +1,6 @@
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { ThemedText } from '@/components/atoms';
-import { FontFamily } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 export type DayHeaderProps = {
   title: string;
@@ -12,32 +10,18 @@ export type DayHeaderProps = {
 
 /** A sticky day label over a group of transactions. */
 export function DayHeader({ title, total }: DayHeaderProps) {
-  const theme = useTheme();
-
   return (
-    <View accessibilityRole="header" style={[styles.header, { backgroundColor: theme.background }]}>
-      <ThemedText style={styles.text}>{title}</ThemedText>
-      <ThemedText style={[styles.text, styles.total]} themeColor="textSecondary">
+    <View accessibilityRole="header" className="flex-row justify-between bg-background px-5 pb-1.5 pt-[14px]">
+      <ThemedText type="none" className="font-sans-bold text-[13px] leading-[18px]">
+        {title}
+      </ThemedText>
+      <ThemedText
+        type="none"
+        themeColor="textSecondary"
+        className="font-sans-bold text-[13px] leading-[18px]"
+        style={{ fontVariant: ['tabular-nums'] }}>
         {total}
       </ThemedText>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 14,
-    paddingBottom: 6,
-    paddingHorizontal: 20,
-  },
-  text: {
-    fontFamily: FontFamily.bold,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  total: {
-    fontVariant: ['tabular-nums'],
-  },
-});

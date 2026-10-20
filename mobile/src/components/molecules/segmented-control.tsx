@@ -1,7 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-
-import { FontFamily } from '@/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Pressable, Text, View } from 'react-native';
 
 export type SegmentedControlProps<Value extends string> = {
   options: { value: Value; label: string }[];
@@ -17,10 +14,8 @@ export function SegmentedControl<Value extends string>({
   onChange,
   accessibilityLabel,
 }: SegmentedControlProps<Value>) {
-  const theme = useTheme();
-
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={accessibilityLabel} style={[styles.track, { backgroundColor: theme.chip }]}>
+    <View accessibilityRole="radiogroup" accessibilityLabel={accessibilityLabel} className="flex-row rounded-md bg-chip p-1">
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -29,15 +24,11 @@ export function SegmentedControl<Value extends string>({
             accessibilityRole="radio"
             accessibilityState={{ checked: selected }}
             onPress={() => onChange(option.value)}
-            style={[styles.segment, selected && [styles.selected, { backgroundColor: theme.surface }]]}>
-            <Text
-              style={[
-                styles.label,
-                {
-                  color: selected ? theme.text : theme.textBody,
-                  fontFamily: selected ? FontFamily.bold : FontFamily.semiBold,
-                },
-              ]}>
+            className={`h-[38px] flex-1 items-center justify-center rounded-[10px] ${
+              selected ? 'bg-surface shadow-sm shadow-black/10' : ''
+            }`}
+            style={selected ? { elevation: 1 } : undefined}>
+            <Text className={`text-[13px] ${selected ? 'font-sans-bold text-content' : 'font-sans-semibold text-content-body'}`}>
               {option.label}
             </Text>
           </Pressable>
@@ -46,28 +37,3 @@ export function SegmentedControl<Value extends string>({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  track: {
-    flexDirection: 'row',
-    padding: 4,
-    borderRadius: 14,
-  },
-  segment: {
-    flex: 1,
-    height: 38,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selected: {
-    elevation: 1,
-    shadowColor: '#000000',
-    shadowOpacity: 0.12,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-  },
-  label: {
-    fontSize: 13,
-  },
-});
