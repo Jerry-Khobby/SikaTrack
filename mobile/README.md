@@ -27,14 +27,15 @@ are combined into bigger ones, and each layer may only import from the layers be
 
 ```text
 src/
+├── api/                 HTTP client, the API's JSON types, and the in-app dev server
 ├── app/                 Pages: expo-router routes. Each one fills a template with real data
 ├── components/
 │   ├── atoms/           Smallest parts: text, view, icon, button, input, badge
 │   ├── molecules/       A few atoms doing one job: money amount, category chip, labelled input
 │   ├── organisms/       Screen sections: transaction list, budget card, sync strip
 │   └── templates/       Page layouts that place organisms, with no real content
-├── hooks/               Shared React hooks (colour scheme, theme, countdown)
-├── services/            Calls to the backend (stand-ins until the API is wired in)
+├── hooks/               Shared React hooks, including every data query (queries.ts)
+├── services/            One file per API area: calls an endpoint, maps it to the app's models
 ├── theme/               Design tokens: colours, spacing, fonts
 └── utils/               Plain functions, e.g. phone number parsing and formatting
 ```
@@ -53,11 +54,47 @@ Each layer has an `index.ts` that re-exports its components, so imports read
 `import { ThemedText } from '@/components/atoms';`. File names are kebab-case
 (`money-amount.tsx`), component names PascalCase (`MoneyAmount`).
 
+## How data reaches a screen
+
+```text
+page (src/app) → hook (hooks/queries.ts) → service (services/*.ts) → api.get (api/client.ts) → backend
+                                                                                            ↘ dev server
+```
+
+- **[api/types.ts](src/api/types.ts)** has the JSON exactly as
+  [backend/docs/api-contract.md](../backend/docs/api-contract.md) defines it.
+- **[api/client.ts](src/api/client.ts)** sends every request. It turns error responses into an
+  `ApiError` that carries `code` and the `X-Request-ID` the error screens show.
+- **Services** call one endpoint each and map snake_case JSON to the app's own models, so
+  screens never see the wire format.
+- **[hooks/queries.ts](src/hooks/queries.ts)** wraps each service in a TanStack Query hook.
+  Those hooks handle caching, pull-to-refresh, paging, and refreshing totals after an edit.
+
+### Connecting the real backend
+
+Set the API's address and start the app:
+
+```bash
+EXPO_PUBLIC_API_URL=https://api.sikatrack.app npx expo start
+```
+
+Every Home, Transactions, transaction detail and inbox request then goes to the backend.
+Nothing else changes. Without `EXPO_PUBLIC_API_URL`, requests go to the in-app dev server in
+[src/api/dev-server/](src/api/dev-server/). It answers with the same JSON, worked out from
+about five months of sample transactions that are dated relative to today and use the wallets
+you add in onboarding.
+
+Still to wire in when the backend is ready:
+
+- **Access token:** sign-in has to call `setAccessToken` in `api/client.ts`.
+- **Account, wallet and config stand-ins:** `services/me.ts`, `services/wallets.ts`,
+  `services/auth.ts` and `services/config.ts` still keep their data in memory. They need to
+  move onto `api` like the others.
+
 ## Running without a backend
 
-Until the API exists, each file in [src/services/](src/services/) stands in for its endpoints
-and keeps its data in memory, so everything starts over when the app reloads. Screens only
-read data through these files, so wiring in the real API changes nothing else.
+Until the API exists, the dev server and the stand-in services keep their data in memory, so
+everything starts over when the app reloads.
 
 **Sign-in** lets everyone through:
 
@@ -83,4 +120,5 @@ To see the edge cases, start the app with one of these:
 | Command | Shows |
 | --- | --- |
 | `EXPO_PUBLIC_FORCE_UPDATE=true npx expo start` | The update-required screen |
-| `EXPO_PUBLIC_EMPTY_INBOX=true npx expo start` | A phone with no MoMo SMS at the first sync |
+| `EXPO_PUBLIC_EMPTY_INBOX=true npx expo start` | No MoMo SMS: an empty first sync, an empty month on Home, and no transactions |
+| `EXPO_PUBLIC_DEV_API_FAILURE=true npx expo start` | Every dev server request failing: the error states with **Try again** and a request ID |
