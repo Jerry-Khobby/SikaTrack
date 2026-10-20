@@ -1,8 +1,6 @@
-/**
- * Stand-ins for `/v1/wallets` until the backend is wired in. Held in memory,
- * with the server's two errors: `conflict` and `unsupported_provider`.
- */
-import { getAppConfig } from './config';
+import { ApiError, api } from '@/api/client';
+import { resetWalletStore } from '@/api/dev-server/wallet-store';
+import type { ApiWallet } from '@/api/types';
 
 export type Wallet = {
   id: string;
@@ -32,40 +30,61 @@ export class UnsupportedProviderError extends Error {
   }
 }
 
-let wallets: Wallet[] = [];
-let nextId = 1;
+const toWallet = (w: ApiWallet): Wallet => ({
+  id: w.id,
+  provider: w.provider,
+  phoneNumber: w.phone_number,
+  accountName: w.account_name,
+  label: w.label,
+});
 
-/** Empties the list; the sign-in stand-in calls it for a fresh account. */
+/** Turns the API's wallet errors into the two the screens explain. */
+function walletError(error: unknown) {
+  if (error instanceof ApiError && error.code === 'conflict') return new WalletConflictError();
+  if (error instanceof ApiError && error.code === 'unsupported_provider') return new UnsupportedProviderError();
+  return error;
+}
+
+/** Empties the dev server's wallets; the sign-in stand-in calls it for a fresh account. */
 export function resetWallets() {
-  wallets = [];
-  nextId = 1;
+  resetWalletStore();
 }
 
 /** `GET /v1/wallets` */
 export async function listWallets() {
-  return wallets.map((wallet) => ({ ...wallet }));
+  const response = await api.get<{ items: ApiWallet[] }>('/v1/wallets');
+  return response.items.map(toWallet);
 }
 
 /** `POST /v1/wallets` */
 export async function addWallet(input: NewWallet) {
-  const { providers } = await getAppConfig();
-  if (!providers.some((provider) => provider.code === input.provider && provider.supported)) {
-    throw new UnsupportedProviderError();
+  try {
+    return toWallet(
+      await api.post<ApiWallet>('/v1/wallets', {
+        provider: input.provider,
+        phone_number: input.phoneNumber,
+        account_name: input.accountName,
+        label: input.label,
+      }),
+    );
+  } catch (error) {
+    throw walletError(error);
   }
-  if (wallets.some((w) => w.provider === input.provider && w.phoneNumber === input.phoneNumber)) {
-    throw new WalletConflictError();
-  }
-  const wallet = { id: `wal_dev_${nextId++}`, ...input };
-  wallets = [...wallets, wallet];
-  return { ...wallet };
 }
 
 /** `PATCH /v1/wallets/{id}`: only the account name and the label can change. */
 export async function updateWallet(id: string, changes: WalletChanges) {
-  wallets = wallets.map((wallet) => (wallet.id === id ? { ...wallet, ...changes } : wallet));
-  const updated = wallets.find((wallet) => wallet.id === id);
-  if (!updated) throw new Error('not_found');
-  return { ...updated };
+  return toWallet(
+    await api.patch<ApiWallet>(`/v1/wallets/${id}`, {
+      ...(changes.label !== undefined && { label: changes.label }),
+      ...(changes.accountName !== undefined && { account_name: changes.accountName }),
+    }),
+  );
+}
+
+/** `DELETE /v1/wallets/{id}`. Its past transactions stay. */
+export async function removeWallet(id: string) {
+  await api.delete<void>(`/v1/wallets/${id}`);
 }
 
 /**

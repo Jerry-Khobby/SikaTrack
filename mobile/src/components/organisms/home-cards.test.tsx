@@ -91,7 +91,9 @@ describe('BudgetsCard', () => {
     limit,
     remaining: '0.00',
     used,
+    projected: spent,
     state,
+    alertThresholds: ['0.8', '1.0'],
   });
 
   it('shows each budget against its limit', async () => {

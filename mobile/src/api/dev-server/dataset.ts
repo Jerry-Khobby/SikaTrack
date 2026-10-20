@@ -4,44 +4,17 @@
  * Generated with a fixed seed so every run looks the same. Start the app with
  * EXPO_PUBLIC_EMPTY_INBOX=true for an account with no transactions.
  */
-import { listWallets } from '@/services/wallets';
 import { fromPesewas } from '@/utils/money';
 
 import type { ApiTransactionDetail, TransactionType } from '../types';
 import { COUNTERPARTIES, RECURRING_SERIES, SALARY, categoryRef, type CounterpartySeed } from './catalog';
+import { allWallets, type StoredWallet } from './wallet-store';
 
-export type DevWallet = {
-  id: string;
-  provider: string;
-  phoneNumber: string;
-  accountName: string;
-  label: string | null;
-  createdAt: string;
-};
+export type DevWallet = StoredWallet;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const HISTORY_DAYS = 150;
 const SEED = 20261020;
-
-/** Used when the account has no wallets yet, e.g. when a screen is opened on its own. */
-const FALLBACK_WALLETS: DevWallet[] = [
-  {
-    id: 'wal_dev_main',
-    provider: 'mtn_momo',
-    phoneNumber: '+233241234567',
-    accountName: 'ACCOUNT HOLDER',
-    label: 'Main MoMo',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'wal_dev_savings',
-    provider: 'ghanapay',
-    phoneNumber: '+233205550142',
-    accountName: 'ACCOUNT HOLDER',
-    label: 'Savings wallet',
-    createdAt: new Date().toISOString(),
-  },
-];
 
 const SENDER_STYLE: Record<string, 'mtn' | 'ghanapay'> = { mtn_momo: 'mtn', ghanapay: 'ghanapay' };
 
@@ -93,7 +66,7 @@ function smsText(draft: Draft, balance: number, providerTxnId: string) {
 }
 
 function generate(wallets: DevWallet[], now: number): ApiTransactionDetail[] {
-  if (process.env.EXPO_PUBLIC_EMPTY_INBOX === 'true') return [];
+  if (process.env.EXPO_PUBLIC_EMPTY_INBOX === 'true' || wallets.length === 0) return [];
 
   const random = seededRandom(SEED);
   const pick = <T,>(items: T[]) => items[Math.floor(random() * items.length)];
@@ -118,9 +91,12 @@ function generate(wallets: DevWallet[], now: number): ApiTransactionDetail[] {
     const minute = (hour: number) => day + hour * 3600000 + Math.floor(random() * 50) * 60000;
 
     for (const series of RECURRING_SERIES) {
-      const due =
-        series.intervalDays === 1 || (series.rhythm === 'monthly' && date.getUTCDate() === 15);
-      if (due) {
+      const running = back <= series.firstBack && back >= series.lastBack;
+      const onSchedule =
+        series.rhythm === 'daily' ||
+        (series.rhythm === 'weekly' && date.getUTCDay() === series.weekday) ||
+        (series.rhythm === 'monthly' && date.getUTCDate() === series.dayOfMonth);
+      if (running && onSchedule) {
         drafts.push({
           at: minute(series.hour),
           wallet: main,
@@ -291,16 +267,16 @@ let cache: { key: string; wallets: DevWallet[]; transactions: ApiTransactionDeta
 
 /** The wallets and transactions (newest first) every dev endpoint reads from. */
 export async function getDataset() {
-  const added = await listWallets();
-  const wallets: DevWallet[] = added.length
-    ? added.map((wallet) => ({ ...wallet, createdAt: new Date().toISOString() }))
-    : FALLBACK_WALLETS;
-  const key = `${process.env.EXPO_PUBLIC_EMPTY_INBOX}|${wallets.map((w) => `${w.id}:${w.label}`).join(',')}`;
+  const wallets: DevWallet[] = allWallets();
+  // Rebuild when wallets are added or removed; a rename only changes a label,
+  // which is read live, so edits to transactions survive it.
+  const key = `${process.env.EXPO_PUBLIC_EMPTY_INBOX}|${wallets.map((w) => w.id).join(',')}`;
   if (!cache || cache.key !== key) {
     cache = { key, wallets, transactions: generate(wallets, Date.now()) };
   }
   return cache;
 }
+
 
 /** Forgets the generated data, e.g. between tests. */
 export function resetDataset() {

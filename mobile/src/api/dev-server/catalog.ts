@@ -69,31 +69,114 @@ export const COUNTERPARTIES: CounterpartySeed[] = [
   { id: 'cpt_dev_ama', name: 'Ama Serwaa', kind: 'person', category: 'income', type: 'transfer', direction: 'in', min: 20, max: 150, weight: 1, explanation: 'Money from a person counts as Income' },
 ];
 
-/** Payments that repeat on a rhythm, so recurring detection has something to find. */
-export const RECURRING_SERIES = [
+export type SeriesSeed = {
+  id: string;
+  label: string;
+  counterparty: { id: string; name: string; kind: CounterpartyKind };
+  category: string;
+  type: TransactionType;
+  rhythm: 'daily' | 'weekly' | 'monthly';
+  intervalDays: number;
+  /** Whole cedis. */
+  amount: number;
+  hour: number;
+  /** Monthly series: the day of the month it charges. */
+  dayOfMonth?: number;
+  /** Weekly series: the weekday it charges (0 = Sunday). */
+  weekday?: number;
+  /** Days ago of the first payment. */
+  firstBack: number;
+  /** Days ago of the last payment; 0 while it's still charging. */
+  lastBack: number;
+  /** The user's decision so far (`user_state`); null means not reviewed. */
+  userState: 'expected' | 'cancel_planned' | null;
+  explanation: string;
+};
+
+/**
+ * Payments that repeat on a rhythm, so recurring detection has something to
+ * find: one of each rhythm, one the user means to cancel that's still
+ * charging, one that stopped, and one waiting for review.
+ */
+export const RECURRING_SERIES: SeriesSeed[] = [
   {
     id: 'rec_dev_bundle',
     label: 'Daily GHS 3 bundle',
-    counterparty: { id: 'cpt_dev_bundle', name: 'MTN Bundle', kind: 'telco' as const },
+    counterparty: { id: 'cpt_dev_bundle', name: 'MTN Bundle', kind: 'telco' },
     category: 'airtime_data',
-    type: 'airtime' as const,
+    type: 'airtime',
     rhythm: 'daily',
     intervalDays: 1,
     amount: 3,
     hour: 7,
+    firstBack: 150,
+    lastBack: 0,
+    userState: 'expected',
     explanation: 'Data bundles count as Airtime/Data',
   },
   {
-    id: 'rec_dev_netflix',
-    label: 'Netflix',
-    counterparty: { id: 'cpt_dev_netflix', name: 'Netflix', kind: 'merchant' as const },
+    id: 'rec_dev_dstv',
+    label: 'TV subscription',
+    counterparty: { id: 'cpt_dev_dstv', name: 'DStv Compact', kind: 'merchant' },
     category: 'bills',
-    type: 'merchant' as const,
+    type: 'merchant',
+    rhythm: 'monthly',
+    intervalDays: 30,
+    amount: 120,
+    hour: 9,
+    dayOfMonth: 1,
+    firstBack: 150,
+    lastBack: 0,
+    userState: 'expected',
+    explanation: 'DStv is a TV subscription',
+  },
+  {
+    id: 'rec_dev_netflix',
+    label: 'Streaming',
+    counterparty: { id: 'cpt_dev_netflix', name: 'Netflix', kind: 'merchant' },
+    category: 'bills',
+    type: 'merchant',
     rhythm: 'monthly',
     intervalDays: 30,
     amount: 25,
     hour: 6,
+    dayOfMonth: 15,
+    firstBack: 150,
+    lastBack: 0,
+    userState: 'cancel_planned',
     explanation: 'Netflix is a subscription',
+  },
+  {
+    id: 'rec_dev_kwesi',
+    label: 'Weekly transfer',
+    counterparty: { id: 'cpt_dev_kwesi', name: 'Kwesi Ofori', kind: 'person' },
+    category: 'transfers_personal',
+    type: 'transfer',
+    rhythm: 'weekly',
+    intervalDays: 7,
+    amount: 50,
+    hour: 18,
+    weekday: 5,
+    firstBack: 40,
+    lastBack: 0,
+    userState: null,
+    explanation: 'Money sent to a person counts as Transfers-Personal',
+  },
+  {
+    id: 'rec_dev_boomplay',
+    label: 'Music',
+    counterparty: { id: 'cpt_dev_boomplay', name: 'Boomplay Premium', kind: 'merchant' },
+    category: 'bills',
+    type: 'merchant',
+    rhythm: 'monthly',
+    intervalDays: 30,
+    amount: 10,
+    hour: 8,
+    dayOfMonth: 3,
+    firstBack: 150,
+    lastBack: 75,
+    userState: 'expected',
+    explanation: 'Boomplay is a music subscription',
   },
 ];
 
@@ -109,6 +192,7 @@ export const SALARY = {
 export const BUDGETS = [
   { category: 'cash_withdrawal', limit: '1000.00' },
   { category: 'food', limit: '700.00' },
+  { category: 'airtime_data', limit: '450.00' },
   { category: 'transport', limit: '400.00' },
 ];
 

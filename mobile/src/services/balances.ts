@@ -1,5 +1,6 @@
 import { api } from '@/api/client';
-import type { ApiBalances, ApiWallet } from '@/api/types';
+import type { ApiBalanceHistory, ApiBalances, ApiWallet } from '@/api/types';
+import { toIsoDate, today } from '@/utils/dates';
 import { toPesewas } from '@/utils/money';
 
 import { getMe } from './me';
@@ -56,5 +57,42 @@ export async function getBalances(): Promise<Balances> {
         isLow: toPesewas(item.balance) < threshold,
       };
     }),
+  };
+}
+
+export type HistoryRange = '1M' | '3M' | '6M';
+
+export const HISTORY_RANGES: HistoryRange[] = ['1M', '3M', '6M'];
+
+export type BalanceHistory = {
+  from: string;
+  to: string;
+  /** One line per wallet: its end-of-day balance, oldest first. */
+  series: { walletId: string; points: { date: string; balance: string }[] }[];
+  /** Days this month any wallet ended below the alert amount. */
+  daysBelowThreshold: number;
+  threshold: string;
+};
+
+const RANGE_DAYS: Record<HistoryRange, number> = { '1M': 30, '3M': 91, '6M': 182 };
+
+/** `GET /v1/balances/history?from=&to=`, grouped into one line per wallet. */
+export async function getBalanceHistory(range: HistoryRange, now = Date.now()): Promise<BalanceHistory> {
+  const from = toIsoDate(now - (RANGE_DAYS[range] - 1) * 24 * 60 * 60 * 1000);
+  const to = today(now);
+  const response = await api.get<ApiBalanceHistory>('/v1/balances/history', { from, to });
+  const byWallet = new Map<string, { date: string; balance: string }[]>();
+  for (const item of response.items) {
+    byWallet.set(item.wallet_id, [...(byWallet.get(item.wallet_id) ?? []), { date: item.date, balance: item.balance }]);
+  }
+  return {
+    from,
+    to,
+    series: [...byWallet.entries()].map(([walletId, points]) => ({
+      walletId,
+      points: points.sort((a, b) => a.date.localeCompare(b.date)),
+    })),
+    daysBelowThreshold: response.days_below_threshold,
+    threshold: response.threshold,
   };
 }

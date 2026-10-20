@@ -15,6 +15,8 @@ export type AppConfig = {
    * Not in the API contract yet; the app expects it to arrive here.
    */
   supportedCountries: string[];
+  /** Switches for parts of the app (`features`). */
+  features: { budgets: boolean; export: boolean };
 };
 
 /** What the server returns today, until the app calls it. */
@@ -27,6 +29,7 @@ const DEV_CONFIG: AppConfig = {
     { code: 'telecel_cash', name: 'Telecel Cash', senders: [], supported: false },
   ],
   supportedCountries: ['GH'],
+  features: { budgets: true, export: false },
 };
 
 let cached: Promise<AppConfig> | undefined;
