@@ -91,10 +91,13 @@ describe('S25 · More', () => {
     expect(mockRouter.push).toHaveBeenCalledWith('/recurring');
   });
 
-  it("says which rows aren't ready yet", async () => {
+  it('marks export as coming soon but still opens its screen', async () => {
     await renderWithQuery(<MoreScreen />);
 
-    expect(await screen.findByRole('button', { name: 'Export my data, coming soon' })).toBeDisabled();
+    const row = await screen.findByRole('button', { name: 'Export my data, Coming soon' });
+    expect(row).toBeEnabled();
+    await fireEvent.press(row);
+    expect(mockRouter.push).toHaveBeenCalledWith('/export');
   });
 
   it('signs out after asking', async () => {

@@ -337,6 +337,11 @@ const handlers: { method: string; pattern: RegExp; handle: (match: string[], que
     handle: async () => ({ deletion_scheduled_for: scheduleStoredDeletion() }),
   },
   {
+    method: 'GET',
+    pattern: /^\/v1\/me\/export$/,
+    handle: async () => ({ export_id: `exp_dev_${Date.now().toString(36)}` }),
+  },
+  {
     method: 'POST',
     pattern: /^\/v1\/auth\/logout$/,
     handle: async () => undefined,

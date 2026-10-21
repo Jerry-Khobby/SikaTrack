@@ -116,6 +116,16 @@ export async function deleteAccount() {
   return response.deletion_scheduled_for;
 }
 
+/**
+ * `GET /v1/me/export` (phase 7): asks for a ZIP of the transactions (CSV) and
+ * settings (JSON). It's prepared in the background, and a notification brings a
+ * time-limited download link. Returns the export's id.
+ */
+export async function requestExport() {
+  const response = await api.get<{ export_id: string }>('/v1/me/export');
+  return response.export_id;
+}
+
 /** The notification switches with what each one sends, for S10 and S31. */
 export function notificationChoices(settings: Me['settings']): { key: NotifyKey; title: string; description: string }[] {
   return [

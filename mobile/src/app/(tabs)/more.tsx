@@ -8,6 +8,7 @@ import { Icon, ThemedText } from '@/components/atoms';
 import { ScreenTitle } from '@/components/molecules';
 import { ConfirmDialog, MenuSection } from '@/components/organisms';
 import { TabScreenTemplate } from '@/components/templates';
+import { useAppConfig } from '@/hooks/use-app-config';
 import { useMe } from '@/hooks/use-me';
 import { useTheme } from '@/hooks/use-theme';
 import { useSyncStatus } from '@/hooks/queries';
@@ -22,6 +23,7 @@ export default function MoreScreen() {
   const client = useQueryClient();
   const theme = useTheme();
   const me = useMe();
+  const config = useAppConfig();
   const sync = useSyncStatus();
   const [signingOut, setSigningOut] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -97,8 +99,14 @@ export default function MoreScreen() {
           title="Privacy"
           rows={[
             { key: 'privacy', icon: 'shield', label: 'How we handle your data', onPress: () => router.push('/privacy') },
-            // Export isn't built yet (`features.export` is off), so it shows "Coming soon".
-            { key: 'export', icon: 'download', label: 'Export my data' },
+            {
+              key: 'export',
+              icon: 'download',
+              label: 'Export my data',
+              // The screen explains it either way; the request waits for `features.export`.
+              detail: config?.features.export ? undefined : 'Coming soon',
+              onPress: () => router.push('/export'),
+            },
           ]}
         />
         <MenuSection
