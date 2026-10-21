@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import AllSetScreen from '@/app/onboarding/done';
 import NotificationsScreen from '@/app/onboarding/notifications';
@@ -6,6 +6,7 @@ import FirstSyncScreen from '@/app/onboarding/sync';
 import { getMe, startSession, updateMe } from '@/services/me';
 import { requestNotificationPermission } from '@/services/permissions';
 import { getScanState, resetScan, startInitialScan } from '@/services/sms';
+import { renderWithQuery } from '@/test-utils';
 
 const mockRouter = {
   push: jest.fn(),
@@ -34,7 +35,7 @@ afterEach(() => {
 describe('S09 · First sync', () => {
   it('shows live counts, lets people leave, then says when it is done', async () => {
     jest.useFakeTimers();
-    await render(<FirstSyncScreen />);
+    await renderWithQuery(<FirstSyncScreen />);
 
     expect(screen.getByText('Reading your MoMo history…')).toBeOnTheScreen();
     expect(screen.getByText("You can leave this screen; we'll keep going.")).toBeOnTheScreen();
@@ -54,7 +55,7 @@ describe('S09 · First sync', () => {
   it('says so when the phone has no MoMo SMS', async () => {
     const original = process.env.EXPO_PUBLIC_EMPTY_INBOX;
     process.env.EXPO_PUBLIC_EMPTY_INBOX = 'true';
-    await render(<FirstSyncScreen />);
+    await renderWithQuery(<FirstSyncScreen />);
 
     expect(await screen.findByText('No MoMo messages yet')).toBeOnTheScreen();
     process.env.EXPO_PUBLIC_EMPTY_INBOX = original;
@@ -63,7 +64,7 @@ describe('S09 · First sync', () => {
 
 describe('S10 · Notifications', () => {
   it('starts from the account settings, with the low-balance amount in them', async () => {
-    await render(<NotificationsScreen />);
+    await renderWithQuery(<NotificationsScreen />);
 
     expect(await screen.findByText('When a wallet drops below GHS 5.00.')).toBeOnTheScreen();
     expect(screen.getByRole('switch', { name: 'Budget alerts' })).toBeChecked();
@@ -72,7 +73,7 @@ describe('S10 · Notifications', () => {
 
   it('saves the choices once notifications are allowed', async () => {
     jest.mocked(requestNotificationPermission).mockResolvedValue('granted');
-    await render(<NotificationsScreen />);
+    await renderWithQuery(<NotificationsScreen />);
     await screen.findByRole('switch', { name: 'Weekly summary' });
 
     await fireEvent.press(screen.getByRole('switch', { name: 'Weekly summary' }));
@@ -83,7 +84,7 @@ describe('S10 · Notifications', () => {
   });
 
   it('can be skipped', async () => {
-    await render(<NotificationsScreen />);
+    await renderWithQuery(<NotificationsScreen />);
 
     await fireEvent.press(screen.getByRole('button', { name: 'Not now' }));
 
@@ -101,7 +102,7 @@ describe('S11 · All set', () => {
     jest.advanceTimersByTime(7000);
     const { parsed } = getScanState();
 
-    await render(<AllSetScreen />);
+    await renderWithQuery(<AllSetScreen />);
 
     expect(await screen.findByText("You're all set, Jerry")).toBeOnTheScreen();
     expect(
@@ -112,14 +113,14 @@ describe('S11 · All set', () => {
   it('says the sync is still going when it is', async () => {
     startInitialScan();
 
-    await render(<AllSetScreen />);
+    await renderWithQuery(<AllSetScreen />);
 
     expect(await screen.findByText("You're all set")).toBeOnTheScreen();
     expect(screen.getByText(/still reading your messages/)).toBeOnTheScreen();
   });
 
   it('goes to the dashboard and clears onboarding from the history', async () => {
-    await render(<AllSetScreen />);
+    await renderWithQuery(<AllSetScreen />);
 
     await fireEvent.press(screen.getByRole('button', { name: 'Go to my dashboard' }));
 

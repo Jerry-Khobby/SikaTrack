@@ -1,22 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
-import { getMe, type Me } from '@/services/me';
+import { getMe } from '@/services/me';
 
-/** The signed-in user, or undefined while it loads. */
+export const meQueryKey = ['me'] as const;
+
+/**
+ * The signed-in user, or undefined while it loads. Shared through the query
+ * cache, and checked again whenever a screen opens, so a change saved on one
+ * screen (a name, a setting) shows on the next.
+ */
 export function useMe() {
-  const [me, setMe] = useState<Me>();
-
-  useEffect(() => {
-    let active = true;
-    getMe().then((next) => {
-      if (active) {
-        setMe(next);
-      }
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  return me;
+  return useQuery({ queryKey: meQueryKey, queryFn: getMe, staleTime: 0 }).data;
 }

@@ -3,6 +3,8 @@
  * wired in. Every number gets a code and every code is accepted, except
  * 000000, which is rejected so the wrong-code state can be tried.
  */
+import { api, setAccessToken } from '@/api/client';
+
 import { startSession } from './me';
 import { resetScan } from './sms';
 import { resetWallets } from './wallets';
@@ -63,4 +65,16 @@ export async function verifyOtp(otpRequestId: string, code: string): Promise<Otp
   resetWallets();
   resetScan();
   return { isNewUser: true, onboardingFinished: false };
+}
+
+/**
+ * `POST /v1/auth/logout`: ends this phone's session and stops its push
+ * notifications. The tokens go even if the call fails, so the phone is signed out.
+ */
+export async function signOut() {
+  try {
+    await api.post<void>('/v1/auth/logout', {});
+  } finally {
+    setAccessToken(null);
+  }
 }

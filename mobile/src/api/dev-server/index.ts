@@ -1,7 +1,7 @@
 /**
  * Answers API requests inside the app while there's no backend, with the JSON
  * shapes from backend/docs/api-contract.md, worked out from the sample dataset.
- * Start with EXPO_PUBLIC_DEV_API_FAILURE=true to make every request fail.
+ * Start with EXPO_PUBLIC_DEV_API_FAILURE to make every request fail (see devFailure).
  */
 import { fromPesewas, toPesewas } from '@/utils/money';
 
@@ -16,6 +16,8 @@ import type {
   ApiCounterpartySummary,
   ApiHabits,
   ApiInsight,
+  ApiMe,
+  ApiMePatch,
   ApiNotifications,
   ApiPage,
   ApiRecurringList,
@@ -28,7 +30,7 @@ import type {
   ApiWallet,
   DayPart,
 } from '../types';
-import { BUDGETS, CATEGORIES, LOW_BALANCE_THRESHOLD, RECURRING_SERIES, categoryRef } from './catalog';
+import { BUDGETS, CATEGORIES, RECURRING_SERIES, categoryRef } from './catalog';
 import {
   applyCounterpartyChoices,
   counterpartyChoice,
@@ -37,6 +39,7 @@ import {
   setCounterpartyChoice,
 } from './counterparty-store';
 import { getDataset as loadDataset } from './dataset';
+import { lowBalanceThreshold, patchStoredMe, scheduleStoredDeletion, storedMe } from './me-store';
 import {
   addStoredWallet,
   allWallets,
@@ -83,6 +86,42 @@ function previousMonth(month: string) {
 function inRange(t: ApiTransaction, from: string, to: string) {
   const day = t.occurred_at.slice(0, 10);
   return day >= from && day <= to;
+}
+
+/** `GET /v1/me`: the stored account plus a summary of its data. */
+async function meBody(): Promise<ApiMe> {
+  const { deletionScheduledFor, ...me } = storedMe();
+  const { transactions } = await getDataset();
+  return {
+    ...me,
+    data: {
+      first_transaction_at: transactions.at(-1)?.occurred_at ?? null,
+      last_transaction_at: transactions[0]?.occurred_at ?? null,
+      transactions: transactions.length,
+    },
+  };
+}
+
+/**
+ * EXPO_PUBLIC_DEV_API_FAILURE makes every request fail, to see each global state:
+ * `true` (an unexpected error), `unavailable` (503), `rate_limited` (429),
+ * `session_expired` (refresh token gone) or `update_required` (426).
+ */
+function devFailure(): ApiError | null {
+  switch (process.env.EXPO_PUBLIC_DEV_API_FAILURE) {
+    case 'true':
+      return new ApiError({ status: 500, code: 'unexpected_error', title: 'Something went wrong' }, requestId());
+    case 'unavailable':
+      return new ApiError({ status: 503, code: 'dependency_unavailable', title: 'Service unavailable' }, requestId());
+    case 'rate_limited':
+      return new ApiError({ status: 429, code: 'rate_limited', title: 'Too many requests' }, requestId(), 30);
+    case 'session_expired':
+      return new ApiError({ status: 401, code: 'refresh_invalid', title: 'Please sign in again' }, requestId());
+    case 'update_required':
+      return new ApiError({ status: 426, code: 'app_update_required', title: 'Update the app' }, requestId());
+    default:
+      return null;
+  }
 }
 
 /** The dataset, with the user's aliases and default categories laid over it. */
@@ -274,6 +313,34 @@ async function budgets(month: string): Promise<ApiBudgets> {
 }
 
 const handlers: { method: string; pattern: RegExp; handle: (match: string[], query: Query, body: unknown) => Promise<unknown> }[] = [
+  {
+    method: 'GET',
+    pattern: /^\/v1\/me$/,
+    handle: async (): Promise<ApiMe> => meBody(),
+  },
+  {
+    method: 'PATCH',
+    pattern: /^\/v1\/me$/,
+    handle: async (_, __, body): Promise<ApiMe> => {
+      const patch = (body ?? {}) as ApiMePatch;
+      const threshold = patch.settings?.low_balance_threshold;
+      if (threshold !== undefined && !(/^\d+(\.\d{1,2})?$/.test(threshold) && toPesewas(threshold) > 0)) {
+        throw new ApiError({ status: 400, code: 'validation_error', title: 'Enter an amount above zero' }, requestId());
+      }
+      patchStoredMe(patch);
+      return meBody();
+    },
+  },
+  {
+    method: 'DELETE',
+    pattern: /^\/v1\/me$/,
+    handle: async () => ({ deletion_scheduled_for: scheduleStoredDeletion() }),
+  },
+  {
+    method: 'POST',
+    pattern: /^\/v1\/auth\/logout$/,
+    handle: async () => undefined,
+  },
   {
     method: 'GET',
     pattern: /^\/v1\/summary$/,
@@ -511,11 +578,11 @@ const handlers: { method: string; pattern: RegExp; handle: (match: string[], que
         }
       }
       const month = currentMonth();
-      const threshold = toPesewas(LOW_BALANCE_THRESHOLD);
+      const threshold = toPesewas(lowBalanceThreshold());
       const lowDays = new Set(
         items.filter((i) => i.date.startsWith(month) && toPesewas(i.balance) < threshold).map((i) => i.date),
       );
-      return { items, days_below_threshold: lowDays.size, threshold: LOW_BALANCE_THRESHOLD };
+      return { items, days_below_threshold: lowDays.size, threshold: lowBalanceThreshold() };
     },
   },
   {
@@ -808,8 +875,8 @@ async function notifications() {
   }
   for (const wallet of wallets) {
     const latest = transactions.find((t) => t.wallet_id === wallet.id);
-    if (latest?.balance_after && toPesewas(latest.balance_after) < toPesewas(LOW_BALANCE_THRESHOLD)) {
-      items.push({ id: `ntf_dev_low_${wallet.id}`, kind: 'low_balance', title: `${wallet.label ?? 'A wallet'} is below GHS ${LOW_BALANCE_THRESHOLD}`, body: `It has GHS ${latest.balance_after} left.`, created_at: latest.occurred_at, read_at: null, link: 'sikatrack://balances' });
+    if (latest?.balance_after && toPesewas(latest.balance_after) < toPesewas(lowBalanceThreshold())) {
+      items.push({ id: `ntf_dev_low_${wallet.id}`, kind: 'low_balance', title: `${wallet.label ?? 'A wallet'} is below GHS ${lowBalanceThreshold()}`, body: `It has GHS ${latest.balance_after} left.`, created_at: latest.occurred_at, read_at: null, link: 'sikatrack://balances' });
     }
   }
   const series = RECURRING_SERIES[0];
@@ -843,10 +910,11 @@ function toApiWallet(wallet: StoredWallet, transactions: ApiTransaction[]): ApiW
 }
 
 export async function handleDevRequest<T>(method: string, path: string, query: Query, body: unknown): Promise<T> {
-  await wait(latency());
-  if (process.env.EXPO_PUBLIC_DEV_API_FAILURE === 'true') {
-    throw new ApiError({ status: 500, code: 'unexpected_error', title: 'Something went wrong' }, requestId());
-  }
+  // No timer at all when the latency is 0, so tests with fake timers aren't held up.
+  const ms = latency();
+  if (ms > 0) await wait(ms);
+  const failure = devFailure();
+  if (failure) throw failure;
   for (const handler of handlers) {
     const match = handler.method === method ? path.match(handler.pattern) : null;
     if (match) {

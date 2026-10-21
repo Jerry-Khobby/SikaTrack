@@ -10,6 +10,8 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 
+import { meQueryKey } from '@/hooks/use-me';
+import { deleteAccount, updateMe, type MePatch } from '@/services/me';
 import { getBalanceHistory, getBalances, listAccountWallets, type HistoryRange } from '@/services/balances';
 import { deleteBudget, listBudgets, saveBudget, usualMonthlySpend, type BudgetInput } from '@/services/budgets';
 import { listCategories } from '@/services/categories';
@@ -243,6 +245,22 @@ export function useUpdateRecurring(id: string) {
       client.invalidateQueries({ queryKey: ['summary'] });
     },
   });
+}
+
+/** Saves the profile or a setting, and refreshes what depends on it (low balances, alerts). */
+export function useUpdateMe() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: MePatch) => updateMe(patch),
+    onSuccess: (me) => {
+      client.setQueryData(meQueryKey, me);
+      for (const key of [queryKeys.balances, queryKeys.notifications]) client.invalidateQueries({ queryKey: key });
+    },
+  });
+}
+
+export function useDeleteAccount() {
+  return useMutation({ mutationFn: deleteAccount });
 }
 
 /** Renames a counterparty or sets its default category; both show on every screen. */

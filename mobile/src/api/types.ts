@@ -25,6 +25,37 @@ export type ApiPage<T> = { items: T[]; next_cursor: string | null };
 
 export type ApiPeriod = { from: string; to: string; days?: number };
 
+export type ApiNotifySettings = {
+  budget: boolean;
+  low_balance: boolean;
+  recurring: boolean;
+  weekly_digest: boolean;
+  data_ready: boolean;
+};
+
+/** `GET /v1/me` */
+export type ApiMe = {
+  id: string;
+  phone_number: string | null;
+  display_name: string | null;
+  created_at: string;
+  onboarding: { wallets_added: boolean; sms_permission: 'granted' | 'denied' | null; first_sync_done: boolean };
+  settings: {
+    low_balance_threshold: Money;
+    notify: ApiNotifySettings;
+    /** Not in the API contract yet; the app expects the account's currency here. */
+    currency: string;
+  };
+  data: { first_transaction_at: string | null; last_transaction_at: string | null; transactions: number };
+};
+
+/** `PATCH /v1/me` body: any subset. */
+export type ApiMePatch = {
+  display_name?: string | null;
+  onboarding?: Partial<ApiMe['onboarding']>;
+  settings?: { low_balance_threshold?: Money; notify?: Partial<ApiNotifySettings> };
+};
+
 /** `GET /v1/summary` */
 export type ApiSummary = {
   period: ApiPeriod;

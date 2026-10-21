@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import NameScreen from '@/app/onboarding/name';
 import SmsDeniedScreen from '@/app/onboarding/sms-denied';
 import SmsPermissionScreen from '@/app/onboarding/sms';
 import { getMe, startSession } from '@/services/me';
 import { openAppSettings, requestSmsPermission } from '@/services/permissions';
+import { renderWithQuery } from '@/test-utils';
 
 const mockRouter = { push: jest.fn(), replace: jest.fn() };
 
@@ -22,13 +23,13 @@ beforeEach(() => {
 
 describe('S06 · Your name', () => {
   it('shows it is step 1 of 5', async () => {
-    await render(<NameScreen />);
+    await renderWithQuery(<NameScreen />);
 
     expect(screen.getByText('Step 1 of 5')).toBeOnTheScreen();
   });
 
   it('saves the name and moves on to SMS access', async () => {
-    await render(<NameScreen />);
+    await renderWithQuery(<NameScreen />);
 
     await fireEvent.changeText(screen.getByLabelText('Your first name'), '  Jerry ');
     await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
@@ -38,7 +39,7 @@ describe('S06 · Your name', () => {
   });
 
   it('can be skipped without a name', async () => {
-    await render(<NameScreen />);
+    await renderWithQuery(<NameScreen />);
 
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
     await fireEvent.press(screen.getByRole('button', { name: 'Skip' }));
@@ -50,7 +51,7 @@ describe('S06 · Your name', () => {
 
 describe('S07 · Read your MoMo SMS', () => {
   it('names the senders it reads, from the server config', async () => {
-    await render(<SmsPermissionScreen />);
+    await renderWithQuery(<SmsPermissionScreen />);
 
     expect(
       await screen.findByText('We only read messages from MobileMoney and GhanaPay.'),
@@ -59,7 +60,7 @@ describe('S07 · Read your MoMo SMS', () => {
 
   it('goes on to wallets once access is granted', async () => {
     jest.mocked(requestSmsPermission).mockResolvedValue('granted');
-    await render(<SmsPermissionScreen />);
+    await renderWithQuery(<SmsPermissionScreen />);
     await screen.findByText(/We only read messages/);
 
     await fireEvent.press(screen.getByRole('button', { name: 'Allow access' }));
@@ -70,7 +71,7 @@ describe('S07 · Read your MoMo SMS', () => {
 
   it('explains why it is needed when access is refused', async () => {
     jest.mocked(requestSmsPermission).mockResolvedValue('denied');
-    await render(<SmsPermissionScreen />);
+    await renderWithQuery(<SmsPermissionScreen />);
     await screen.findByText(/We only read messages/);
 
     await fireEvent.press(screen.getByRole('button', { name: 'Allow access' }));
@@ -79,7 +80,7 @@ describe('S07 · Read your MoMo SMS', () => {
   });
 
   it('records "not now" as denied', async () => {
-    await render(<SmsPermissionScreen />);
+    await renderWithQuery(<SmsPermissionScreen />);
 
     await fireEvent.press(screen.getByRole('button', { name: 'Not now' }));
 
@@ -90,7 +91,7 @@ describe('S07 · Read your MoMo SMS', () => {
 
 describe('S07 · SMS access denied', () => {
   it('opens Android settings, then carries on', async () => {
-    await render(<SmsDeniedScreen />);
+    await renderWithQuery(<SmsDeniedScreen />);
 
     await fireEvent.press(screen.getByRole('button', { name: 'Open settings' }));
 
@@ -99,7 +100,7 @@ describe('S07 · SMS access denied', () => {
   });
 
   it('lets people carry on without it', async () => {
-    await render(<SmsDeniedScreen />);
+    await renderWithQuery(<SmsDeniedScreen />);
 
     await fireEvent.press(screen.getByRole('button', { name: 'Maybe later' }));
 

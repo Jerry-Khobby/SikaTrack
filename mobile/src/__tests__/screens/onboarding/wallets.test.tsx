@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import WalletsScreen from '@/app/onboarding/wallets';
 import { getMe, startSession } from '@/services/me';
 import { resetWallets } from '@/services/wallets';
+import { renderWithQuery } from '@/test-utils';
 
 const mockRouter = { push: jest.fn() };
 
@@ -15,7 +16,7 @@ beforeEach(() => {
 });
 
 async function renderScreen() {
-  await render(<WalletsScreen />);
+  await renderWithQuery(<WalletsScreen />);
   await screen.findByRole('button', { name: 'Add MTN MoMo' });
 }
 

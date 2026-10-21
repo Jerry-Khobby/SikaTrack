@@ -52,6 +52,12 @@ export function formatDayMonth(iso: string, now = Date.now()) {
   return `${date.getUTCDate()} ${MONTHS_SHORT[date.getUTCMonth()]}${year}`;
 }
 
+/** `15 Nov 2025`, always with the year. */
+export function formatFullDate(iso: string) {
+  const date = new Date(iso);
+  return `${date.getUTCDate()} ${MONTHS_SHORT[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+}
+
 /** Day headers in lists: `Today`, `Yesterday`, `Fri 16 Oct`. */
 export function formatDayHeader(iso: string, now = Date.now()) {
   const days = dayDifference(iso, now);

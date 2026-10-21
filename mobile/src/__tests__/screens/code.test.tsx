@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import CodeScreen from '@/app/sign-in/code';
 import { OtpInvalidError, verifyOtp } from '@/services/auth';
+import { renderWithQuery } from '@/test-utils';
 
 const mockRouter = {
   push: jest.fn(),
@@ -38,7 +39,7 @@ async function enterCode(code: string) {
 
 describe('S05 · Enter the code', () => {
   it('shows where the code went, when it can be resent and when it expires', async () => {
-    await render(<CodeScreen />);
+    await renderWithQuery(<CodeScreen />);
 
     expect(screen.getByText(/Sent to \+233 24 123 4567/)).toBeOnTheScreen();
     expect(screen.getByText('1:00')).toBeOnTheScreen();
@@ -46,7 +47,7 @@ describe('S05 · Enter the code', () => {
   });
 
   it('goes back to change the number', async () => {
-    await render(<CodeScreen />);
+    await renderWithQuery(<CodeScreen />);
 
     await fireEvent.press(screen.getByRole('link', { name: 'Change' }));
 
@@ -54,7 +55,7 @@ describe('S05 · Enter the code', () => {
   });
 
   it('does not submit before the last digit', async () => {
-    await render(<CodeScreen />);
+    await renderWithQuery(<CodeScreen />);
 
     await enterCode('12345');
 
@@ -63,7 +64,7 @@ describe('S05 · Enter the code', () => {
 
   it('submits on the last digit and starts a new user on onboarding', async () => {
     mockVerifyOtp.mockResolvedValue({ isNewUser: true, onboardingFinished: false });
-    await render(<CodeScreen />);
+    await renderWithQuery(<CodeScreen />);
 
     await enterCode('123456');
 
@@ -73,7 +74,7 @@ describe('S05 · Enter the code', () => {
 
   it('clears the boxes and explains a wrong code', async () => {
     mockVerifyOtp.mockRejectedValue(new OtpInvalidError());
-    await render(<CodeScreen />);
+    await renderWithQuery(<CodeScreen />);
 
     await enterCode('000000');
 
@@ -84,7 +85,7 @@ describe('S05 · Enter the code', () => {
 
   it('locks the code after five wrong tries', async () => {
     mockVerifyOtp.mockRejectedValue(new OtpInvalidError());
-    await render(<CodeScreen />);
+    await renderWithQuery(<CodeScreen />);
 
     for (let attempt = 1; attempt <= 4; attempt++) {
       await enterCode('000000');

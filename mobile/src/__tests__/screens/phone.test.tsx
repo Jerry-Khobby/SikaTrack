@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import PhoneScreen from '@/app/sign-in/phone';
 import { RateLimitedError, requestOtp } from '@/services/auth';
+import { renderWithQuery } from '@/test-utils';
 
 const mockRouter = {
   push: jest.fn(),
@@ -22,7 +23,7 @@ const mockRequestOtp = jest.mocked(requestOtp);
 beforeEach(() => jest.clearAllMocks());
 
 async function renderScreen() {
-  await render(<PhoneScreen />);
+  await renderWithQuery(<PhoneScreen />);
   return screen.findByLabelText('Phone number');
 }
 

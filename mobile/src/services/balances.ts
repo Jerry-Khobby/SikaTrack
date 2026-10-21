@@ -96,3 +96,13 @@ export async function getBalanceHistory(range: HistoryRange, now = Date.now()): 
     threshold: response.threshold,
   };
 }
+
+/**
+ * On how many days between `from` and `to` any wallet ended below `threshold`
+ * (`GET /v1/balances/history`): S32's "You'd have been alerted on 3 days last month".
+ */
+export async function daysBelow(threshold: string, range: { from: string; to: string }) {
+  const response = await api.get<ApiBalanceHistory>('/v1/balances/history', range);
+  const limit = toPesewas(threshold);
+  return new Set(response.items.filter((item) => toPesewas(item.balance) < limit).map((item) => item.date)).size;
+}
