@@ -91,9 +91,7 @@ export default function PhoneScreen() {
           />
           <ThemedText type="fine" themeColor="textSecondary" className="mt-[14px] text-center">
             By continuing you agree to the{' '}
-            <ThemedText type="none" className="font-sans-semibold text-[12px] leading-[18px]">
-              Terms
-            </ThemedText>{' '}
+            <TextLink onPress={() => router.push('/terms')}>Terms</TextLink>{' '}
             and <TextLink onPress={() => router.push('/privacy')}>Privacy Policy</TextLink>.
           </ThemedText>
         </>
