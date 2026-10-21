@@ -22,6 +22,8 @@ export type BudgetCardProps = {
   /** E.g. `At this pace: GHS 1,206 by month end`; left out for past months. */
   projection?: string;
   projectionOver?: boolean;
+  /** Picked out with an outline, e.g. when a notification opened this budget. */
+  highlighted?: boolean;
   onPress: () => void;
 };
 
@@ -43,6 +45,7 @@ export function BudgetCard({
   remainder,
   projection,
   projectionOver,
+  highlighted,
   onPress,
 }: BudgetCardProps) {
   const theme = useTheme();
@@ -52,9 +55,10 @@ export function BudgetCard({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ selected: highlighted }}
       accessibilityLabel={`${name} budget, ${badge.label}. ${spent} of ${limit}, ${remainder}. ${projection ?? ''}`}
       onPress={onPress}
-      className="rounded-[20px] bg-surface p-4 active:opacity-[0.85]">
+      className={`rounded-[20px] bg-surface p-4 active:opacity-[0.85] ${highlighted ? 'border-2 border-line-focus' : ''}`}>
       <View className="flex-row items-center gap-3">
         <View className="h-10 w-10 items-center justify-center rounded-[20px] bg-avatar">
           <CategoryGlyph categoryId={categoryId} color={theme.text} size={19} />

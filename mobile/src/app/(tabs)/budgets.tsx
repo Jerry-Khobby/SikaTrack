@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -39,6 +40,8 @@ type EditorState = { mode: 'add'; categoryId: string | null } | { mode: 'edit'; 
 
 /** S23 · Budgets: a monthly limit per category and how close each one is. */
 export default function BudgetsScreen() {
+  // `sikatrack://budgets/<category>` (a budget alert) picks that budget out.
+  const { highlight } = useLocalSearchParams<{ highlight?: string }>();
   const me = useMe();
   const [month, setMonth] = useState(currentMonth);
   const [pickingMonth, setPickingMonth] = useState(false);
@@ -182,6 +185,7 @@ export default function BudgetsScreen() {
                   isCurrentMonth ? `At this pace: ${formatMoneyWhole(budget.projected, currency)} by month end` : undefined
                 }
                 projectionOver={projectedOver}
+                highlighted={budget.category.id === highlight}
                 onPress={() => openEditor({ mode: 'edit', budget })}
               />
             </SwipeToDelete>

@@ -11,6 +11,7 @@ export type AppRoute =
   | '/spending?view=fees'
   | `/categories/${string}`
   | '/budgets'
+  | `/budgets?highlight=${string}`
   | '/more'
   | '/wallets'
   | '/recurring'
@@ -24,11 +25,13 @@ const ROUTES: { pattern: RegExp; route: (match: RegExpMatchArray) => AppRoute }[
   { pattern: /^transactions\/(.+)$/, route: (m) => `/transactions/${m[1]}` },
   { pattern: /^categories\/(.+)$/, route: (m) => `/categories/${m[1]}` },
   { pattern: /^fees$/, route: () => '/spending?view=fees' },
-  // A single budget opens the Budgets tab, which lists them all.
-  { pattern: /^budgets(\/.+)?$/, route: () => '/budgets' },
+  { pattern: /^budgets$/, route: () => '/budgets' },
+  // One budget opens the Budgets tab with that budget picked out.
+  { pattern: /^budgets\/(.+)$/, route: (m) => `/budgets?highlight=${m[1]}` },
   { pattern: /^recurring$/, route: () => '/recurring' },
   { pattern: /^recurring\/(.+)$/, route: (m) => `/recurring/${m[1]}` },
   { pattern: /^balances$/, route: () => '/wallets' },
+  { pattern: /^wallets$/, route: () => '/wallets' },
   { pattern: /^sync$/, route: () => '/sync' },
 ];
 

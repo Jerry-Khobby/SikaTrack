@@ -71,6 +71,9 @@ export default function RootLayout() {
             <Stack.Screen name="low-balance" />
             <Stack.Screen name="sync" />
             <Stack.Screen name="delete-account" />
+            <Stack.Screen name="export" />
+            <Stack.Screen name="terms" />
+            <Stack.Screen name="providers/[code]" />
             <Stack.Screen name="account-deleted" options={{ animation: 'fade', gestureEnabled: false }} />
           </Stack>
           <SystemStates
