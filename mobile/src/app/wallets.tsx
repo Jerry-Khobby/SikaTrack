@@ -1,8 +1,9 @@
+import { useRouter } from 'expo-router';
 import type { CountryCode } from 'libphonenumber-js/mobile';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, ThemedText } from '@/components/atoms';
+import { Button, TextLink, ThemedText } from '@/components/atoms';
 import { ErrorState, MenuRow, WalletBalanceCard } from '@/components/molecules';
 import {
   BalanceHistoryCard,
@@ -36,6 +37,7 @@ type SheetState = { mode: 'add' } | { mode: 'edit'; wallet: Wallet };
 
 /** S26 · Wallets: each wallet's balance, the history behind it, and adding or removing wallets. */
 export default function WalletsScreen() {
+  const router = useRouter();
   const goBack = useGoBack('/more');
   const me = useMe();
   const config = useAppConfig();
@@ -177,6 +179,16 @@ export default function WalletsScreen() {
       )}
 
       <Button variant="secondary" label="+ Add wallet" onPress={() => setSheet({ mode: 'add' })} />
+      {(config?.providers ?? [])
+        .filter((p) => !p.supported)
+        .map((p) => (
+          <ThemedText key={p.code} type="caption" themeColor="textSecondary" className="text-center">
+            {p.name} is coming soon.{' '}
+            <TextLink bold onPress={() => router.push({ pathname: '/providers/[code]', params: { code: p.code } })}>
+              What that means
+            </TextLink>
+          </ThemedText>
+        ))}
 
       {options && (
         <BottomSheet title={titleOf(options)} onClose={() => setOptions(null)}>

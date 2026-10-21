@@ -8,10 +8,12 @@ export type WalletChooserProps = {
   providers: { code: string; name: string; supported: boolean }[];
   onAdd: (providerCode: string) => void;
   onEdit: (walletId: string) => void;
+  /** Opens what "Coming soon" means for a provider that isn't supported yet. */
+  onLearnMore: (providerCode: string) => void;
 };
 
 /** The user's wallets so far, then every provider with a way to add one. */
-export function WalletChooser({ wallets, providers, onAdd, onEdit }: WalletChooserProps) {
+export function WalletChooser({ wallets, providers, onAdd, onEdit, onLearnMore }: WalletChooserProps) {
   return (
     <View>
       {wallets.length > 0 && (
@@ -35,6 +37,7 @@ export function WalletChooser({ wallets, providers, onAdd, onEdit }: WalletChoos
             key={provider.code}
             {...provider}
             onAdd={() => onAdd(provider.code)}
+            onLearnMore={() => onLearnMore(provider.code)}
             divider={index < providers.length - 1}
           />
         ))}

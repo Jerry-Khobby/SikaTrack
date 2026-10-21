@@ -97,6 +97,7 @@ export default function WalletsScreen() {
           const wallet = wallets.find((w) => w.id === id);
           if (wallet) setSheet({ mode: 'edit', wallet });
         }}
+        onLearnMore={(code) => router.push({ pathname: '/providers/[code]', params: { code } })}
       />
       {sheet && country && (
         <WalletSheet
