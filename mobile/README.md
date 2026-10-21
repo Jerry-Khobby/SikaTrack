@@ -143,6 +143,16 @@ Still to wire in when the backend is ready:
 - **Phone-only parts:** reading SMS (first sync, **Sync now**), the SMS and notification
   permission prompts, and checking whether Android allows notifications all need a development
   build. Until then they answer "allowed" and "no new SMS".
+- **Coming-soon features have real screens:**
+  - **Export my data** explains the export. Its button turns on when `GET /v1/config` sends
+    `features.export: true`.
+  - **Unsupported providers** (`supported: false`) open a page on what still works.
+- **Terms of use** (`src/app/terms.tsx`) is a plain-language first draft. It needs a legal
+  review before release.
+- **Links from outside the app** (push notifications) go through `src/app/+native-intent.tsx`,
+  which uses the same table as in-app links (`src/utils/deep-links.ts`).
+  `src/__tests__/navigation.test.ts` fails if any link points at a missing screen or a screen
+  can't be reached.
 
 ## Running without a backend
 
