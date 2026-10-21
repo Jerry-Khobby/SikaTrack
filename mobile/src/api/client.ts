@@ -6,6 +6,7 @@
  */
 import { handleDevRequest } from './dev-server';
 import { ApiError } from './errors';
+import { reportApiError } from './system-events';
 import type { ApiProblem } from './types';
 
 export { ApiError };
@@ -36,11 +37,21 @@ export function toQueryString(query: Query = {}) {
   return parts.length ? `?${parts.join('&')}` : '';
 }
 
+/** Sends a request; errors that affect the whole app (sign-in gone, slow down, too old) are reported first. */
 export async function request<T>(
   method: HttpMethod,
   path: string,
   options: { query?: Query; body?: unknown } = {},
 ): Promise<T> {
+  try {
+    return await send<T>(method, path, options);
+  } catch (error) {
+    reportApiError(error);
+    throw error;
+  }
+}
+
+async function send<T>(method: HttpMethod, path: string, options: { query?: Query; body?: unknown }): Promise<T> {
   if (!BASE_URL) {
     return handleDevRequest<T>(method, path, options.query ?? {}, options.body);
   }

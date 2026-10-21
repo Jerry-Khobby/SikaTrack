@@ -6,3 +6,6 @@ jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn().mockResolvedValue
 
 // The in-app dev server answers at once in tests.
 process.env.EXPO_PUBLIC_DEV_API_LATENCY_MS = '0';
+
+// Connection state comes from native code too.
+jest.mock('@react-native-community/netinfo', () => require('@react-native-community/netinfo/jest/netinfo-mock.js'));

@@ -1,6 +1,7 @@
-import { QueryClient } from '@tanstack/react-query';
+import { onlineManager, QueryCache, QueryClient } from '@tanstack/react-query';
 
 import { ApiError } from './errors';
+import { isUnavailable, reportSystemEvent } from './system-events';
 
 /** Errors worth retrying: no answer, or the server's own trouble (5xx). */
 function shouldRetry(failureCount: number, error: unknown) {
@@ -11,6 +12,14 @@ function shouldRetry(failureCount: number, error: unknown) {
 
 export function createQueryClient() {
   return new QueryClient({
+    queryCache: new QueryCache({
+      // G5: the servers are away and this screen has nothing saved to show instead.
+      onError: (error, query) => {
+        if (query.state.data === undefined && isUnavailable(error, onlineManager.isOnline())) {
+          reportSystemEvent({ type: 'unavailable' });
+        }
+      },
+    }),
     defaultOptions: {
       queries: { staleTime: 30_000, retry: shouldRetry },
       mutations: { retry: false },
