@@ -7,9 +7,10 @@ export type ButtonProps = {
   onPress: () => void;
   /**
    * `primary`: filled, the screen's main action. `secondary`: outlined.
-   * `accent`: gold, for the brand-ink screens. `link`: text only.
+   * `accent`: gold, for the brand-ink screens. `danger`: red, for deleting for good.
+   * `link`: text only.
    */
-  variant?: 'primary' | 'secondary' | 'accent' | 'link';
+  variant?: 'primary' | 'secondary' | 'accent' | 'danger' | 'link';
   disabled?: boolean;
   loading?: boolean;
 };
@@ -21,6 +22,7 @@ const LOOK = {
     label: 'font-sans-bold text-base text-primary',
   },
   accent: { box: 'h-button rounded-md bg-brand-gold', label: 'font-sans-extrabold text-base text-brand-ink' },
+  danger: { box: 'h-button rounded-md bg-icon-red', label: 'font-sans-bold text-base text-white' },
   link: { box: 'h-touch', label: 'font-sans-semibold text-[15px] text-link' },
 };
 

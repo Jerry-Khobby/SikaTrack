@@ -3,6 +3,8 @@ import { KeyboardAvoidingView, RefreshControl, ScrollView, View } from 'react-na
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IconButton, ThemedText, ThemedView } from '@/components/atoms';
+import { OfflineBanner } from '@/components/molecules';
+import { useOffline } from '@/hooks/use-offline';
 import { useTheme } from '@/hooks/use-theme';
 
 type DetailTemplateProps = {
@@ -16,6 +18,8 @@ type DetailTemplateProps = {
   gutter?: 'regular' | 'narrow';
   refreshing?: boolean;
   onRefresh?: () => void;
+  /** Pinned under the content, e.g. Save; stays above the keyboard. */
+  footer?: ReactNode;
 };
 
 /** An inner page: back arrow and title in a header row, scrolling content under it. */
@@ -27,12 +31,15 @@ export function DetailTemplate({
   gutter = 'regular',
   refreshing,
   onRefresh,
+  footer,
 }: DetailTemplateProps) {
   const theme = useTheme();
+  const offline = useOffline();
 
   return (
     <ThemedView className="flex-1 flex-row justify-center">
       <SafeAreaView className="max-w-content flex-1">
+        {offline && <OfflineBanner />}
         <View className="flex-row items-center gap-1 px-3 pb-2 pt-3">
           <IconButton icon="chevron-left" accessibilityLabel="Back" onPress={onBack} />
           <View className="flex-1">
@@ -55,6 +62,7 @@ export function DetailTemplate({
             }>
             {children}
           </ScrollView>
+          {footer && <View className={`gap-2 pb-4 pt-2 ${gutter === 'narrow' ? 'px-4' : 'px-5'}`}>{footer}</View>}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </ThemedView>

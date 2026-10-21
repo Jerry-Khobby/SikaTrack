@@ -68,8 +68,17 @@ const paths = {
   ),
   edit: <Path d="M4 20h4L19 9l-4-4L4 16z" />,
   plus: <Path d="M12 5v14M5 12h14" />,
+  minus: <Path d="M5 12h14" />,
   download: <Path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,
   trash: <Path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />,
+  'wifi-off': <Path d="M2 2l20 20M8.5 16.5a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 5.2-2.8M19 12.9a10 10 0 0 0-2.2-1.6M2 8.8a15 15 0 0 1 4.2-2.7M22 8.8A15 15 0 0 0 10.7 5M12 20h.01" />,
+  clock: (
+    <>
+      <Circle cx={12} cy={12} r={9} />
+      <Path d="M12 7v5l3 2" />
+    </>
+  ),
+  'cloud-off': <Path d="M2 2l20 20M5.8 8.2A5 5 0 0 0 7 18h10.2M20.4 16.6A4 4 0 0 0 17 10h-1.3A7 7 0 0 0 9.4 5.3" />,
   home: <Path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />,
   list: <Path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" />,
   dots: (
