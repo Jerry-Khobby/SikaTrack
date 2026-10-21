@@ -11,7 +11,7 @@ describe('routeForLink', () => {
     ['sikatrack://recurring', '/recurring'],
     ['sikatrack://recurring/rec_1', '/recurring/rec_1'],
     ['sikatrack://balances', '/wallets'],
-    ['sikatrack://sync', '/more'],
+    ['sikatrack://sync', '/sync'],
   ])('opens %s at %s', (link, route) => {
     expect(routeForLink(link)).toBe(route);
   });

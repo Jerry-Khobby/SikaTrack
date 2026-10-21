@@ -113,7 +113,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/onboarding/sms')}
           />
         )}
-        {syncText && <StatusStrip icon="sync" text={syncText} onPress={() => router.navigate('/more')} />}
+        {syncText && <StatusStrip icon="sync" text={syncText} onPress={() => router.push('/sync')} />}
         <SpendingHero summary={data} month={month} onPress={() => router.navigate('/spending')} />
 
         {empty ? (
@@ -121,7 +121,7 @@ export default function HomeScreen() {
             title="Nothing to show yet"
             message="Your payments appear here as soon as your MoMo SMS arrive. Pull down to check for new ones."
             actionLabel="Check sync status"
-            onAction={() => router.navigate('/more')}
+            onAction={() => router.push('/sync')}
           />
         ) : (
           <>

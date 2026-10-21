@@ -1,7 +1,6 @@
 /**
  * Turns the backend's `sikatrack://` links (docs/ui-spec.md §2, Deep links)
- * into app routes. Screens not built yet open their tab; point their row here
- * at the real screen when it exists (only S34 sync status is left).
+ * into app routes.
  */
 
 export type AppRoute =
@@ -16,7 +15,8 @@ export type AppRoute =
   | '/wallets'
   | '/recurring'
   | `/recurring/${string}`
-  | '/notifications';
+  | '/notifications'
+  | '/sync';
 
 const ROUTES: { pattern: RegExp; route: (match: RegExpMatchArray) => AppRoute }[] = [
   { pattern: /^summary$/, route: () => '/home' },
@@ -24,13 +24,12 @@ const ROUTES: { pattern: RegExp; route: (match: RegExpMatchArray) => AppRoute }[
   { pattern: /^transactions\/(.+)$/, route: (m) => `/transactions/${m[1]}` },
   { pattern: /^categories\/(.+)$/, route: (m) => `/categories/${m[1]}` },
   { pattern: /^fees$/, route: () => '/spending?view=fees' },
-  // S23 with one budget highlighted: the Budgets tab until it's built.
+  // A single budget opens the Budgets tab, which lists them all.
   { pattern: /^budgets(\/.+)?$/, route: () => '/budgets' },
   { pattern: /^recurring$/, route: () => '/recurring' },
   { pattern: /^recurring\/(.+)$/, route: (m) => `/recurring/${m[1]}` },
   { pattern: /^balances$/, route: () => '/wallets' },
-  // S34 sync status: the More tab until it's built.
-  { pattern: /^sync$/, route: () => '/more' },
+  { pattern: /^sync$/, route: () => '/sync' },
 ];
 
 /** The route a deep link opens, or null for a link the app doesn't know. */
