@@ -137,9 +137,12 @@ you add in onboarding.
 Still to wire in when the backend is ready:
 
 - **Access token:** sign-in has to call `setAccessToken` in `api/client.ts`.
-- **Account and config stand-ins:** `services/me.ts`, `services/auth.ts` and
+- **Sign-in and config stand-ins:** `services/auth.ts` (the code request and check) and
   `services/config.ts` still keep their data in memory. They need to move onto `api` like the
-  others. Wallets already go through `api` (`/v1/wallets`).
+  others. The account (`/v1/me`), sign-out and wallets already go through `api`.
+- **Phone-only parts:** reading SMS (first sync, **Sync now**), the SMS and notification
+  permission prompts, and checking whether Android allows notifications all need a development
+  build. Until then they answer "allowed" and "no new SMS".
 
 ## Running without a backend
 
@@ -183,3 +186,8 @@ To see the edge cases, start the app with one of these:
 | `EXPO_PUBLIC_FORCE_UPDATE=true npx expo start` | The update-required screen |
 | `EXPO_PUBLIC_EMPTY_INBOX=true npx expo start` | No MoMo SMS: an empty first sync, an empty month on Home, and no transactions |
 | `EXPO_PUBLIC_DEV_API_FAILURE=true npx expo start` | Every dev server request failing: the error states with **Try again** and a request ID |
+| `EXPO_PUBLIC_DEV_API_FAILURE=unavailable npx expo start` | The servers away (503): "SikaTrack is taking a break" |
+| `EXPO_PUBLIC_DEV_API_FAILURE=rate_limited npx expo start` | Too many requests: the "Slow down a little" toast |
+| `EXPO_PUBLIC_DEV_API_FAILURE=session_expired npx expo start` | The session gone: the "Please sign in again" dialog |
+| `EXPO_PUBLIC_DEV_API_FAILURE=update_required npx expo start` | The app too old for the server: the update-required screen |
+| Airplane mode | The "You're offline · showing saved data" banner over saved screens |
