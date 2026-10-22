@@ -9,7 +9,7 @@ import { AuthStepTemplate } from '@/components/templates';
 import { useAppConfig } from '@/hooks/use-app-config';
 import { useGoBack } from '@/hooks/use-go-back';
 import { useTheme } from '@/hooks/use-theme';
-import { OTP_LENGTH, RateLimitedError, requestOtp } from '@/services/auth';
+import { InvalidPhoneError, OTP_LENGTH, RateLimitedError, requestOtp } from '@/services/auth';
 import { findCountry, listCountries, type Country } from '@/utils/countries';
 import { examplePhoneNumber, formatPhoneInput, parsePhoneNumber } from '@/utils/phone';
 import { joinWithAnd } from '@/utils/text';
@@ -69,7 +69,9 @@ export default function PhoneScreen() {
       setError(
         e instanceof RateLimitedError
           ? `Too many codes. Try again in ${e.retryAfterMinutes} minutes.`
-          : "We couldn't send a code. Try again.",
+          : e instanceof InvalidPhoneError
+            ? `Enter a mobile number from ${country?.name ?? 'your country'}.`
+            : "We couldn't send a code. Try again.",
       );
     } finally {
       setSending(false);

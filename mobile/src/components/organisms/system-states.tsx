@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
-import { setAccessToken } from '@/api/client';
+import { clearSession } from '@/api/session';
 import { onSystemEvent } from '@/api/system-events';
 import { Toast } from '@/components/molecules';
 import { meQueryKey } from '@/hooks/use-me';
@@ -47,7 +47,7 @@ export function SystemStates({ onUpdateRequired, onCodeSent, onUseAnotherNumber 
               if (current) return current;
               // Keep the number for "We'll text a new code to …", then forget the account.
               const phoneNumber = client.getQueryData<Me>(meQueryKey)?.phoneNumber ?? null;
-              setAccessToken(null);
+              clearSession();
               client.clear();
               return { phoneNumber };
             });

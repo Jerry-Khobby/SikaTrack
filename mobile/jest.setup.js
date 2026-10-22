@@ -9,3 +9,17 @@ process.env.EXPO_PUBLIC_DEV_API_LATENCY_MS = '0';
 
 // Connection state comes from native code too.
 jest.mock('@react-native-community/netinfo', () => require('@react-native-community/netinfo/jest/netinfo-mock.js'));
+
+// The secure store (Android Keystore) as an in-memory map.
+jest.mock('expo-secure-store', () => {
+  const store = new Map();
+  return {
+    getItemAsync: jest.fn(async (key) => store.get(key) ?? null),
+    setItemAsync: jest.fn(async (key, value) => {
+      store.set(key, value);
+    }),
+    deleteItemAsync: jest.fn(async (key) => {
+      store.delete(key);
+    }),
+  };
+});

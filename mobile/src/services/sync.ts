@@ -1,5 +1,7 @@
 import { api } from '@/api/client';
+import { getDeviceId } from '@/api/session';
 import type { ApiSyncStatus } from '@/api/types';
+import { uuid } from '@/utils/uuid';
 
 export type SyncStatus = {
   pendingMessages: number;
@@ -48,8 +50,12 @@ export async function syncNow(status: Pick<SyncStatus, 'latestDateMs'>): Promise
   const since = status.latestDateMs ? Number(status.latestDateMs) - SYNC_OVERLAP_MS : 0;
   const messages = await readMomoSmsSince(since);
   if (messages.length === 0) return 0;
-  // The device id and the Idempotency-Key header come with the SMS reader in the development build.
-  await api.post('/v1/sms/batches', { source: 'incremental', messages });
+  // A new key per batch; a retry of the same batch would reuse it, so nothing is stored twice.
+  await api.post(
+    '/v1/sms/batches',
+    { device_id: await getDeviceId(), source: 'incremental', messages },
+    { 'Idempotency-Key': uuid() },
+  );
   return messages.length;
 }
 

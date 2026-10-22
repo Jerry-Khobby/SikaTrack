@@ -6,7 +6,7 @@ import { View } from 'react-native';
 import { Button, Icon, ThemedText } from '@/components/atoms';
 import { NumberedStep, TextField } from '@/components/molecules';
 import { DetailTemplate } from '@/components/templates';
-import { setAccessToken } from '@/api/client';
+import { clearSession } from '@/api/session';
 import { useGoBack } from '@/hooks/use-go-back';
 import { useTheme } from '@/hooks/use-theme';
 import { useDeleteAccount } from '@/hooks/queries';
@@ -29,7 +29,7 @@ export default function DeleteAccountScreen() {
     try {
       const until = await remove.mutateAsync();
       // Signed out on every phone: nothing of the account stays on this one.
-      setAccessToken(null);
+      clearSession();
       client.clear();
       router.replace({ pathname: '/account-deleted', params: { until } });
     } catch {
