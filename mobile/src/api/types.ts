@@ -39,11 +39,12 @@ export type ApiMe = {
   phone_number: string | null;
   display_name: string | null;
   created_at: string;
-  onboarding: { wallets_added: boolean; sms_permission: 'granted' | 'denied' | null; first_sync_done: boolean };
+  /** The server sets `wallets_added` and `first_sync_done` itself; `sms_permission` is `unknown` until asked. */
+  onboarding: { wallets_added: boolean; sms_permission: 'unknown' | 'granted' | 'denied'; first_sync_done: boolean };
   settings: {
     low_balance_threshold: Money;
     notify: ApiNotifySettings;
-    /** Not in the API contract yet; the app expects the account's currency here. */
+    /** The account's currency, e.g. `GHS`. */
     currency: string;
   };
   data: { first_transaction_at: string | null; last_transaction_at: string | null; transactions: number };
@@ -52,7 +53,8 @@ export type ApiMe = {
 /** `PATCH /v1/me` body: any subset. */
 export type ApiMePatch = {
   display_name?: string | null;
-  onboarding?: Partial<ApiMe['onboarding']>;
+  /** Only the SMS permission; the server sets the other onboarding flags itself. */
+  onboarding?: { sms_permission?: 'granted' | 'denied' };
   settings?: { low_balance_threshold?: Money; notify?: Partial<ApiNotifySettings> };
 };
 

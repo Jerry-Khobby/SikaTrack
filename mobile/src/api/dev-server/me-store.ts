@@ -19,7 +19,7 @@ function newAccount(phoneNumber: string | null): StoredMe {
     phone_number: phoneNumber,
     display_name: null,
     created_at: new Date().toISOString(),
-    onboarding: { wallets_added: false, sms_permission: null, first_sync_done: false },
+    onboarding: { wallets_added: false, sms_permission: 'unknown', first_sync_done: false },
     settings: {
       low_balance_threshold: LOW_BALANCE_THRESHOLD,
       notify: { budget: true, low_balance: true, recurring: true, weekly_digest: true, data_ready: false },
@@ -54,6 +54,11 @@ export function patchStoredMe(patch: ApiMePatch) {
     },
   };
   return storedMe();
+}
+
+/** What the server records by itself: a wallet was added, or the first scan was uploaded. */
+export function markOnboarding(step: 'wallets_added' | 'first_sync_done') {
+  me.onboarding = { ...me.onboarding, [step]: true };
 }
 
 /** `DELETE /v1/me`: schedules the deletion and returns when it happens. */

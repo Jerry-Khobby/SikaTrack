@@ -18,6 +18,12 @@ export type Query = Record<string, string | number | boolean | string[] | null |
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
 
+/** True while requests go to the in-app dev server (no EXPO_PUBLIC_API_URL). */
+export const usesDevServer = !BASE_URL;
+
+/** How long a request may take before it counts as no answer (G5 then shows, if nothing is saved). */
+const TIMEOUT_MS = 20_000;
+
 /** Bearer token for signed-in calls. Sign-in will set this once the auth API is wired in. */
 let accessToken: string | null = null;
 
@@ -57,9 +63,12 @@ async function send<T>(method: HttpMethod, path: string, options: { query?: Quer
   }
 
   let response: Response;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     response = await fetch(`${BASE_URL}${path}${toQueryString(options.query)}`, {
       method,
+      signal: controller.signal,
       headers: {
         Accept: 'application/json',
         ...(options.body !== undefined && { 'Content-Type': 'application/json' }),
@@ -68,7 +77,10 @@ async function send<T>(method: HttpMethod, path: string, options: { query?: Quer
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     });
   } catch {
+    // No connection, or no answer in time: either way there's nothing to show from the server.
     throw new ApiError({ status: 0, code: 'network_unavailable', title: "Can't reach SikaTrack" });
+  } finally {
+    clearTimeout(timer);
   }
 
   const requestId = response.headers.get('X-Request-ID') ?? undefined;

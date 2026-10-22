@@ -5,7 +5,7 @@
  * data-engineering/README.md). Start with EXPO_PUBLIC_EMPTY_INBOX=true to see a
  * phone with no MoMo SMS.
  */
-import { updateMe } from './me';
+import { api } from '@/api/client';
 
 export type ScanState = {
   status: 'idle' | 'running' | 'done';
@@ -66,7 +66,9 @@ export function startInitialScan() {
 
   const finish = () => {
     set({ ...state, status: 'done', found: total, parsed: inbox.parsed, ignored: inbox.ignored });
-    updateMe({ onboarding: { firstSyncDone: true } });
+    // The scan's last batch (here, an empty one: the stand-in has no real SMS to send). The
+    // server marks the first sync done when it takes an `initial_scan` upload.
+    api.post('/v1/sms/batches', { source: 'initial_scan', messages: [] }).catch(() => undefined);
   };
 
   set({ ...IDLE, status: 'running', total, firstTransactionAt: inbox.firstTransactionAt });

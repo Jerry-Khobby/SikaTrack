@@ -39,7 +39,7 @@ import {
   setCounterpartyChoice,
 } from './counterparty-store';
 import { getDataset as loadDataset } from './dataset';
-import { lowBalanceThreshold, patchStoredMe, scheduleStoredDeletion, storedMe } from './me-store';
+import { lowBalanceThreshold, markOnboarding, patchStoredMe, scheduleStoredDeletion, storedMe } from './me-store';
 import {
   addStoredWallet,
   allWallets,
@@ -337,6 +337,28 @@ const handlers: { method: string; pattern: RegExp; handle: (match: string[], que
     handle: async () => ({ deletion_scheduled_for: scheduleStoredDeletion() }),
   },
   {
+    method: 'POST',
+    pattern: /^\/v1\/sms\/batches$/,
+    handle: async (_, __, body) => {
+      const batch = (body ?? {}) as { source?: string; messages?: unknown[] };
+      // The first scan's upload completes the first sync, as on the backend.
+      if (batch.source === 'initial_scan') markOnboarding('first_sync_done');
+      const received = batch.messages?.length ?? 0;
+      return {
+        batch_id: `bat_dev_${Date.now().toString(36)}`,
+        received,
+        accepted: received,
+        duplicates: 0,
+        rejected_senders: 0,
+        parsed: received,
+        unparsed: 0,
+        ignored: 0,
+        provisional_transactions: received,
+        sync: { latest_date_ms: null, pipeline: 'scheduled' },
+      };
+    },
+  },
+  {
     method: 'GET',
     pattern: /^\/v1\/me\/export$/,
     handle: async () => ({ export_id: `exp_dev_${Date.now().toString(36)}` }),
@@ -603,6 +625,8 @@ const handlers: { method: string; pattern: RegExp; handle: (match: string[], que
     pattern: /^\/v1\/wallets$/,
     handle: async (_, __, body): Promise<ApiWallet> => {
       const wallet = await addStoredWallet(body as Parameters<typeof addStoredWallet>[0]);
+      // As the backend does: adding a wallet completes that onboarding step.
+      markOnboarding('wallets_added');
       return toApiWallet(wallet, (await getDataset()).transactions);
     },
   },

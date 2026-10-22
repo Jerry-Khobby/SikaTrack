@@ -1,4 +1,4 @@
-import { api } from '@/api/client';
+import { api, usesDevServer } from '@/api/client';
 import { startStoredSession } from '@/api/dev-server/me-store';
 import type { ApiMe, ApiMePatch, ApiNotifySettings } from '@/api/types';
 import { formatMoney } from '@/utils/format';
@@ -29,7 +29,8 @@ export type Me = {
 
 export type MePatch = {
   displayName?: string | null;
-  onboarding?: Partial<Me['onboarding']>;
+  /** The app only reports SMS access; adding a wallet and the first upload set the rest on the server. */
+  onboarding?: { smsPermission?: SmsPermission };
   settings?: { notify?: Partial<Me['settings']['notify']>; lowBalanceThreshold?: string };
 };
 
@@ -47,7 +48,8 @@ const toMe = (m: ApiMe): Me => ({
   displayName: m.display_name,
   createdAt: m.created_at,
   onboarding: {
-    smsPermission: m.onboarding.sms_permission,
+    // `unknown` means the app hasn't asked yet.
+    smsPermission: m.onboarding.sms_permission === 'unknown' ? null : m.onboarding.sms_permission,
     walletsAdded: m.onboarding.wallets_added,
     firstSyncDone: m.onboarding.first_sync_done,
   },
@@ -69,13 +71,7 @@ function toApiPatch(patch: MePatch): ApiMePatch {
   const notify = patch.settings?.notify;
   return {
     ...(patch.displayName !== undefined && { display_name: patch.displayName }),
-    ...(patch.onboarding && {
-      onboarding: {
-        ...(patch.onboarding.smsPermission !== undefined && { sms_permission: patch.onboarding.smsPermission }),
-        ...(patch.onboarding.walletsAdded !== undefined && { wallets_added: patch.onboarding.walletsAdded }),
-        ...(patch.onboarding.firstSyncDone !== undefined && { first_sync_done: patch.onboarding.firstSyncDone }),
-      },
-    }),
+    ...(patch.onboarding?.smsPermission && { onboarding: { sms_permission: patch.onboarding.smsPermission } }),
     ...(patch.settings && {
       settings: {
         ...(patch.settings.lowBalanceThreshold !== undefined && { low_balance_threshold: patch.settings.lowBalanceThreshold }),
@@ -94,7 +90,7 @@ function toApiPatch(patch: MePatch): ApiMePatch {
  * stand-in calls it. The real backend makes the account on sign-in itself.
  */
 export function startSession(phoneNumber: string | null) {
-  startStoredSession(phoneNumber);
+  if (usesDevServer) startStoredSession(phoneNumber);
 }
 
 /** `GET /v1/me` */

@@ -1,5 +1,7 @@
+import { api } from '@/api/client';
 import { getBalanceHistory, getBalances } from '@/services/balances';
 import { deleteAccount, getMe, startSession, updateMe } from '@/services/me';
+import { addWallet } from '@/services/wallets';
 import { resetDevServer } from '@/test-utils';
 
 import { ApiError } from '../errors';
@@ -49,6 +51,26 @@ describe('dev server: /v1/me', () => {
     const until = Date.parse(await deleteAccount());
     expect(until - now).toBeGreaterThan(6.9 * 24 * 3600 * 1000);
     expect(until - now).toBeLessThan(7.1 * 24 * 3600 * 1000);
+  });
+});
+
+describe('dev server: onboarding, as the backend records it', () => {
+  it('reports SMS access as not asked until the app says', async () => {
+    expect((await getMe()).onboarding.smsPermission).toBeNull();
+    await updateMe({ onboarding: { smsPermission: 'denied' } });
+    expect((await getMe()).onboarding.smsPermission).toBe('denied');
+  });
+
+  it('marks wallets added when a wallet is added, and the first sync done on the first upload', async () => {
+    expect((await getMe()).onboarding).toMatchObject({ walletsAdded: false, firstSyncDone: false });
+    await addWallet({ provider: 'mtn_momo', phoneNumber: '+233245550000', accountName: 'AMA SERWAA', label: null });
+    expect((await getMe()).onboarding.walletsAdded).toBe(true);
+    await api.post('/v1/sms/batches', { source: 'initial_scan', messages: [] });
+    expect((await getMe()).onboarding.firstSyncDone).toBe(true);
+  });
+
+  it('sends the account’s currency with its settings', async () => {
+    expect((await getMe()).settings.currency).toBe('GHS');
   });
 });
 

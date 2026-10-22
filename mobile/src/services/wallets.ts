@@ -1,4 +1,4 @@
-import { ApiError, api } from '@/api/client';
+import { ApiError, api, usesDevServer } from '@/api/client';
 import { resetWalletStore } from '@/api/dev-server/wallet-store';
 import type { ApiWallet } from '@/api/types';
 
@@ -47,7 +47,7 @@ function walletError(error: unknown) {
 
 /** Empties the dev server's wallets; the sign-in stand-in calls it for a fresh account. */
 export function resetWallets() {
-  resetWalletStore();
+  if (usesDevServer) resetWalletStore();
 }
 
 /** `GET /v1/wallets` */

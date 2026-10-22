@@ -7,7 +7,6 @@ import { WalletChooser, WalletSheet, type WalletFormValues } from '@/components/
 import { OnboardingStepTemplate } from '@/components/templates';
 import { useAppConfig } from '@/hooks/use-app-config';
 import { useMe } from '@/hooks/use-me';
-import { updateMe } from '@/services/me';
 import { ONBOARDING_STEP_COUNT } from '@/services/onboarding';
 import {
   UnsupportedProviderError,
@@ -30,7 +29,6 @@ export default function WalletsScreen() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
   const [sheet, setSheet] = useState<SheetState | null>(null);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     listWallets().then(setWallets);
@@ -58,12 +56,8 @@ export default function WalletsScreen() {
     setSheet(null);
   };
 
-  const proceed = async () => {
-    setSaving(true);
-    await updateMe({ onboarding: { walletsAdded: true } });
-    setSaving(false);
-    router.push('/onboarding/sync');
-  };
+  // Adding a wallet already marked this step done on the server.
+  const proceed = () => router.push('/onboarding/sync');
 
   return (
     <OnboardingStepTemplate
@@ -74,7 +68,6 @@ export default function WalletsScreen() {
           label="Continue"
           onPress={proceed}
           disabled={wallets.length === 0}
-          loading={saving}
         />
       }>
       <ThemedText type="title" accessibilityRole="header" className="mb-2 mt-7">
