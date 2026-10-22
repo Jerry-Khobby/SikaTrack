@@ -26,6 +26,7 @@ def test_me_has_defaults_for_a_new_user(api: TestClient, user: SignedIn) -> None
             "weekly_digest": True,
             "data_ready": False,
         },
+        "currency": "GHS",
     }
     assert body["onboarding"]["sms_permission"] == "unknown"
 

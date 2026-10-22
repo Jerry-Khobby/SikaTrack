@@ -20,6 +20,8 @@ class NotifySettings(BaseModel):
 class UserSettings(BaseModel):
     low_balance_threshold: Money = Decimal("5.00")
     notify: NotifySettings = NotifySettings()
+    # The account's currency, so the app formats money without guessing; Ghana only for now.
+    currency: Literal["GHS"] = "GHS"
 
 
 class Onboarding(BaseModel):

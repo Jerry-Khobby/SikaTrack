@@ -160,7 +160,8 @@ and the app gets `refresh_invalid`.
   "onboarding": {"wallets_added": true, "sms_permission": "granted", "first_sync_done": true},
   "settings": {
     "low_balance_threshold": "5.00",
-    "notify": {"budget": true, "low_balance": true, "recurring": true, "weekly_digest": true, "data_ready": false}
+    "notify": {"budget": true, "low_balance": true, "recurring": true, "weekly_digest": true, "data_ready": false},
+    "currency": "GHS"
   },
   "data": {"first_transaction_at": "2025-11-15T21:43:07Z", "last_transaction_at": "2026-10-03T20:14:01Z", "transactions": 1890}
 }
