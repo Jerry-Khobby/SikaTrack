@@ -50,6 +50,7 @@ def test_config_is_public_and_comes_from_the_pipeline(api: TestClient) -> None:
         "code": "mtn_momo", "name": "MTN MoMo", "senders": ["MobileMoney"], "supported": True,
     }  # fmt: skip
     assert providers["telecel_cash"]["supported"] is False
+    assert body["supported_countries"] == ["GH"]
     assert "max-age=3600" in response.headers["Cache-Control"]
 
 

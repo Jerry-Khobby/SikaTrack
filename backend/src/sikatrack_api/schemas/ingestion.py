@@ -27,6 +27,9 @@ class ConfigOut(BaseModel):
     providers: list[ProviderInfo]
     limits: ConfigLimits
     features: dict[str, bool]
+    supported_countries: list[str] = Field(
+        description="ISO 3166 codes whose phone numbers can sign in; the app's country picker offers these"
+    )
 
 
 # ---- wallets -------------------------------------------------------------------------

@@ -224,7 +224,8 @@ What the app needs before and after sign-in; cache for an hour.
     {"code": "telecel_cash", "name": "Telecel Cash", "senders": [], "supported": false}
   ],
   "limits": {"sms_batch_max_messages": 500, "sms_batch_max_bytes": 1048576},
-  "features": {"budgets": true, "export": false}
+  "features": {"budgets": true, "export": false},
+  "supported_countries": ["GH"]
 }
 ```
 `momo_senders` comes from the pipeline's `MOMO_SENDERS`, so adding a provider on the server
