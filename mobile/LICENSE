@@ -1,0 +1,17 @@
+Copyright (c) 2026 Jerry-Khobby. All rights reserved.
+
+This software and its source code, including the SikaTrack name, design and
+documentation, are proprietary and confidential. No part of it may be copied,
+modified, distributed, published, sublicensed or used to build another product
+without the prior written permission of the copyright holder.
+
+Third-party packages this app depends on keep their own licenses, which are
+listed in their folders under node_modules.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
