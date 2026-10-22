@@ -14,7 +14,7 @@ export function Toast({ icon, message }: ToastProps) {
     <View
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
-      className="flex-row items-center gap-2.5 rounded-[14px] bg-brand-ink px-4 py-3">
+      className="flex-row items-center gap-2.5 rounded-[14px] bg-hero px-4 py-3">
       <Icon name={icon} color={BrandColors.gold} size={18} />
       <Text className="flex-1 font-sans-semibold text-[14px] leading-[19px] text-brand-on-ink">{message}</Text>
     </View>

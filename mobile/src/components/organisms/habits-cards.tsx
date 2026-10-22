@@ -2,7 +2,7 @@ import { View } from 'react-native';
 
 import { BarChart, Card, Heatmap, HeatmapLegend, ThemedText } from '@/components/atoms';
 import { SectionHeader } from '@/components/molecules';
-import { DataColors } from '@/theme/colors';
+import { useDataColors } from '@/hooks/use-data-colors';
 import { formatTick } from '@/utils/chart-scale';
 
 export type HabitsHeatmapCardProps = {
@@ -18,6 +18,7 @@ export type HabitsHeatmapCardProps = {
 
 /** S17c's "When you spend": weekday by time of day, each cell shaded and labelled with its amount. */
 export function HabitsHeatmapCard({ weekdays, dayParts, amounts, lowLabel, highLabel, cellLabel }: HabitsHeatmapCardProps) {
+  const dataColors = useDataColors();
   return (
     <Card radius={22}>
       <SectionHeader title="When you spend" />
@@ -28,11 +29,11 @@ export function HabitsHeatmapCard({ weekdays, dayParts, amounts, lowLabel, highL
         rows={weekdays}
         columns={dayParts}
         values={amounts}
-        color={DataColors.moneyOut}
+        color={dataColors.moneyOut}
         formatValue={(value) => formatTick(Math.round(value))}
         cellLabel={cellLabel}
       />
-      <HeatmapLegend color={DataColors.moneyOut} low={lowLabel} high={highLabel} />
+      <HeatmapLegend color={dataColors.moneyOut} low={lowLabel} high={highLabel} />
     </Card>
   );
 }
@@ -52,6 +53,7 @@ const HOUR_LABELS = Array.from({ length: 24 }, (_, hour) => (hour % 6 === 0 ? `$
 
 /** S17c's "By hour": what was spent in each hour of the day, with a y-axis of amounts. */
 export function HourlyCard({ unit, amounts, selected, onSelect, readout, hourLabel }: HourlyCardProps) {
+  const dataColors = useDataColors();
   return (
     <Card radius={22}>
       <SectionHeader title="By hour" />
@@ -59,7 +61,7 @@ export function HourlyCard({ unit, amounts, selected, onSelect, readout, hourLab
         labels={HOUR_LABELS}
         unit={unit}
         height={110}
-        series={[{ key: 'out', color: DataColors.moneyOut, values: amounts }]}
+        series={[{ key: 'out', color: dataColors.moneyOut, values: amounts }]}
         selected={selected}
         onSelect={onSelect}
         groupLabel={hourLabel}

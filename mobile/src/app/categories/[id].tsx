@@ -11,6 +11,7 @@ import { useGoBack } from '@/hooks/use-go-back';
 import { useMe } from '@/hooks/use-me';
 import { useProviderNames } from '@/hooks/use-provider-names';
 import { useTheme } from '@/hooks/use-theme';
+import { useDataColors } from '@/hooks/use-data-colors';
 import {
   useBudgets,
   useCategories,
@@ -23,7 +24,6 @@ import {
 } from '@/hooks/queries';
 import type { CounterpartyKind } from '@/services/categories';
 import { DEFAULT_FILTERS, type TransactionFilters } from '@/services/transactions';
-import { DataColors } from '@/theme/colors';
 import { currentMonth, formatDateTime, formatMonthName, previousMonth } from '@/utils/dates';
 import { formatMoney, formatMoneyWhole, formatShare } from '@/utils/format';
 import { fromPesewas, toPesewas } from '@/utils/money';
@@ -45,6 +45,7 @@ export default function CategoryDetailScreen() {
   const router = useRouter();
   const goBack = useGoBack('/spending');
   const theme = useTheme();
+  const dataColors = useDataColors();
   const me = useMe();
   const providerNames = useProviderNames();
   const [editing, setEditing] = useState(false);
@@ -143,7 +144,7 @@ export default function CategoryDetailScreen() {
             labels={months.map((m) => periodAxisLabel(m, 'month'))}
             unit={currency}
             height={140}
-            series={[{ key: name, color: DataColors.moneyOut, values: history.amounts.map(Number) }]}
+            series={[{ key: name, color: dataColors.moneyOut, values: history.amounts.map(Number) }]}
             capLabels={history.amounts.map((a) => formatMoneyWhole(a, '').trim())}
             emphasis={months.length - 1}
             groupLabel={(i) => `${periodTitle(months[i], 'month')}: ${formatMoney(history.amounts[i], currency)}`}

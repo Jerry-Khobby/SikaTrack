@@ -16,7 +16,7 @@ export function HomeSkeleton() {
         </View>
         <Skeleton width={48} height={48} radius={24} />
       </View>
-      <View className="rounded-[22px] bg-brand-ink p-5">
+      <View className="rounded-[22px] bg-hero p-5">
         <Skeleton width={140} height={12} radius={6} color={BrandColors.inkSkeleton} />
         <View className="mt-3">
           <Skeleton width={220} height={38} radius={10} color={BrandColors.inkSkeleton} />

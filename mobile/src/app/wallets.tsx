@@ -18,6 +18,7 @@ import { useAppConfig } from '@/hooks/use-app-config';
 import { useGoBack } from '@/hooks/use-go-back';
 import { useMe } from '@/hooks/use-me';
 import { useProviderNames } from '@/hooks/use-provider-names';
+import { useDataColors } from '@/hooks/use-data-colors';
 import {
   useAddWallet,
   useBalanceHistory,
@@ -28,7 +29,6 @@ import {
 } from '@/hooks/queries';
 import { HISTORY_RANGES, type HistoryRange } from '@/services/balances';
 import { UnsupportedProviderError, WalletConflictError, getAccountNameSuggestions, type Wallet } from '@/services/wallets';
-import { DataColors } from '@/theme/colors';
 import { formatDateTime, formatDayMonth, formatWeekdayDate } from '@/utils/dates';
 import { formatMoney } from '@/utils/format';
 import { countryOfNumber, formatNationalNumber } from '@/utils/phone';
@@ -42,6 +42,7 @@ export default function WalletsScreen() {
   const me = useMe();
   const config = useAppConfig();
   const providerNames = useProviderNames();
+  const dataColors = useDataColors();
   const [range, setRange] = useState<HistoryRange>('1M');
   const [options, setOptions] = useState<Wallet | null>(null);
   const [sheet, setSheet] = useState<SheetState | null>(null);
@@ -114,7 +115,7 @@ export default function WalletsScreen() {
       key: series.walletId,
       label: wallet ? titleOf(wallet) : 'Removed wallet',
       // Colours go in order; past five wallets the rest share the neutral one.
-      color: DataColors.categories[index] ?? DataColors.categoryOther,
+      color: dataColors.categories[index] ?? dataColors.categoryOther,
       values: dates.map((date) => byDate.get(date) ?? null),
     };
   });

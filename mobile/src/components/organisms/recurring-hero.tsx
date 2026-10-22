@@ -9,7 +9,7 @@ export type RecurringHeroProps = {
 /** The ink card on top of S28: what the active recurring payments cost a month together. */
 export function RecurringHero({ monthly, active }: RecurringHeroProps) {
   return (
-    <View className="rounded-[22px] bg-brand-ink p-5">
+    <View className="rounded-[22px] bg-hero p-5">
       <Text className="font-sans-semibold text-[13px] leading-[18px] text-brand-on-ink-muted">Recurring payments</Text>
       <Text
         className="mt-1 font-sans-extrabold text-[30px] leading-[38px] text-brand-on-ink"

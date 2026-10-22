@@ -1,8 +1,8 @@
+import { useDataColors } from '@/hooks/use-data-colors';
 import { View } from 'react-native';
 
 import { BarChart, Card, ThemedText } from '@/components/atoms';
 import { ChangeBadge } from '@/components/molecules';
-import { DataColors } from '@/theme/colors';
 
 export type FeesCardProps = {
   /** E.g. `GHS 21.30`. */
@@ -22,6 +22,7 @@ export type FeesCardProps = {
 
 /** S17e's hero: the month's fees and tax, the change, and six months of fees with every bar labelled. */
 export function FeesCard({ total, change, unit, labels, amounts, capLabels, current, monthLabel }: FeesCardProps) {
+  const dataColors = useDataColors();
   return (
     <Card radius={22} className="p-[18px]" padded={false}>
       <ThemedText type="none" themeColor="textSecondary" className="font-sans-semibold text-[13px] leading-[18px]">
@@ -42,7 +43,7 @@ export function FeesCard({ total, change, unit, labels, amounts, capLabels, curr
           labels={labels}
           unit={unit}
           height={130}
-          series={[{ key: 'fees', color: DataColors.moneyOut, values: amounts }]}
+          series={[{ key: 'fees', color: dataColors.moneyOut, values: amounts }]}
           capLabels={capLabels}
           emphasis={current}
           groupLabel={monthLabel}

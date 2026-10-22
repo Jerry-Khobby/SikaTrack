@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { BarChart, Card, Icon, ThemedText } from '@/components/atoms';
 import { SegmentedControl } from '@/components/molecules';
 import { useTheme } from '@/hooks/use-theme';
-import { DataColors } from '@/theme/colors';
+import { useDataColors } from '@/hooks/use-data-colors';
 import type { Granularity } from '@/utils/periods';
 
 export type TrendCardProps = {
@@ -47,17 +47,18 @@ export function TrendCard({
   onSeeTransactions,
 }: TrendCardProps) {
   const theme = useTheme();
+  const dataColors = useDataColors();
 
   return (
     <Card radius={22}>
       <SegmentedControl options={OPTIONS} value={granularity} onChange={onGranularityChange} accessibilityLabel="Show by" />
       <View className="mb-2.5 mt-4 flex-row gap-[14px]">
         <View className="flex-row items-center gap-1.5">
-          <View className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: DataColors.moneyOut }} />
+          <View className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: dataColors.moneyOut }} />
           <ThemedText type="fine">Money out</ThemedText>
         </View>
         <View className="flex-row items-center gap-1.5">
-          <View className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: DataColors.moneyIn }} />
+          <View className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: dataColors.moneyIn }} />
           <ThemedText type="fine">Money in</ThemedText>
         </View>
       </View>
@@ -66,8 +67,8 @@ export function TrendCard({
         unit={unit}
         height={180}
         series={[
-          { key: 'out', color: DataColors.moneyOut, values: moneyOut },
-          { key: 'in', color: DataColors.moneyIn, values: moneyIn },
+          { key: 'out', color: dataColors.moneyOut, values: moneyOut },
+          { key: 'in', color: dataColors.moneyIn, values: moneyIn },
         ]}
         selected={selected}
         onSelect={onSelect}

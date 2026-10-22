@@ -29,7 +29,7 @@ export function SpendingHero({ summary, month, onPress }: SpendingHeroProps) {
       accessibilityRole={onPress && !empty ? 'button' : undefined}
       disabled={!onPress || empty}
       onPress={onPress}
-      className="rounded-[22px] bg-brand-ink p-5 active:opacity-[0.92]">
+      className="rounded-[22px] bg-hero p-5 active:opacity-[0.92]">
       <Text className="font-sans-semibold text-[13px] leading-[18px] text-brand-on-ink-muted">Money out this month</Text>
       {empty ? (
         <Text className="mt-1.5 font-sans-extrabold text-[24px] leading-[30px] text-brand-on-ink">

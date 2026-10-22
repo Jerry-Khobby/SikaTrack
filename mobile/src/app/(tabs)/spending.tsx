@@ -28,6 +28,7 @@ import {
 import { TabScreenTemplate } from '@/components/templates';
 import { requestIdOf } from '@/api/query-client';
 import { useMe } from '@/hooks/use-me';
+import { useDataColors } from '@/hooks/use-data-colors';
 import {
   useCategorySpending,
   useFeePayments,
@@ -39,7 +40,6 @@ import {
 } from '@/hooks/queries';
 import { COUNTERPARTY_KIND_LABELS } from '@/services/counterparties';
 import type { DayPart } from '@/services/summary';
-import { DataColors } from '@/theme/colors';
 import { formatTick } from '@/utils/chart-scale';
 import { currentMonth, formatDayMonth, formatMonthName } from '@/utils/dates';
 import { formatChange, formatMoney, formatMoneyWhole, formatShare, formatShortMonth } from '@/utils/format';
@@ -148,6 +148,7 @@ function CategoriesView({ month, currency }: ViewProps) {
   const router = useRouter();
   const [group, setGroup] = useState<'spending' | 'money_in'>('spending');
   const spending = useCategorySpending(month, group);
+  const dataColors = useDataColors();
 
   if (spending.isError) {
     return <ErrorState title="We couldn't load your categories" requestId={requestIdOf(spending.error)} onRetry={() => spending.refetch()} />;
@@ -158,7 +159,7 @@ function CategoriesView({ month, currency }: ViewProps) {
   const payments = items.reduce((n, item) => n + item.transactions, 0);
   const word = group === 'spending' ? 'spending' : 'money in';
   // The top five keep their colours; everything after shares the neutral one as Other.
-  const colorOf = (index: number) => DataColors.categories[index] ?? DataColors.categoryOther;
+  const colorOf = (index: number) => dataColors.categories[index] ?? dataColors.categoryOther;
   const top = items.slice(0, 5);
   const rest = items.slice(5);
   const other = sumMoney(rest.map((item) => item.amount));
@@ -176,7 +177,7 @@ function CategoriesView({ month, currency }: ViewProps) {
           {
             key: 'other',
             name: `Other (${rest.length})`,
-            color: DataColors.categoryOther,
+            color: dataColors.categoryOther,
             value: toPesewas(other),
             share: formatShare(String(rest.reduce((sum, item) => sum + Number(item.share), 0))),
             amount: formatMoneyWhole(other, currency),
@@ -399,6 +400,7 @@ function PeopleView({ month, currency }: ViewProps) {
   const router = useRouter();
   const [direction, setDirection] = useState<'out' | 'in'>('out');
   const top = useTopCounterparties(month, direction);
+  const dataColors = useDataColors();
   const moneyIn = direction === 'in';
 
   const toggle = (
@@ -438,7 +440,7 @@ function PeopleView({ month, currency }: ViewProps) {
             moneyIn={moneyIn}
             detail={`${COUNTERPARTY_KIND_LABELS[item.counterparty.kind]} · ${plural(item.transactions, 'payment')}`}
             barFraction={largest ? toPesewas(item.amount) / largest : 0}
-            barColor={moneyIn ? DataColors.moneyIn : DataColors.moneyOut}
+            barColor={moneyIn ? dataColors.moneyIn : dataColors.moneyOut}
             onPress={() => router.push(`/counterparties/${item.counterparty.id}`)}
             divider={index < top.data.length - 1}
           />
@@ -493,7 +495,7 @@ function FeesView({ month, currency }: ViewProps) {
         current={current}
         monthLabel={(i) => `${periodTitle(points[i].period, 'month')}: ${formatMoney(points[i].fees, currency)} in fees and tax`}
       />
-      {feeInsight && <InsightCard severity={feeInsight.severity} title={feeInsight.title} body={feeInsight.body} />}
+      {feeInsight && <InsightCard fill severity={feeInsight.severity} title={feeInsight.title} body={feeInsight.body} />}
       <ThemedText type="none" accessibilityRole="header" className="ml-1 mt-2 font-sans-extrabold text-[16px] leading-[22px]">
         Payments with a fee
       </ThemedText>
@@ -507,7 +509,8 @@ function FeesView({ month, currency }: ViewProps) {
               categoryId={t.category.id}
               kind={t.counterparty.kind}
               name={t.counterparty.name}
-              detail={`${t.category.name} · ${formatDayMonth(t.occurredAt)} · ${formatMoney(t.amount, currency)}`}
+              detail={`${t.category.name} · ${formatDayMonth(t.occurredAt)}`}
+              amount={`${formatMoney(t.amount, currency)} payment`}
               fee={formatMoney(costOf(t.fee, t.tax), currency)}
               onPress={() => router.push(`/transactions/${t.id}`)}
               divider={index < payments.data.length - 1}

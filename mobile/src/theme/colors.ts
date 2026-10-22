@@ -49,6 +49,8 @@ export const Colors = {
     statusWarning: '#eda100',
     statusBad: '#d03b3b',
     overlay: 'rgba(27, 38, 49, 0.5)',
+    /** The ink hero cards (Home's money out, the Budgets summary). */
+    hero: '#1B2631',
   },
   dark: {
     text: '#F2F1EC',
@@ -94,6 +96,8 @@ export const Colors = {
     statusWarning: '#F0B429',
     statusBad: '#E06565',
     overlay: 'rgba(0, 0, 0, 0.6)',
+    /** Lifted off the dark cards, so the hero still stands out in dark mode. */
+    hero: '#2A3846',
   },
 } as const;
 
@@ -127,7 +131,18 @@ export const ProviderBrands: Record<string, { background: string; text: string; 
   ghanapay: { background: '#0B5D4B', text: '#FFFFFF', short: 'GP' },
 };
 
-/** Light-theme values from the spec. Each still needs a dark-theme twin with the same meaning. */
+export type DataPalette = {
+  moneyOut: string;
+  moneyIn: string;
+  reference: string;
+  good: string;
+  bad: string;
+  warning: string;
+  categories: readonly string[];
+  categoryOther: string;
+};
+
+/** Light-theme chart colours from the spec. Screens read them through useDataColors(). */
 export const DataColors = {
   moneyOut: '#2a78d6',
   moneyIn: '#eb6834',
@@ -138,3 +153,19 @@ export const DataColors = {
   categories: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4'],
   categoryOther: '#b9b8b2',
 } as const;
+
+/**
+ * The dark-theme twins: the same hues, with orange, yellow and pink darkened until
+ * the set passes the palette checks (lightness, colour-blind separation, contrast)
+ * on the dark card colour, #1B2631.
+ */
+export const DataColorsDark: DataPalette = {
+  moneyOut: '#2a78d6',
+  moneyIn: '#d55a26',
+  reference: '#F2F1EC',
+  good: '#3CC23C',
+  bad: '#E06565',
+  warning: '#c08600',
+  categories: ['#2a78d6', '#d55a26', '#1baf7a', '#c08600', '#cf5f93'],
+  categoryOther: '#8a8983',
+};

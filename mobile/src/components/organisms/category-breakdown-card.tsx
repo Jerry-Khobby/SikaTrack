@@ -2,6 +2,7 @@ import { View } from 'react-native';
 
 import { Card, DonutChart, ThemedText } from '@/components/atoms';
 import { LegendRow, SectionHeader } from '@/components/molecules';
+import { useDataColors } from '@/hooks/use-data-colors';
 import { DataColors } from '@/theme';
 import type { CategorySpending } from '@/services/summary';
 import { formatMoney, formatMoneyWhole, formatShare } from '@/utils/format';
@@ -19,11 +20,12 @@ const TOP_IN_LIST = 3;
 
 /** A donut of the top five categories plus Other, and the top three as rows. */
 export function CategoryBreakdownCard({ spending, currency, onPressCategory, onSeeAll }: CategoryBreakdownCardProps) {
+  const dataColors = useDataColors();
   const top = spending.items.slice(0, TOP_IN_CHART);
   const rest = toPesewas(spending.total) - top.reduce((sum, item) => sum + toPesewas(item.amount), 0);
   const segments = [
-    ...top.map((item, index) => ({ value: toPesewas(item.amount), color: DataColors.categories[index] })),
-    ...(rest > 0 ? [{ value: rest, color: DataColors.categoryOther }] : []),
+    ...top.map((item, index) => ({ value: toPesewas(item.amount), color: dataColors.categories[index] })),
+    ...(rest > 0 ? [{ value: rest, color: dataColors.categoryOther }] : []),
   ];
   const restShare = toPesewas(spending.total) ? rest / toPesewas(spending.total) : 0;
   const description = [
@@ -50,7 +52,7 @@ export function CategoryBreakdownCard({ spending, currency, onPressCategory, onS
           {top.slice(0, TOP_IN_LIST).map((item, index) => (
             <LegendRow
               key={item.category.id}
-              color={DataColors.categories[index]}
+              color={dataColors.categories[index]}
               title={item.category.name}
               detail={`${formatMoney(item.amount, currency)} · ${formatShare(item.share)}`}
               onPress={() => onPressCategory(item.category.id)}
