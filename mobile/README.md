@@ -122,27 +122,52 @@ page (src/app) → hook (hooks/queries.ts) → service (services/*.ts) → api.g
 
 ### Connecting the real backend
 
-Set the API's address and start the app:
+With `EXPO_PUBLIC_API_URL` set, every request goes to the backend in [../backend](../backend):
 
-```bash
-EXPO_PUBLIC_API_URL=https://api.sikatrack.app npx expo start
-```
+- **Sign-in:** `/v1/auth/otp/*`, with this phone's device id.
+- **Tokens:** kept in the phone's secure store, refreshed automatically when they expire, and
+  dropped on sign-out.
+- **Config:** `GET /v1/config`.
+- **Launch:** checks the app version, then resumes a saved session at Home or at the onboarding
+  step not done yet.
 
-Every Home, Transactions, transaction detail and inbox request then goes to the backend.
-Nothing else changes. Without `EXPO_PUBLIC_API_URL`, requests go to the in-app dev server in
-[src/api/dev-server/](src/api/dev-server/). It answers with the same JSON, worked out from
-about five months of sample transactions that are dated relative to today and use the wallets
-you add in onboarding.
+Without `EXPO_PUBLIC_API_URL`, requests go to the in-app dev server in
+[src/api/dev-server/](src/api/dev-server/), which answers with the same JSON (see
+[Running without a backend](#running-without-a-backend)).
 
-Still to wire in when the backend is ready:
+**Run it against your local backend:**
 
-- **Access token:** sign-in has to call `setAccessToken` in `api/client.ts`.
-- **Sign-in and config stand-ins:** `services/auth.ts` (the code request and check) and
-  `services/config.ts` still keep their data in memory. They need to move onto `api` like the
-  others. The account (`/v1/me`), sign-out and wallets already go through `api`.
-- **Phone-only parts:** reading SMS (first sync, **Sync now**), the SMS and notification
-  permission prompts, and checking whether Android allows notifications all need a development
-  build. Until then they answer "allowed" and "no new SMS".
+1. Start the stack (`docker compose up -d` in `data-engineering/`, then in `backend/`, as its
+   README says). The API listens on `127.0.0.1:8000` on your laptop.
+2. Let the phone reach that address. The API is bound to the laptop only, so the simplest way
+   is a USB cable with USB debugging on, then:
+
+   ```bash
+   adb reverse tcp:8000 tcp:8000
+   ```
+
+   The phone's `localhost:8000` now reaches the laptop. On the Android emulator, use
+   `http://10.0.2.2:8000` instead and skip this step.
+3. Start the app pointed at it:
+
+   ```bash
+   EXPO_PUBLIC_API_URL=http://localhost:8000 npx expo start
+   ```
+
+4. Sign in with your number. In development the backend doesn't send an SMS: it prints the code
+   in its log (`docker compose logs -f api` in `backend/`, look for `[DEV ONLY] sign-in code`).
+5. To see your existing MoMo history, link it to the new account (backend README, "Link your
+   existing data to your account") before uploading any SMS from the app.
+
+**What still needs a development build** (Expo Go can't do these):
+
+- **Reading SMS:** the first sync and **Sync now** find no SMS in Expo Go. The backend only
+  marks the first sync done after a real upload, so each sign-in resumes at the first-sync step;
+  **Continue in the background** moves on.
+- **Push notifications:** `PUT /v1/devices/{id}` with the push token needs `expo-notifications`.
+- **Permission prompts:** the SMS and notification prompts, and checking whether Android allows
+  notifications, answer "allowed" until then.
+
 - **Coming-soon features have real screens:**
   - **Export my data** explains the export. Its button turns on when `GET /v1/config` sends
     `features.export: true`.
