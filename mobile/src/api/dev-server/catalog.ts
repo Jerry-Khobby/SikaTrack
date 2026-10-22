@@ -3,7 +3,7 @@
  * `dw.dim_category`, and the people and shops a MoMo user in Accra typically pays.
  * None of this reaches a screen except through an API response.
  */
-import type { ApiCategoryRef, CounterpartyKind, TransactionType } from '../types';
+import type { ApiConfig, ApiCategoryRef, CounterpartyKind, TransactionType } from '../types';
 
 export const CATEGORIES: (ApiCategoryRef & { user_selectable: boolean })[] = [
   { id: 'food', name: 'Food', group: 'spending', user_selectable: true },
@@ -197,3 +197,17 @@ export const BUDGETS = [
 ];
 
 export const LOW_BALANCE_THRESHOLD = '5.00';
+
+/** What `GET /v1/config` answers on the dev server, in the backend's shape. */
+export const DEV_CONFIG: ApiConfig = {
+  min_app_version: '1.0.0',
+  momo_senders: ['MobileMoney', 'GhanaPay'],
+  providers: [
+    { code: 'mtn_momo', name: 'MTN MoMo', senders: ['MobileMoney'], supported: true },
+    { code: 'ghanapay', name: 'GhanaPay', senders: ['GhanaPay'], supported: true },
+    { code: 'telecel_cash', name: 'Telecel Cash', senders: [], supported: false },
+  ],
+  supported_countries: ['GH'],
+  limits: { sms_batch_max_messages: 500, sms_batch_max_bytes: 1_000_000 },
+  features: { budgets: true, export: false },
+};

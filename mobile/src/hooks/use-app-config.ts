@@ -8,11 +8,14 @@ export function useAppConfig() {
 
   useEffect(() => {
     let active = true;
-    getAppConfig().then((next) => {
-      if (active) {
-        setConfig(next);
-      }
-    });
+    getAppConfig()
+      .then((next) => {
+        if (active) {
+          setConfig(next);
+        }
+      })
+      // Offline or the server away: screens keep working without it, and the next one retries.
+      .catch(() => undefined);
     return () => {
       active = false;
     };

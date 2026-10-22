@@ -3,9 +3,8 @@
  * transactions are spread over these, so adding, renaming or removing one
  * changes Home, the balances and the transaction list together.
  */
-import { getAppConfig } from '@/services/config';
-
 import { ApiError } from '../errors';
+import { DEV_CONFIG } from './catalog';
 
 export type StoredWallet = {
   id: string;
@@ -48,8 +47,7 @@ export function restoreSampleWallets() {
 }
 
 export async function addStoredWallet(input: { provider: string; phone_number: string; account_name: string; label: string | null }) {
-  const { providers } = await getAppConfig();
-  if (!providers.some((provider) => provider.code === input.provider && provider.supported)) {
+  if (!DEV_CONFIG.providers.some((provider) => provider.code === input.provider && provider.supported)) {
     throw new ApiError({ status: 422, code: 'unsupported_provider', title: "We don't support this provider yet" });
   }
   if (wallets.some((w) => w.provider === input.provider && w.phoneNumber === input.phone_number)) {

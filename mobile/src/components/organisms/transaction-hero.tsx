@@ -9,7 +9,8 @@ import { formatDirectedMoney } from '@/utils/format';
 export type TransactionHeroProps = {
   transaction: TransactionDetail;
   providerName: string;
-  onPressCounterparty: () => void;
+  /** Left out when the SMS names nobody, so there's no page to open. */
+  onPressCounterparty?: () => void;
 };
 
 /** S15's top: the amount, who it was with, when, which wallet, and its status. */
@@ -29,8 +30,9 @@ export function TransactionHero({ transaction: t, providerName, onPressCounterpa
         {amount}
       </Text>
       <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${t.counterparty.name}, see their payments`}
+        accessibilityRole={onPressCounterparty ? 'button' : undefined}
+        accessibilityLabel={onPressCounterparty ? `${t.counterparty.name}, see their payments` : t.counterparty.name}
+        disabled={!onPressCounterparty}
         onPress={onPressCounterparty}
         className="mt-2.5 max-w-full flex-row items-center gap-2 rounded-[20px] bg-surface py-1.5 pl-1.5 pr-[14px] active:opacity-70">
         <View className="h-7 w-7 items-center justify-center rounded-[14px] bg-avatar">

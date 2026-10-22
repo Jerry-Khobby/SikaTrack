@@ -14,7 +14,8 @@ export type CounterpartyDetail = {
   defaultCategory: string | null;
   moneyOut: string;
   transactions: number;
-  lastSeenAt: string;
+  /** null if they've never been paid in the data. */
+  lastSeenAt: string | null;
 };
 
 export type CounterpartyChanges = { alias?: string | null; defaultCategory?: string | null };
@@ -44,7 +45,7 @@ const toDetail = (c: ApiCounterparty): CounterpartyDetail => ({
   originalName: c.original_name,
   alias: c.alias,
   kind: c.kind,
-  defaultCategory: c.default_category,
+  defaultCategory: c.default_category?.id ?? null,
   moneyOut: c.money_out,
   transactions: c.transactions,
   lastSeenAt: c.last_seen_at,

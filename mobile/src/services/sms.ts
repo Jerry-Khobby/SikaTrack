@@ -5,7 +5,7 @@
  * data-engineering/README.md). Start with EXPO_PUBLIC_EMPTY_INBOX=true to see a
  * phone with no MoMo SMS.
  */
-import { api } from '@/api/client';
+import { api, usesDevServer } from '@/api/client';
 
 export type ScanState = {
   status: 'idle' | 'running' | 'done';
@@ -58,17 +58,19 @@ export function subscribeToScan(listener: () => void) {
 export function startInitialScan() {
   if (state.status !== 'idle') return;
 
+  // Against a real backend there's no SMS to show yet: reading them needs a development build.
   const inbox =
-    process.env.EXPO_PUBLIC_EMPTY_INBOX === 'true'
+    !usesDevServer || process.env.EXPO_PUBLIC_EMPTY_INBOX === 'true'
       ? { parsed: 0, ignored: 0, firstTransactionAt: null }
       : DEV_INBOX;
   const total = inbox.parsed + inbox.ignored;
 
   const finish = () => {
     set({ ...state, status: 'done', found: total, parsed: inbox.parsed, ignored: inbox.ignored });
-    // The scan's last batch (here, an empty one: the stand-in has no real SMS to send). The
-    // server marks the first sync done when it takes an `initial_scan` upload.
-    api.post('/v1/sms/batches', { source: 'initial_scan', messages: [] }).catch(() => undefined);
+    // The dev server marks the first sync done on an `initial_scan` upload, as the backend does.
+    // The stand-in has no real SMS, so it sends an empty one; the real backend needs at least one
+    // message, which the SMS reader in a development build will send.
+    if (usesDevServer) api.post('/v1/sms/batches', { source: 'initial_scan', messages: [] }).catch(() => undefined);
   };
 
   set({ ...IDLE, status: 'running', total, firstTransactionAt: inbox.firstTransactionAt });

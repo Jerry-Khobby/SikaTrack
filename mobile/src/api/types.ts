@@ -33,6 +33,17 @@ export type ApiNotifySettings = {
   data_ready: boolean;
 };
 
+/** `GET /v1/config` */
+export type ApiConfig = {
+  min_app_version: string;
+  momo_senders: string[];
+  providers: { code: string; name: string; senders: string[]; supported: boolean }[];
+  /** ISO 3166 codes whose numbers can sign in, e.g. `GH`. */
+  supported_countries: string[];
+  limits: { sms_batch_max_messages: number; sms_batch_max_bytes: number };
+  features: Record<string, boolean>;
+};
+
 /** `GET /v1/me` */
 export type ApiMe = {
   id: string;
@@ -109,9 +120,10 @@ export type DayPart = 'morning' | 'afternoon' | 'evening' | 'night';
 export type ApiHabits = {
   grid: { weekday: number; day_part: DayPart; amount: Money }[];
   by_hour: { hour: number; amount: Money }[];
-  peak: { weekday: number; day_part: DayPart } | null;
-  weekend_share: string;
-  median_payment: Money;
+  /** Both null when there's no spending in the period. */
+  peak: { weekday: number | null; day_part: DayPart | null };
+  weekend_share: string | null;
+  median_payment: Money | null;
 };
 
 /** One item of `GET /v1/counterparties`, and `GET /v1/counterparties/{id}`. */
@@ -121,21 +133,21 @@ export type ApiCounterparty = {
   original_name: string;
   alias: string | null;
   kind: CounterpartyKind;
-  default_category: string | null;
+  default_category: ApiCategoryRef | null;
   money_out: Money;
   transactions: number;
-  last_seen_at: string;
+  last_seen_at: string | null;
 };
 
 /** `GET /v1/balances` */
 export type ApiBalances = {
   total: Money;
-  items: { wallet_id: string; provider: string; balance: Money; as_of: string }[];
+  items: { wallet_id: string | null; provider: string; balance: Money; as_of: string }[];
 };
 
 /** `GET /v1/balances/history`: end-of-day balance per wallet, carried forward on days with no SMS. */
 export type ApiBalanceHistory = {
-  items: { date: string; wallet_id: string; balance: Money }[];
+  items: { date: string; wallet_id: string | null; balance: Money }[];
   days_below_threshold: number;
   threshold: Money;
 };
@@ -145,7 +157,7 @@ export type ApiWallet = {
   id: string;
   provider: string;
   phone_number: string;
-  account_name: string;
+  account_name: string | null;
   label: string | null;
   latest_balance: Money | null;
   balance_as_of: string | null;
@@ -171,8 +183,8 @@ export type ApiRecurringList = {
 export type ApiRecurringItem = {
   id: string;
   label: string;
-  counterparty: ApiCounterpartyRef;
-  category: ApiCategoryRef;
+  counterparty: ApiCounterpartyRef | null;
+  category: ApiCategoryRef | null;
   rhythm: string;
   interval_days: number;
   typical_amount: Money;
@@ -217,9 +229,10 @@ export type ApiTransaction = {
   id: string;
   status: 'final' | 'provisional';
   occurred_at: string;
-  provider: string;
+  /** null for the few SMS whose provider couldn't be told. */
+  provider: string | null;
   wallet_id: string | null;
-  type: TransactionType;
+  type: TransactionType | null;
   direction: 'in' | 'out';
   amount: Money;
   fee: Money;
@@ -227,9 +240,11 @@ export type ApiTransaction = {
   total_cost: Money;
   balance_after: Money | null;
   currency: string;
-  category: ApiCategoryRef;
+  /** null until the pipeline has categorised it. */
+  category: ApiCategoryRef | null;
   category_source: 'rule' | 'user' | 'counterparty_default';
-  counterparty: ApiCounterpartyRef;
+  /** null when the SMS names nobody (e.g. some fees). */
+  counterparty: ApiCounterpartyRef | null;
   reference: string | null;
   note: string | null;
   is_own_transfer: boolean;
@@ -239,7 +254,7 @@ export type ApiTransaction = {
 
 /** `GET /v1/transactions/{id}` */
 export type ApiTransactionDetail = ApiTransaction & {
-  sms_text: string;
+  sms_text: string | null;
   sms_count: number;
   category_explanation: string | null;
   provider_txn_id: string | null;

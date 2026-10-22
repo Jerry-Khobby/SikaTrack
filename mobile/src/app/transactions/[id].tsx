@@ -113,7 +113,7 @@ export default function TransactionDetailScreen() {
   const recurringRoute = t.recurringId ? routeForLink(`sikatrack://recurring/${t.recurringId}`) : null;
   const totalCost = fromPesewas(toPesewas(t.amount) + toPesewas(t.totalCost));
   const details: { label: string; value: string }[] = [
-    { label: 'Type', value: TYPE_LABELS[t.type] ?? t.type },
+    { label: 'Type', value: t.type ? (TYPE_LABELS[t.type] ?? t.type) : 'Unknown' },
     { label: 'Fee', value: formatMoney(t.fee, t.currency) },
     { label: 'Tax', value: formatMoney(t.tax, t.currency) },
     ...(t.direction === 'out' ? [{ label: 'Total cost', value: formatMoney(totalCost, t.currency) }] : []),
@@ -126,7 +126,8 @@ export default function TransactionDetailScreen() {
       <TransactionHero
         transaction={t}
         providerName={providerName}
-        onPressCounterparty={() => router.push(`/counterparties/${t.counterparty.id}`)}
+        // A counterparty the SMS didn't name has no page.
+        onPressCounterparty={t.counterparty.id ? () => router.push(`/counterparties/${t.counterparty.id}`) : undefined}
       />
 
       <TransactionCategoryCard
@@ -193,7 +194,9 @@ export default function TransactionDetailScreen() {
       />
 
       <View className="mt-1">
-        <Button variant="link" label={`See all payments to ${t.counterparty.name}`} onPress={seeAllPayments} />
+        {t.counterparty.id !== '' && (
+          <Button variant="link" label={`See all payments to ${t.counterparty.name}`} onPress={seeAllPayments} />
+        )}
       </View>
 
       {picking && (

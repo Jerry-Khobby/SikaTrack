@@ -46,9 +46,11 @@ export async function getBalances(): Promise<Balances> {
     total: balances.total,
     currency: me.settings.currency,
     wallets: balances.items.map((item) => {
-      const wallet = wallets.find((w) => w.id === item.wallet_id);
+      // A balance from an SMS not matched to a wallet yet is keyed by its provider.
+      const id = item.wallet_id ?? item.provider;
+      const wallet = wallets.find((w) => w.id === id);
       return {
-        id: item.wallet_id,
+        id,
         provider: item.provider,
         label: wallet?.label ?? null,
         phoneNumber: wallet?.phoneNumber ?? '',
@@ -83,7 +85,8 @@ export async function getBalanceHistory(range: HistoryRange, now = Date.now()): 
   const response = await api.get<ApiBalanceHistory>('/v1/balances/history', { from, to });
   const byWallet = new Map<string, { date: string; balance: string }[]>();
   for (const item of response.items) {
-    byWallet.set(item.wallet_id, [...(byWallet.get(item.wallet_id) ?? []), { date: item.date, balance: item.balance }]);
+    const key = item.wallet_id ?? 'unmatched';
+    byWallet.set(key, [...(byWallet.get(key) ?? []), { date: item.date, balance: item.balance }]);
   }
   return {
     from,

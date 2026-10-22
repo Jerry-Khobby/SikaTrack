@@ -12,9 +12,11 @@ export type Transaction = {
   /** `provisional` until the pipeline has checked it; lists show a "Processing" pill. */
   status: 'final' | 'provisional';
   occurredAt: string;
+  /** '' when the SMS's provider couldn't be told. */
   provider: string;
   walletId: string | null;
-  type: TransactionType;
+  /** null when the pipeline couldn't tell what kind of payment it was. */
+  type: TransactionType | null;
   direction: 'in' | 'out';
   amount: string;
   fee: string;
@@ -73,7 +75,7 @@ export function toTransaction(t: ApiTransaction): Transaction {
     id: t.id,
     status: t.status,
     occurredAt: t.occurred_at,
-    provider: t.provider,
+    provider: t.provider ?? '',
     walletId: t.wallet_id,
     type: t.type,
     direction: t.direction,
@@ -97,7 +99,7 @@ export function toTransaction(t: ApiTransaction): Transaction {
 function toTransactionDetail(t: ApiTransactionDetail): TransactionDetail {
   return {
     ...toTransaction(t),
-    smsText: t.sms_text,
+    smsText: t.sms_text ?? '',
     smsCount: t.sms_count,
     categoryExplanation: t.category_explanation,
     providerTxnId: t.provider_txn_id,

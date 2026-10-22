@@ -6,7 +6,20 @@
  */
 import { fromPesewas } from '@/utils/money';
 
-import type { ApiTransactionDetail, TransactionType } from '../types';
+import type { ApiCategoryRef, ApiCounterpartyRef, ApiTransactionDetail, CounterpartyKind, TransactionType } from '../types';
+
+/**
+ * A dev-server transaction: the API's shape with every field filled in. The
+ * real backend may leave category, counterparty, provider or type empty
+ * (null); the sample data always has them, and still fits the API's shape.
+ */
+export type DevTransaction = Omit<ApiTransactionDetail, 'provider' | 'type' | 'category' | 'counterparty' | 'sms_text'> & {
+  provider: string;
+  type: TransactionType;
+  category: ApiCategoryRef;
+  counterparty: ApiCounterpartyRef;
+  sms_text: string;
+};
 import { COUNTERPARTIES, RECURRING_SERIES, SALARY, categoryRef, type CounterpartySeed } from './catalog';
 import { allWallets, type StoredWallet } from './wallet-store';
 
@@ -37,7 +50,7 @@ type Draft = {
   amount: number;
   fee: number;
   category: string;
-  counterparty: { id: string; name: string; kind: ApiTransactionDetail['counterparty']['kind'] };
+  counterparty: { id: string; name: string; kind: CounterpartyKind };
   reference: string | null;
   explanation: string;
   isOwnTransfer?: boolean;
@@ -65,7 +78,7 @@ function smsText(draft: Draft, balance: number, providerTxnId: string) {
   return `Payment made for GHS ${amount} to ${name}. Current Balance: GHS ${bal}.${ref} Transaction ID: ${providerTxnId}. Fee charged: GHS ${fee} TAX charged: GHS 0.00.`;
 }
 
-function generate(wallets: DevWallet[], now: number): ApiTransactionDetail[] {
+function generate(wallets: DevWallet[], now: number): DevTransaction[] {
   if (process.env.EXPO_PUBLIC_EMPTY_INBOX === 'true' || wallets.length === 0) return [];
 
   const random = seededRandom(SEED);
@@ -213,7 +226,7 @@ function generate(wallets: DevWallet[], now: number): ApiTransactionDetail[] {
   }
 
   const running = new Map(wallets.map((wallet, index) => [wallet.id, index === 0 ? 35000 : 4000]));
-  const transactions = replay.map((draft, index): ApiTransactionDetail => {
+  const transactions = replay.map((draft, index): DevTransaction => {
     const before = running.get(draft.wallet.id) ?? 0;
     const after = draft.direction === 'in' ? before + draft.amount : before - draft.amount - draft.fee;
     running.set(draft.wallet.id, after);
@@ -263,7 +276,7 @@ function generate(wallets: DevWallet[], now: number): ApiTransactionDetail[] {
   return newestFirst;
 }
 
-let cache: { key: string; wallets: DevWallet[]; transactions: ApiTransactionDetail[] } | undefined;
+let cache: { key: string; wallets: DevWallet[]; transactions: DevTransaction[] } | undefined;
 
 /** The wallets and transactions (newest first) every dev endpoint reads from. */
 export async function getDataset() {

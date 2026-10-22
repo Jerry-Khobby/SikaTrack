@@ -14,11 +14,11 @@ import { useTheme } from '@/hooks/use-theme';
 import { useCategories, useCounterparty, usePayments, useUpdateCounterparty } from '@/hooks/queries';
 import { COUNTERPARTY_KIND_LABELS } from '@/services/counterparties';
 import { DEFAULT_FILTERS, type TransactionFilters } from '@/services/transactions';
-import { formatDateTime, formatDayHeader, today } from '@/utils/dates';
+import { allTimeRange, formatDateTime, formatDayHeader } from '@/utils/dates';
 import { formatMoney } from '@/utils/format';
 
-/** All of a counterparty's payments, not just the last 30 days. */
-const ALL_TIME = { from: '2000-01-01', to: today() };
+/** All of a counterparty's payments the API can return in one query, not just the last 30 days. */
+const ALL_TIME = allTimeRange();
 
 /** S20 · One person or place: what you've paid them, what to call them, and where their payments go. */
 export default function CounterpartyScreen() {
@@ -99,7 +99,7 @@ export default function CounterpartyScreen() {
       <View className="flex-row gap-2">
         <FigureTile compact label="Total paid" value={formatMoney(c.moneyOut, currency)} />
         <FigureTile compact label="Payments" value={String(c.transactions)} />
-        <FigureTile compact label="Last paid" value={formatDayHeader(c.lastSeenAt)} />
+        <FigureTile compact label="Last paid" value={c.lastSeenAt ? formatDayHeader(c.lastSeenAt) : '—'} />
       </View>
 
       <Card>

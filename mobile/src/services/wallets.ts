@@ -34,7 +34,7 @@ const toWallet = (w: ApiWallet): Wallet => ({
   id: w.id,
   provider: w.provider,
   phoneNumber: w.phone_number,
-  accountName: w.account_name,
+  accountName: w.account_name ?? '',
   label: w.label,
 });
 

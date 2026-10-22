@@ -24,13 +24,12 @@ import type {
   ApiSummary,
   ApiSyncStatus,
   ApiTransaction,
-  ApiTransactionDetail,
   ApiTransactionPatch,
   ApiTrend,
   ApiWallet,
   DayPart,
 } from '../types';
-import { BUDGETS, CATEGORIES, RECURRING_SERIES, categoryRef } from './catalog';
+import { BUDGETS, CATEGORIES, DEV_CONFIG, RECURRING_SERIES, categoryRef } from './catalog';
 import {
   applyCounterpartyChoices,
   counterpartyChoice,
@@ -38,7 +37,7 @@ import {
   resetCounterpartyStore,
   setCounterpartyChoice,
 } from './counterparty-store';
-import { getDataset as loadDataset } from './dataset';
+import { getDataset as loadDataset, type DevTransaction } from './dataset';
 import { lowBalanceThreshold, markOnboarding, patchStoredMe, scheduleStoredDeletion, storedMe } from './me-store';
 import {
   addStoredWallet,
@@ -83,7 +82,7 @@ function previousMonth(month: string) {
   return new Date(Date.UTC(year, m - 2, 1)).toISOString().slice(0, 7);
 }
 
-function inRange(t: ApiTransaction, from: string, to: string) {
+function inRange(t: DevTransaction, from: string, to: string) {
   const day = t.occurred_at.slice(0, 10);
   return day >= from && day <= to;
 }
@@ -160,8 +159,8 @@ function periodsBetween(from: string, to: string, granularity: ApiTrend['granula
 }
 
 /** Everyone the account has paid or been paid by, most money out first. */
-function counterparties(transactions: ApiTransaction[]): ApiCounterparty[] {
-  const byId = new Map<string, ApiTransaction[]>();
+function counterparties(transactions: DevTransaction[]): ApiCounterparty[] {
+  const byId = new Map<string, DevTransaction[]>();
   for (const t of transactions.filter((t) => !t.is_own_transfer || t.counterparty.kind === 'own_wallet')) {
     byId.set(t.counterparty.id, [...(byId.get(t.counterparty.id) ?? []), t]);
   }
@@ -177,7 +176,8 @@ function counterparties(transactions: ApiTransaction[]): ApiCounterparty[] {
         original_name: originalName(latest).toUpperCase(),
         alias: choice.alias,
         kind: latest.counterparty.kind,
-        default_category: choice.defaultCategory,
+        // As the backend: the category itself, not just its id.
+        default_category: choice.defaultCategory ? categoryRef(choice.defaultCategory) : null,
         money_out: fromPesewas(total(out)),
         transactions: list.length,
         last_seen_at: latest.occurred_at,
@@ -186,8 +186,8 @@ function counterparties(transactions: ApiTransaction[]): ApiCounterparty[] {
     .sort((a, b) => toPesewas(b.money_out) - toPesewas(a.money_out));
 }
 
-const counted = (t: ApiTransaction) => !t.is_own_transfer;
-const total = (items: ApiTransaction[], pick: (t: ApiTransaction) => string = (t) => t.amount) =>
+const counted = (t: DevTransaction) => !t.is_own_transfer;
+const total = (items: DevTransaction[], pick: (t: DevTransaction) => string = (t) => t.amount) =>
   items.reduce((sum, t) => sum + toPesewas(pick(t)), 0);
 
 async function periodTransactions(query: Query) {
@@ -229,7 +229,7 @@ function monthlyPesewas(rhythm: string, amount: number) {
  * Every series the pipeline would find, with the user's decision. A series is
  * active while its last payment is within two rhythm-lengths of today.
  */
-function recurringItems(transactions: ApiTransaction[]): RecurringItem[] {
+function recurringItems(transactions: DevTransaction[]): RecurringItem[] {
   return RECURRING_SERIES.flatMap((series) => {
     const payments = transactions.filter((t) => t.recurring_id === series.id);
     if (!payments.length) return [];
@@ -254,7 +254,7 @@ function recurringItems(transactions: ApiTransaction[]): RecurringItem[] {
 }
 
 /** `GET /v1/recurring`: false matches are hidden and left out of the monthly cost. */
-function recurringList(transactions: ApiTransaction[], status = 'active'): ApiRecurringList {
+function recurringList(transactions: DevTransaction[], status = 'active'): ApiRecurringList {
   const shown = recurringItems(transactions).filter((item) => item.user_state !== 'not_recurring');
   const active = shown.filter((item) => item.status === 'active');
   return {
@@ -267,8 +267,8 @@ function recurringList(transactions: ApiTransaction[], status = 'active'): ApiRe
 let budgetStore = BUDGETS.map((budget) => ({ ...budget, alert_thresholds: ['0.8', '1.0'] }));
 
 /** Money in by category (`group=money_in`), or every category in and out (`all`). */
-function byCategory(items: ApiTransaction[], group: 'money_in' | 'all') {
-  const grouped = new Map<string, ApiTransaction[]>();
+function byCategory(items: DevTransaction[], group: 'money_in' | 'all') {
+  const grouped = new Map<string, DevTransaction[]>();
   for (const t of items.filter((t) => (group === 'all' ? true : t.direction === 'in' && t.category.group === 'money_in'))) {
     grouped.set(t.category.id, [...(grouped.get(t.category.id) ?? []), t]);
   }
@@ -277,8 +277,8 @@ function byCategory(items: ApiTransaction[], group: 'money_in' | 'all') {
     .sort((a, b) => b.amount - a.amount);
 }
 
-function spendingByCategory(items: ApiTransaction[]) {
-  const byCategory = new Map<string, ApiTransaction[]>();
+function spendingByCategory(items: DevTransaction[]) {
+  const byCategory = new Map<string, DevTransaction[]>();
   for (const t of items.filter((t) => t.direction === 'out' && t.category.group === 'spending')) {
     byCategory.set(t.category.id, [...(byCategory.get(t.category.id) ?? []), t]);
   }
@@ -313,6 +313,11 @@ async function budgets(month: string): Promise<ApiBudgets> {
 }
 
 const handlers: { method: string; pattern: RegExp; handle: (match: string[], query: Query, body: unknown) => Promise<unknown> }[] = [
+  {
+    method: 'GET',
+    pattern: /^\/v1\/config$/,
+    handle: async () => DEV_CONFIG,
+  },
   {
     method: 'GET',
     pattern: /^\/v1\/me$/,
@@ -447,7 +452,7 @@ const handlers: { method: string; pattern: RegExp; handle: (match: string[], que
               from: String(query.from ?? list.at(-1)?.occurred_at.slice(0, 10) ?? isoDate(Date.now())),
               to: String(query.to ?? isoDate(Date.now())),
             };
-      const byPeriod = new Map<string, ApiTransaction[]>();
+      const byPeriod = new Map<string, DevTransaction[]>();
       for (const t of list.filter((t) => inRange(t, range.from, range.to))) {
         const key = periodKey(t.occurred_at.slice(0, 10), granularity);
         byPeriod.set(key, [...(byPeriod.get(key) ?? []), t]);
@@ -473,7 +478,7 @@ const handlers: { method: string; pattern: RegExp; handle: (match: string[], que
     handle: async (_, query): Promise<ApiCounterpartySummary> => {
       const { items } = await periodTransactions(query);
       const direction = query.direction === 'in' ? 'in' : 'out';
-      const byCounterparty = new Map<string, ApiTransaction[]>();
+      const byCounterparty = new Map<string, DevTransaction[]>();
       for (const t of items.filter((t) => t.direction === direction)) {
         byCounterparty.set(t.counterparty.id, [...(byCounterparty.get(t.counterparty.id) ?? []), t]);
       }
@@ -514,7 +519,10 @@ const handlers: { method: string; pattern: RegExp; handle: (match: string[], que
           DAY_PARTS.map((part) => ({ weekday, day_part: part, amount: fromPesewas(grid.get(`${weekday}:${part}`) ?? 0) })),
         ),
         by_hour: byHour.map((amount, hour) => ({ hour, amount: fromPesewas(amount) })),
-        peak: peak ? { weekday: Number(peak[0].split(':')[0]), day_part: peak[0].split(':')[1] as DayPart } : null,
+        // As the backend: an object either way, with both fields null when nothing was spent.
+        peak: peak
+          ? { weekday: Number(peak[0].split(':')[0]), day_part: peak[0].split(':')[1] as DayPart }
+          : { weekday: null, day_part: null },
         weekend_share: fraction(sum ? weekend / sum : 0),
         median_payment: fromPesewas(median),
       };
@@ -826,7 +834,7 @@ const handlers: { method: string; pattern: RegExp; handle: (match: string[], que
   {
     method: 'GET',
     pattern: /^\/v1\/transactions\/([^/]+)$/,
-    handle: async ([id]): Promise<ApiTransactionDetail> => {
+    handle: async ([id]): Promise<DevTransaction> => {
       const { transactions } = await getDataset();
       return transactions.find((t) => t.id === id) ?? notFound();
     },
@@ -834,7 +842,7 @@ const handlers: { method: string; pattern: RegExp; handle: (match: string[], que
   {
     method: 'PATCH',
     pattern: /^\/v1\/transactions\/([^/]+)$/,
-    handle: async ([id], _, body): Promise<ApiTransactionDetail> => {
+    handle: async ([id], _, body): Promise<DevTransaction> => {
       const { transactions } = await getDataset();
       const target = transactions.find((t) => t.id === id) ?? notFound();
       const patch = (body ?? {}) as ApiTransactionPatch;
@@ -924,7 +932,7 @@ export function resetDevState() {
   resetCounterpartyStore();
 }
 
-function toApiWallet(wallet: StoredWallet, transactions: ApiTransaction[]): ApiWallet {
+function toApiWallet(wallet: StoredWallet, transactions: DevTransaction[]): ApiWallet {
   const latest = transactions.find((t) => t.wallet_id === wallet.id);
   return {
     id: wallet.id,

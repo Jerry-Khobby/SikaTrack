@@ -1,6 +1,7 @@
 import { api } from '@/api/client';
 import type { ApiCategorySummary, ApiCounterpartySummary, ApiHabits, ApiSummary, ApiTrend, DayPart } from '@/api/types';
 
+import { allTimeRange } from '@/utils/dates';
 import type { Granularity } from '@/utils/periods';
 
 import { toCategoryRef, toCounterparty, type CategoryRef, type Counterparty } from './categories';
@@ -81,15 +82,18 @@ export async function getCategorySpending(month: string, group: 'spending' | 'mo
   };
 }
 
-/** The months that have any money in or out, newest first, from `GET /v1/summary/trend`. */
+/**
+ * The months that have any money in or out, newest first, from `GET /v1/summary/trend`
+ * over the longest range the API allows (with no range it answers for this month only).
+ */
 export async function listMonthsWithData(): Promise<string[]> {
-  const trend = await api.get<ApiTrend>('/v1/summary/trend', { granularity: 'month' });
+  const range = allTimeRange();
+  const trend = await api.get<ApiTrend>('/v1/summary/trend', { granularity: 'month', from: range.from, to: range.to });
   return trend.items
     .filter((item) => Number(item.money_out) > 0 || Number(item.money_in) > 0)
     .map((item) => item.period)
     .sort((a, b) => b.localeCompare(a));
 }
-
 
 export type TrendPoint = {
   /** `2026-10` for a month; the day (or a week's Monday) as `2026-10-12`. */
@@ -127,9 +131,11 @@ export async function getHabits(month: string): Promise<Habits> {
   return {
     grid: h.grid.map((cell) => ({ weekday: cell.weekday, dayPart: cell.day_part, amount: cell.amount })),
     byHour: h.by_hour,
-    peak: h.peak ? { weekday: h.peak.weekday, dayPart: h.peak.day_part } : null,
-    weekendShare: h.weekend_share,
-    medianPayment: h.median_payment,
+    // The API always sends a peak, with both fields null when nothing was spent.
+    peak:
+      h.peak.weekday !== null && h.peak.day_part !== null ? { weekday: h.peak.weekday, dayPart: h.peak.day_part } : null,
+    weekendShare: h.weekend_share ?? '0',
+    medianPayment: h.median_payment ?? '0.00',
   };
 }
 

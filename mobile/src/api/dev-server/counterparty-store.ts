@@ -4,7 +4,8 @@
  * server, and laid over the dataset's transactions every time they're read, so
  * the changes survive the dataset being rebuilt (e.g. after adding a wallet).
  */
-import type { ApiCategoryRef, ApiTransaction } from '../types';
+import type { ApiCategoryRef } from '../types';
+import type { DevTransaction } from './dataset';
 import { categoryRef } from './catalog';
 
 type Choice = { alias: string | null; defaultCategory: string | null };
@@ -12,9 +13,9 @@ type Choice = { alias: string | null; defaultCategory: string | null };
 let choices = new Map<string, Choice>();
 
 /** Each transaction as the dataset made it, before any choice was laid over it. */
-const originals = new WeakMap<ApiTransaction, { name: string; category: ApiCategoryRef; source: ApiTransaction['category_source'] }>();
+const originals = new WeakMap<DevTransaction, { name: string; category: ApiCategoryRef; source: DevTransaction['category_source'] }>();
 
-function original(t: ApiTransaction) {
+function original(t: DevTransaction) {
   let o = originals.get(t);
   if (!o) {
     o = { name: t.counterparty.name, category: t.category, source: t.category_source };
@@ -28,7 +29,7 @@ export function counterpartyChoice(id: string): Choice {
 }
 
 /** The name the SMS gave this counterparty, before any alias. */
-export function originalName(t: ApiTransaction) {
+export function originalName(t: DevTransaction) {
   return original(t).name;
 }
 
@@ -40,7 +41,7 @@ export function setCounterpartyChoice(id: string, patch: Partial<Choice>) {
  * Shows each alias in place of the SMS name, and files payments under the
  * default category unless the user set that payment's category themselves.
  */
-export function applyCounterpartyChoices(transactions: ApiTransaction[]) {
+export function applyCounterpartyChoices(transactions: DevTransaction[]) {
   if (choices.size === 0) return;
   for (const t of transactions) {
     const choice = choices.get(t.counterparty.id);

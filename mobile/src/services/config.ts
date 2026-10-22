@@ -1,3 +1,6 @@
+import { api } from '@/api/client';
+import type { ApiConfig } from '@/api/types';
+
 /** The parts of `GET /v1/config` (backend/docs/api-contract.md) the app reads. */
 export type Provider = {
   code: string;
@@ -10,32 +13,33 @@ export type AppConfig = {
   minAppVersion: string;
   momoSenders: string[];
   providers: Provider[];
-  /**
-   * ISO 3166 codes of the countries whose MoMo SMS the pipeline can read.
-   * Not in the API contract yet; the app expects it to arrive here.
-   */
+  /** ISO 3166 codes of the countries whose MoMo SMS the pipeline can read. */
   supportedCountries: string[];
   /** Switches for parts of the app (`features`). */
   features: { budgets: boolean; export: boolean };
 };
 
-/** What the server returns today, until the app calls it. */
-const DEV_CONFIG: AppConfig = {
-  minAppVersion: '1.0.0',
-  momoSenders: ['MobileMoney', 'GhanaPay'],
-  providers: [
-    { code: 'mtn_momo', name: 'MTN MoMo', senders: ['MobileMoney'], supported: true },
-    { code: 'ghanapay', name: 'GhanaPay', senders: ['GhanaPay'], supported: true },
-    { code: 'telecel_cash', name: 'Telecel Cash', senders: [], supported: false },
-  ],
-  supportedCountries: ['GH'],
-  features: { budgets: true, export: false },
-};
+const toConfig = (c: ApiConfig): AppConfig => ({
+  minAppVersion: c.min_app_version,
+  momoSenders: c.momo_senders,
+  providers: c.providers,
+  supportedCountries: c.supported_countries,
+  features: { budgets: c.features.budgets ?? true, export: c.features.export ?? false },
+});
 
 let cached: Promise<AppConfig> | undefined;
 
-/** `GET /v1/config`, fetched once per app launch. */
+/**
+ * `GET /v1/config`, fetched once per app launch (it's public; no sign-in needed).
+ * A failed fetch isn't kept, so the next screen that needs it tries again.
+ */
 export function getAppConfig() {
-  cached ??= Promise.resolve(DEV_CONFIG);
+  cached ??= api
+    .get<ApiConfig>('/v1/config')
+    .then(toConfig)
+    .catch((error: unknown) => {
+      cached = undefined;
+      throw error;
+    });
   return cached;
 }

@@ -60,7 +60,7 @@ export default function CounterpartiesScreen() {
               kind={c.kind}
               name={c.name}
               amount={formatMoney(c.moneyOut, currency)}
-              detail={`${c.transactions} payment${c.transactions === 1 ? '' : 's'} · last paid ${formatDayHeader(c.lastSeenAt)}`}
+              detail={`${c.transactions} payment${c.transactions === 1 ? '' : 's'}${c.lastSeenAt ? ` · last paid ${formatDayHeader(c.lastSeenAt)}` : ''}`}
               onPress={() => router.push(`/counterparties/${c.id}`)}
               divider={index < list.data.length - 1}
             />

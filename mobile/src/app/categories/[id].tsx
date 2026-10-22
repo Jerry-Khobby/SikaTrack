@@ -86,7 +86,8 @@ export default function CategoryDetailScreen() {
 
   const topPlaces = useMemo(() => {
     const byCounterparty = new Map<string, { id: string; name: string; kind: CounterpartyKind; amount: number; count: number }>();
-    for (const t of payments.data?.items ?? []) {
+    // Payments the SMS didn't name anyone for can't be a place.
+    for (const t of (payments.data?.items ?? []).filter((p) => p.counterparty.id !== '')) {
       const entry = byCounterparty.get(t.counterparty.id) ?? { ...t.counterparty, amount: 0, count: 0 };
       entry.amount += toPesewas(t.amount);
       entry.count += 1;

@@ -153,6 +153,11 @@ export function presetRange(preset: DatePreset, now = Date.now()) {
 /** One query can cover at most three years (docs/ui-spec.md S13). */
 export const MAX_RANGE_DAYS = 3 * 366;
 
+/** The longest range one query may ask for, ending today: "everything" as far as the API allows. */
+export function allTimeRange(now = Date.now()) {
+  return { from: toIsoDate(now - (MAX_RANGE_DAYS - 1) * DAY_MS), to: today(now) };
+}
+
 /** Checks a typed `YYYY-MM-DD` range: real dates, in order, not in the future, at most three years. */
 export function validateRange(from: string, to: string, now = Date.now()) {
   const pattern = /^\d{4}-\d{2}-\d{2}$/;
