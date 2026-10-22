@@ -7,7 +7,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter } from 'expo-r
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 
 import { watchConnectivity } from '@/api/connectivity';
 import { createQueryClient } from '@/api/query-client';
@@ -15,6 +15,8 @@ import { SystemStates } from '@/components/organisms';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { FontAssets, ThemeVariables } from '@/theme';
+import { Colors } from '@/theme/colors';
+import { cssVariable } from '@/theme/tailwind-names';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,6 +27,16 @@ export default function RootLayout() {
   const router = useRouter();
   const [fontsLoaded, fontError] = useFonts(FontAssets);
   const ready = fontsLoaded || fontError != null;
+
+  // On web, sheets and dialogs render outside the app's root view, so the theme's colour
+  // variables go on the page as well. Android passes them down through React instead.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+    for (const [token, value] of Object.entries(palette)) {
+      document.documentElement.style.setProperty(cssVariable(token), value);
+    }
+  }, [colorScheme]);
 
   // G1: queries pause offline and keep their saved data.
   useEffect(() => watchConnectivity(), []);

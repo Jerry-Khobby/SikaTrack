@@ -6,5 +6,7 @@ export function useOffline() {
   return useSyncExternalStore(
     (listener) => onlineManager.subscribe(listener),
     () => !onlineManager.isOnline(),
+    // Rendering on a server (the web build) assumes online.
+    () => false,
   );
 }

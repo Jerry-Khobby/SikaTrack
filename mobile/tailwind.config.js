@@ -25,6 +25,10 @@ const chartColors = {
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ['./src/**/*.{ts,tsx}'],
+  // Light and dark come from the theme's CSS variables (src/theme/theme-vars.ts), not
+  // `dark:` classes. 'media' crashes NativeWind's web runtime ("Cannot manually set
+  // color scheme"), so it's 'class', which changes nothing on Android.
+  darkMode: 'class',
   presets: [require('nativewind/preset')],
   theme: {
     extend: {

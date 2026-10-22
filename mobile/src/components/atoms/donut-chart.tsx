@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
-import Svg, { Circle, G } from 'react-native-svg';
+import Svg, { Circle } from 'react-native-svg';
 
 export type DonutSegment = { value: number; color: string };
 
@@ -26,7 +26,7 @@ export function DonutChart({ segments, size = 132, thickness = 18, accessibility
   return (
     <View style={{ width: size, height: size }} accessible accessibilityRole="image" accessibilityLabel={accessibilityLabel}>
       <Svg width={size} height={size}>
-        <G rotation={-90} origin={`${size / 2}, ${size / 2}`}>
+        {/* A circle's stroke starts at 3 o'clock; a quarter turn of offset starts it at 12. No rotation, which web can't render. */}
           {total > 0 &&
             segments.map((segment, index) => {
               const length = (segment.value / total) * circumference;
@@ -40,14 +40,14 @@ export function DonutChart({ segments, size = 132, thickness = 18, accessibility
                   fill="none"
                   stroke={segment.color}
                   strokeWidth={thickness}
-                  strokeDasharray={`${dash} ${circumference}`}
-                  strokeDashoffset={-offset}
+                  // One dash per lap, so a segment that passes the starting point wraps round.
+                  strokeDasharray={`${dash} ${circumference - dash}`}
+                  strokeDashoffset={circumference / 4 - offset}
                 />
               );
               offset += length;
               return circle;
             })}
-        </G>
       </Svg>
       <View className="absolute inset-0 items-center justify-center">{children}</View>
     </View>
