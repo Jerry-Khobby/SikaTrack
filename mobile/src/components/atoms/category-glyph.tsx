@@ -30,7 +30,7 @@ const CATEGORY_PATHS: Record<string, string> = {
 /** Counterparty kinds, used when a payment has no category of its own yet. */
 const KIND_PATHS: Record<CounterpartyKind, string> = {
   person: 'M12 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM4 21a8 8 0 0 1 16 0',
-  merchant: 'M4 9l1.5-5h13L20 9M4 9v11h16V9',
+  merchant: 'M4 9l1.5-5h13L20 9M4 9v11h16V9M9 20v-6h6v6',
   agent: CATEGORY_PATHS.cash_withdrawal,
   telco: CATEGORY_PATHS.airtime_data,
   bank: 'M3 10l9-6 9 6M5 10v9M19 10v9M9 10v9M15 10v9M3 21h18',

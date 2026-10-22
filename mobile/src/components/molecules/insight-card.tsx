@@ -10,6 +10,8 @@ export type InsightCardProps = {
   title: string;
   body: string;
   onPress?: () => void;
+  /** Full width with the whole message, instead of a fixed-width carousel card. */
+  fill?: boolean;
 };
 
 const LOOK: Record<InsightSeverity, { label: string; icon: IconName; box: string; accent: string }> = {
@@ -19,7 +21,7 @@ const LOOK: Record<InsightSeverity, { label: string; icon: IconName; box: string
 };
 
 /** A short card from `GET /v1/insights`, coloured by severity: info blue, tip green, warning amber. */
-export function InsightCard({ severity, title, body, onPress }: InsightCardProps) {
+export function InsightCard({ severity, title, body, onPress, fill }: InsightCardProps) {
   const theme = useTheme();
   const look = LOOK[severity];
   const iconColor = { warning: theme.iconAmber, info: theme.link, tip: theme.iconSuccess }[severity];
@@ -30,7 +32,7 @@ export function InsightCard({ severity, title, body, onPress }: InsightCardProps
       accessibilityLabel={`${look.label}: ${title}. ${body}`}
       disabled={!onPress}
       onPress={onPress}
-      className={`w-[262px] rounded-lg px-4 py-[14px] active:opacity-[0.85] ${look.box}`}>
+      className={`${fill ? 'w-full' : 'w-[262px]'} rounded-lg px-4 py-[14px] active:opacity-[0.85] ${look.box}`}>
       <View className="flex-row items-center gap-2">
         <Icon name={look.icon} color={iconColor} size={16} />
         <Text className={`font-sans-extrabold text-[12px] ${look.accent}`}>{look.label}</Text>
@@ -42,7 +44,7 @@ export function InsightCard({ severity, title, body, onPress }: InsightCardProps
         type="none"
         themeColor="textBody"
         className="mt-1 font-sans text-[13px] leading-[19px]"
-        numberOfLines={2}>
+        numberOfLines={fill ? undefined : 2}>
         {body}
       </ThemedText>
     </Pressable>

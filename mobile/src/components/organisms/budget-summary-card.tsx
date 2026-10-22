@@ -17,7 +17,7 @@ export type BudgetSummaryCardProps = {
 /** The ink card on top of S23: everything budgeted this month and how much of it is gone. */
 export function BudgetSummaryCard({ spent, budgeted, used, footnote }: BudgetSummaryCardProps) {
   return (
-    <View className="rounded-[22px] bg-brand-ink p-5">
+    <View className="rounded-[22px] bg-hero p-5">
       <Text className="font-sans-semibold text-[13px] leading-[18px] text-brand-on-ink-muted">Spent so far</Text>
       <Text
         className="mt-1 font-sans-extrabold text-[30px] leading-[38px] text-brand-on-ink"
@@ -25,8 +25,8 @@ export function BudgetSummaryCard({ spent, budgeted, used, footnote }: BudgetSum
         adjustsFontSizeToFit
         numberOfLines={1}>
         {spent}
-        <Text className="font-sans-semibold text-[15px] text-brand-on-ink-muted"> of {budgeted} budgeted</Text>
       </Text>
+      <Text className="font-sans-semibold text-[14px] leading-[20px] text-brand-on-ink-muted">of {budgeted} budgeted</Text>
       <View className="mt-[14px]">
         <ProgressBar
           progress={used}

@@ -42,14 +42,16 @@ export function SwipeToDelete({ children, onDelete, deleteLabel }: SwipeToDelete
       className="overflow-hidden rounded-[20px]"
       accessibilityActions={[{ name: 'delete', label: deleteLabel }]}
       onAccessibilityAction={(event) => event.nativeEvent.actionName === 'delete' && onDelete()}>
-      <View
+      {/* Shows only once the row moves, so its red can't peek round the card's rounded corners. */}
+      <Animated.View
         importantForAccessibility="no-hide-descendants"
         accessibilityElementsHidden
-        className="absolute inset-y-0 right-0 w-24 items-stretch bg-status-bad">
+        className="absolute inset-y-0 right-0 w-24 items-stretch bg-status-bad"
+        style={{ opacity: offset.interpolate({ inputRange: [-24, 0], outputRange: [1, 0], extrapolate: 'clamp' }) }}>
         <Pressable onPress={onDelete} accessibilityLabel={deleteLabel} className="flex-1 items-center justify-center">
           <Text className="font-sans-bold text-[14px] text-white">Delete</Text>
         </Pressable>
-      </View>
+      </Animated.View>
       {/* Follows the finger, so it keeps an animated inline style. */}
       <Animated.View style={{ transform: [{ translateX: offset }] }} {...responder.panHandlers}>
         {children}

@@ -97,9 +97,9 @@ export default function CounterpartyScreen() {
       </View>
 
       <View className="flex-row gap-2">
-        <FigureTile label="Total paid" value={formatMoney(c.moneyOut, currency)} />
-        <FigureTile label="Payments" value={String(c.transactions)} />
-        <FigureTile label="Last paid" value={formatDayHeader(c.lastSeenAt)} />
+        <FigureTile compact label="Total paid" value={formatMoney(c.moneyOut, currency)} />
+        <FigureTile compact label="Payments" value={String(c.transactions)} />
+        <FigureTile compact label="Last paid" value={formatDayHeader(c.lastSeenAt)} />
       </View>
 
       <Card>

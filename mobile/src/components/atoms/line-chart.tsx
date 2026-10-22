@@ -32,6 +32,8 @@ export type LineChartProps = {
 };
 
 const WIDTH = 300;
+/** Room each side of the plot for the selected dots (radius plus ring). */
+const DOT_ROOM = 6;
 
 /**
  * Lines over a y-axis of round values and gridlines. Tap anywhere on the plot
@@ -136,13 +138,14 @@ export function LineChart({
           </Svg>
           {/* Dots in px, so the stretched viewBox doesn't squash them into ovals. */}
           {selected !== null && width > 0 && (
-            <Svg pointerEvents="none" width={width} height={height} style={{ position: 'absolute', left: 0, top: 0 }}>
+            // A little wider than the plot, so a dot on the first or last day isn't cut in half.
+            <Svg pointerEvents="none" width={width + DOT_ROOM * 2} height={height} style={{ position: 'absolute', left: -DOT_ROOM, top: 0 }}>
               {series.map((s, index) => {
                 const value = s.values[selected];
                 return value === null || value === undefined ? null : (
                   <Circle
                     key={index}
-                    cx={(x(selected) / WIDTH) * width}
+                    cx={(x(selected) / WIDTH) * width + DOT_ROOM}
                     cy={y(value)}
                     r={4}
                     fill={s.color}

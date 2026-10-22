@@ -18,7 +18,7 @@ export type YAxisProps = {
 export function YAxis({ ticks, top, height, unit }: YAxisProps) {
   return (
     <View accessible={false} importantForAccessibility="no-hide-descendants" style={{ width: Y_AXIS_WIDTH }}>
-      {unit && <Text className="mb-1 font-sans-bold text-[10px] leading-[12px] text-content-secondary">{unit}</Text>}
+      {unit && <Text className="mb-2.5 font-sans-bold text-[10px] leading-[12px] text-content-secondary">{unit}</Text>}
       <View style={{ height }}>
         {ticks.map((tick) => (
           <Text
@@ -57,14 +57,16 @@ export function XLabels({ labels, emphasis }: { labels: string[]; emphasis?: num
       className="mt-1.5 flex-row"
       style={{ marginLeft: Y_AXIS_WIDTH }}>
       {labels.map((label, index) => (
-        <Text
-          key={index}
-          numberOfLines={1}
-          className={`flex-1 text-center text-[10px] leading-[12px] ${
-            index === emphasis ? 'font-sans-extrabold text-content' : 'font-sans text-content-secondary'
-          }`}>
-          {label}
-        </Text>
+        // A label can be wider than its slot (e.g. `06:00` under one of 24 bars), so it's
+        // centred on the slot and allowed past its edges; busy charts leave gaps between labels.
+        <View key={index} className="flex-1 items-center">
+          <Text
+            className={`w-14 text-center text-[10px] leading-[12px] ${
+              index === emphasis ? 'font-sans-extrabold text-content' : 'font-sans text-content-secondary'
+            }`}>
+            {label}
+          </Text>
+        </View>
       ))}
     </View>
   );
