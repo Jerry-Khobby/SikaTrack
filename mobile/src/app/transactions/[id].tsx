@@ -126,8 +126,13 @@ export default function TransactionDetailScreen() {
       <TransactionHero
         transaction={t}
         providerName={providerName}
-        // A counterparty the SMS didn't name has no page.
-        onPressCounterparty={t.counterparty.id ? () => router.push(`/counterparties/${t.counterparty.id}`) : undefined}
+        // A counterparty the SMS didn't name has no page, and one from a payment still processing
+        // has none until the pipeline loads it.
+        onPressCounterparty={
+          t.counterparty.id && t.status === 'final'
+            ? () => router.push(`/counterparties/${t.counterparty.id}`)
+            : undefined
+        }
       />
 
       <TransactionCategoryCard
@@ -186,12 +191,15 @@ export default function TransactionDetailScreen() {
         <InfoNote icon="info" text="You received this SMS twice; we counted it once." />
       )}
 
-      <SmsCard
-        text={t.smsText}
-        count={t.smsCount}
-        sender={senders[t.provider] ?? null}
-        time={formatDateTime(t.occurredAt)}
-      />
+      {/* The server keeps the SMS text with the confirmed payment, so a processing one has none yet. */}
+      {t.smsText !== '' && (
+        <SmsCard
+          text={t.smsText}
+          count={t.smsCount}
+          sender={senders[t.provider] ?? null}
+          time={formatDateTime(t.occurredAt)}
+        />
+      )}
 
       <View className="mt-1">
         {t.counterparty.id !== '' && (
