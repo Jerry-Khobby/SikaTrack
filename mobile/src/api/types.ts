@@ -282,6 +282,26 @@ export type ApiSyncStatus = {
   data_through: string | null;
 };
 
+/** `POST /v1/sms/batches`. */
+export type ApiSmsUpload = {
+  device_id: string;
+  source: 'initial_scan' | 'incremental' | 'live';
+  messages: { sender: string; date_ms: string; body: string; android_id?: number }[];
+};
+
+export type ApiSmsBatchResult = {
+  batch_id: string;
+  received: number;
+  accepted: number;
+  duplicates: number;
+  rejected_senders: number;
+  parsed: number;
+  unparsed: number;
+  ignored: number;
+  provisional_transactions: number;
+  sync: { latest_date_ms: string | null; pipeline: string };
+};
+
 export type NotificationKind =
   | 'budget_warning'
   | 'budget_over'

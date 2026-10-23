@@ -1,7 +1,8 @@
 import { api } from '@/api/client';
-import { getDeviceId } from '@/api/session';
 import type { ApiSyncStatus } from '@/api/types';
-import { uuid } from '@/utils/uuid';
+
+import { getAppConfig } from './config';
+import { readInbox, toBatches, uploadBatch } from './sms-inbox';
 
 export type SyncStatus = {
   pendingMessages: number;
@@ -42,29 +43,21 @@ const SYNC_OVERLAP_MS = 10 * 60 * 1000;
 
 /**
  * S34's **Sync now**: reads the MoMo SMS that came after the newest one the
- * server has (less ten minutes) and uploads them as `incremental`. Reading SMS
- * needs a development build, so in Expo Go there's nothing new to send.
- * Returns how many messages went up.
+ * server has (less ten minutes) and uploads them as `incremental`; the server
+ * skips the ones it already has. Expo Go can't read SMS, so there it sends
+ * nothing. Returns how many new messages the server took.
  */
 export async function syncNow(status: Pick<SyncStatus, 'latestDateMs'>): Promise<number> {
+  const config = await getAppConfig();
+  const limits = { maxMessages: config.limits.smsBatchMaxMessages, maxBytes: config.limits.smsBatchMaxBytes };
   const since = status.latestDateMs ? Number(status.latestDateMs) - SYNC_OVERLAP_MS : 0;
-  const messages = await readMomoSmsSince(since);
-  if (messages.length === 0) return 0;
-  // A new key per batch; a retry of the same batch would reuse it, so nothing is stored twice.
-  await api.post(
-    '/v1/sms/batches',
-    { device_id: await getDeviceId(), source: 'incremental', messages },
-    { 'Idempotency-Key': uuid() },
-  );
-  return messages.length;
-}
-
-/** The phone's MoMo SMS after `since`. Needs a development build; none in Expo Go. */
-async function readMomoSmsSince(
-  since: number,
-): Promise<{ sender: string; date_ms: string; body: string; android_id: number }[]> {
-  void since;
-  return [];
+  let accepted = 0;
+  for await (const page of readInbox(config.momoSenders, since)) {
+    for (const batch of toBatches(page, limits)) {
+      accepted += (await uploadBatch('incremental', batch)).accepted;
+    }
+  }
+  return accepted;
 }
 
 /** The sync strip's sentence on Home, or null when there's nothing to say (docs/ui-spec.md S12). */

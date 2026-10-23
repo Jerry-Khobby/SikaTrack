@@ -1,14 +1,18 @@
 /**
- * Stand-in for the first sync (docs/ui-spec.md S09): read the MoMo SMS on the
- * phone and upload them in batches. Reading SMS needs a development build, so
- * this plays a scan of the dataset the pipeline was built on (see
+ * The first sync (docs/ui-spec.md S09): read the MoMo SMS on the phone and upload
+ * them in batches. A build that can read SMS does it for real (sms-inbox.ts); Expo
+ * Go and the dev server play a scan of the dataset the pipeline was built on (see
  * data-engineering/README.md). Start with EXPO_PUBLIC_EMPTY_INBOX=true to see a
  * phone with no MoMo SMS.
  */
 import { api, usesDevServer } from '@/api/client';
 
+import { getAppConfig } from './config';
+import { canReadSms, countInbox, readInbox, toBatches, uploadBatch, type InboxSms } from './sms-inbox';
+
 export type ScanState = {
-  status: 'idle' | 'running' | 'done';
+  /** `failed`: an upload didn't go through; starting again carries on from there. */
+  status: 'idle' | 'running' | 'done' | 'failed';
   /** MoMo SMS read so far. */
   found: number;
   /** Turned into transactions (`parsed`). */
@@ -54,11 +58,18 @@ export function subscribeToScan(listener: () => void) {
   };
 }
 
-/** Starts the scan once; later calls do nothing. It keeps going after its screen closes. */
+/**
+ * Starts the scan once; later calls do nothing, except after a failed upload, when the next
+ * call carries on from there. It keeps going after its screen closes.
+ */
 export function startInitialScan() {
-  if (state.status !== 'idle') return;
+  if (state.status === 'running' || state.status === 'done') return;
+  if (canReadSms && !usesDevServer) {
+    scanInbox().catch(() => set({ ...state, status: 'failed' }));
+    return;
+  }
 
-  // Against a real backend there's no SMS to show yet: reading them needs a development build.
+  // Expo Go can't read SMS, so against a real backend it finds none.
   const inbox =
     !usesDevServer || process.env.EXPO_PUBLIC_EMPTY_INBOX === 'true'
       ? { parsed: 0, ignored: 0, firstTransactionAt: null }
@@ -96,8 +107,41 @@ export function startInitialScan() {
   }, TICK_MS);
 }
 
+/** The last message the server took, so a scan that failed carries on after it. */
+let uploadedUpTo: InboxSms | undefined;
+
+/** Reads every MoMo SMS on the phone and uploads them as `initial_scan`, counting as it goes. */
+async function scanInbox() {
+  // Running from the first moment, so a second call while the config loads starts nothing.
+  set({ ...(uploadedUpTo ? state : IDLE), status: 'running' });
+  const config = await getAppConfig();
+  const senders = config.momoSenders;
+  const limits = { maxMessages: config.limits.smsBatchMaxMessages, maxBytes: config.limits.smsBatchMaxBytes };
+  set({ ...state, total: await countInbox(senders, 0) });
+
+  for await (const page of readInbox(senders, 0, uploadedUpTo)) {
+    for (const batch of toBatches(page, limits)) {
+      const result = await uploadBatch('initial_scan', batch);
+      set({
+        ...state,
+        found: state.found + batch.length,
+        parsed: state.parsed + result.parsed,
+        ignored: state.ignored + result.ignored + result.unparsed,
+        // Oldest first, so the first batch with a payment in it dates the history.
+        firstTransactionAt:
+          state.firstTransactionAt ?? (result.parsed > 0 ? isoDate(Number(batch[0].dateMs)) : null),
+      });
+      uploadedUpTo = batch[batch.length - 1];
+    }
+  }
+  set({ ...state, status: 'done', total: state.found });
+}
+
+const isoDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
 /** Back to before the scan; the sign-in stand-in calls it for a fresh account. */
 export function resetScan() {
   clearInterval(timer);
+  uploadedUpTo = undefined;
   set(IDLE);
 }

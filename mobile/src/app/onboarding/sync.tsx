@@ -15,28 +15,34 @@ export default function FirstSyncScreen() {
   const router = useRouter();
   const scan = useInitialScan();
   const done = scan.status === 'done';
+  const failed = scan.status === 'failed';
   const empty = done && scan.total === 0;
 
   useEffect(() => {
     startInitialScan();
   }, []);
 
-  const title = empty
-    ? 'No MoMo messages yet'
-    : done
-      ? 'Done! Your first transactions are ready.'
-      : 'Reading your MoMo history…';
+  const title = failed
+    ? "We couldn't finish reading your messages"
+    : empty
+      ? 'No MoMo messages yet'
+      : done
+        ? 'Done! Your first transactions are ready.'
+        : 'Reading your MoMo history…';
 
   return (
     <OnboardingStepTemplate
       step={4}
       totalSteps={ONBOARDING_STEP_COUNT}
       footer={
-        <Button
-          variant={done ? 'primary' : 'secondary'}
-          label={done ? 'Continue' : 'Continue in the background'}
-          onPress={() => router.push('/onboarding/notifications')}
-        />
+        <>
+          {failed && <Button label="Try again" onPress={startInitialScan} />}
+          <Button
+            variant={done ? 'primary' : failed ? 'link' : 'secondary'}
+            label={done ? 'Continue' : 'Continue in the background'}
+            onPress={() => router.push('/onboarding/notifications')}
+          />
+        </>
       }>
       <View className="mt-11 h-[180px] items-center justify-center">
         {done ? <IconCircle icon="check" size={140} /> : <SyncIllustration />}
@@ -48,7 +54,13 @@ export default function FirstSyncScreen() {
         className="mb-[18px] mt-9 text-center tracking-[-0.5px]">
         {title}
       </ThemedText>
-      {empty ? (
+      {failed ? (
+        <ThemedText type="bodySmall" themeColor="textSecondary" className="text-center">
+          {scan.found > 0
+            ? `We sent ${scan.found} of ${scan.total} messages before the connection dropped. Try again to send the rest.`
+            : 'Check your internet connection, then try again.'}
+        </ThemedText>
+      ) : empty ? (
         <ThemedText type="bodySmall" themeColor="textSecondary" className="text-center">
           We didn't find any MoMo messages on this phone. New ones will appear as they arrive.
         </ThemedText>

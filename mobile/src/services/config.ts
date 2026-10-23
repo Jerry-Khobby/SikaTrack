@@ -15,6 +15,8 @@ export type AppConfig = {
   providers: Provider[];
   /** ISO 3166 codes of the countries whose MoMo SMS the pipeline can read. */
   supportedCountries: string[];
+  /** The most one SMS upload may hold (`limits`). */
+  limits: { smsBatchMaxMessages: number; smsBatchMaxBytes: number };
   /** Switches for parts of the app (`features`). */
   features: { budgets: boolean; export: boolean };
 };
@@ -24,6 +26,7 @@ const toConfig = (c: ApiConfig): AppConfig => ({
   momoSenders: c.momo_senders,
   providers: c.providers,
   supportedCountries: c.supported_countries,
+  limits: { smsBatchMaxMessages: c.limits.sms_batch_max_messages, smsBatchMaxBytes: c.limits.sms_batch_max_bytes },
   features: { budgets: c.features.budgets ?? true, export: c.features.export ?? false },
 });
 

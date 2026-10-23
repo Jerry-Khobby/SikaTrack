@@ -1,13 +1,23 @@
-import { Linking } from 'react-native';
+import { Linking, PermissionsAndroid } from 'react-native';
+
+import { canReadSms } from './sms-inbox';
 
 export type PermissionResult = 'granted' | 'denied';
 
 /**
- * Android's READ_SMS prompt. Expo Go can't ask for it (it needs a development
- * build), so this says yes for now.
+ * Android's READ_SMS prompt. Expo Go can't ask for it (only a build with the
+ * app's SMS module can), so there it says yes and the first sync plays its stand-in.
  */
 export async function requestSmsPermission(): Promise<PermissionResult> {
-  return 'granted';
+  if (!canReadSms) return 'granted';
+  const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_SMS);
+  return result === PermissionsAndroid.RESULTS.GRANTED ? 'granted' : 'denied';
+}
+
+/** Whether the app may read SMS now (it can be turned off in Android settings at any time). */
+export async function hasSmsPermission(): Promise<boolean> {
+  if (!canReadSms) return true;
+  return PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_SMS);
 }
 
 /**

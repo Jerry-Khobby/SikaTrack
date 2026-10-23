@@ -12,6 +12,7 @@ import { useGoBack } from '@/hooks/use-go-back';
 import { useMe } from '@/hooks/use-me';
 import { useTheme } from '@/hooks/use-theme';
 import { queryKeys, useSyncStatus } from '@/hooks/queries';
+import { hasSmsPermission } from '@/services/permissions';
 import { syncNow, syncState, type SyncStatus } from '@/services/sync';
 import { formatDateTime, formatTime } from '@/utils/dates';
 
@@ -52,6 +53,10 @@ export default function SyncScreen() {
     setSyncing(true);
     setNote(undefined);
     try {
+      if (!(await hasSmsPermission())) {
+        setNote("SikaTrack can't read your SMS. Turn on SMS for SikaTrack in Android settings.");
+        return;
+      }
       const sent = await syncNow(status.data);
       await Promise.all([
         status.refetch(),
