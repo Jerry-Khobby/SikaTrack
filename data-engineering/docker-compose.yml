@@ -71,8 +71,8 @@ services:
       RUSTFS_CONSOLE_ENABLE: "true"
       RUSTFS_CONSOLE_ADDRESS: ":9001"
     ports:
-      - "${S3_API_PORT:-9000}:9000"
-      - "${S3_CONSOLE_PORT:-9001}:9001"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${S3_API_PORT:-9000}:9000"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${S3_CONSOLE_PORT:-9001}:9001"
     volumes:
       - rustfs_data:/data
     healthcheck:
@@ -105,7 +105,7 @@ services:
       POSTGRES_USER: ${WAREHOUSE_USER}
       POSTGRES_PASSWORD: ${WAREHOUSE_PASSWORD}
     ports:
-      - "${WAREHOUSE_HOST_PORT:-5434}:5432"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${WAREHOUSE_HOST_PORT:-5434}:5432"
     volumes:
       - warehouse_data:/var/lib/postgresql/data
       # The dw schema is created and evolved by the load step (sql/migrations/), not on first start.
@@ -169,7 +169,7 @@ services:
     container_name: sikatrack-airflow-apiserver
     command: api-server
     ports:
-      - "${AIRFLOW_PORT:-8080}:8080"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${AIRFLOW_PORT:-8080}:8080"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/version"]
       interval: 30s
@@ -274,7 +274,7 @@ services:
       JAVA_TIMEZONE: Africa/Accra
       JAVA_OPTS: -Xmx1g
     ports:
-      - "${METABASE_PORT:-3000}:3000"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${METABASE_PORT:-3000}:3000"
     healthcheck:
       test: ["CMD-SHELL", "curl --fail -s http://localhost:3000/api/health || exit 1"]
       interval: 30s

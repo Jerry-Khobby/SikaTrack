@@ -57,6 +57,9 @@ The DAG stages the backup, processes every backup staged so far and loads Postgr
 | Postgres (Power BI) | `localhost:5434`, database `sikatrack_dw`, view `dw.v_fact_transaction` | `WAREHOUSE_USER` / `WAREHOUSE_PASSWORD` |
 | Metabase | http://localhost:3000 (reads the `mart` views as `metabase_reader`) | Your Metabase admin account |
 
+These addresses work on this machine only: the ports listen on `127.0.0.1` (`HOST_BIND_ADDRESS` in
+`.env`), so a server never exposes the database, the lake or the admin pages to the internet.
+
 ## Commands
 
 Run from `data-engineering/`:
