@@ -159,14 +159,50 @@ Without `EXPO_PUBLIC_API_URL`, requests go to the in-app dev server in
 5. To see your existing MoMo history, link it to the new account (backend README, "Link your
    existing data to your account") before uploading any SMS from the app.
 
-**What still needs a development build** (Expo Go can't do these):
+### Reading SMS: a development build
 
-- **Reading SMS:** the first sync and **Sync now** find no SMS in Expo Go. The backend only
-  marks the first sync done after a real upload, so each sign-in resumes at the first-sync step;
-  **Continue in the background** moves on.
+Expo Go can't read SMS. The app reads them with its own native module,
+[modules/sms-inbox](modules/sms-inbox), which only exists in a build of this app:
+
+- **Permission:** S07 shows Android's READ_SMS prompt. **Sync now** checks it again, since it can
+  be turned off in Android settings.
+- **First sync (S09):** reads only the senders in `GET /v1/config → momo_senders`, oldest first,
+  and uploads them as `initial_scan` in batches within `limits`. Each batch has its own
+  `Idempotency-Key`, reused on a retry. If an upload fails, **Try again** carries on after the
+  last batch the server took.
+- **Sync now:** sends what came after the server's `latest_date_ms`, less ten minutes, as
+  `incremental`. The server skips the ones it already has.
+
+In Expo Go, `canReadSms` is false ([src/services/sms-inbox.ts](src/services/sms-inbox.ts)): the
+prompt says yes, and the first sync finds no SMS against a real backend (or plays its stand-in on
+the dev server).
+
+**Build it on your phone** (once, then the same fast reload as Expo Go):
+
+1. Use JDK 17, for example Android Studio's own: in PowerShell,
+   `$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"`.
+2. With the phone on USB (`adb devices` lists it) and `adb reverse tcp:8000 tcp:8000` done:
+
+   ```bash
+   EXPO_PUBLIC_API_URL=http://localhost:8000 npx expo run:android
+   ```
+
+   The first build takes several minutes. It generates `android/` (not committed: it's rebuilt
+   from `app.json` and the modules) and installs **SikaTrack** next to Expo Go.
+3. After that, `npx expo start` serves the code to the installed build. Rebuild only when native
+   code or `app.json` changes.
+
+**Before Google Play:** READ_SMS is a restricted permission. Play only publishes the app after
+its Permissions Declaration is approved, which needs a privacy policy and a short video of the
+SMS feature. The Android package is `app.sikatrack`; it can't change once the app is on Play.
+
+**What still needs work in a development build:**
+
 - **Push notifications:** `PUT /v1/devices/{id}` with the push token needs `expo-notifications`.
-- **Permission prompts:** the SMS and notification prompts, and checking whether Android allows
+- **Notification prompts:** the notification prompt, and checking whether Android allows
   notifications, answer "allowed" until then.
+- **A phone with no MoMo SMS:** the backend only marks the first sync done after an upload with
+  at least one message, so such a phone resumes at the first-sync step on each launch.
 
 - **Coming-soon features have real screens:**
   - **Export my data** explains the export. Its button turns on when `GET /v1/config` sends
