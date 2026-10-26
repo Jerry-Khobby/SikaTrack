@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "SikaTrack",
-    "slug": "mobile",
+    "slug": "sikatrack",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -42,6 +42,16 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "eee2b0a4-4705-49de-b2fd-568e4794eb46"
+      }
     }
   }
 }
