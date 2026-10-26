@@ -3,6 +3,19 @@
 The SikaTrack Android app, built with Expo and React Native. Every screen and the endpoint
 behind it is described in [docs/ui-spec.md](docs/ui-spec.md).
 
+## What it looks like
+
+The four main tabs, from the design prototype the app was built from. The numbers are sample
+data, not a real account.
+
+| Home | Transactions | Spending | Budgets |
+| --- | --- | --- | --- |
+| <img src="docs/screenshots/home.png" width="200" alt="Home: money out this month with the change from last month, money in, net and fees, total balance per wallet, and spending by category"> | <img src="docs/screenshots/transactions.png" width="200" alt="Transactions: search, filter chips, and payments grouped by day with category, time, provider and fee"> | <img src="docs/screenshots/spending.png" width="200" alt="Spending: a donut of spending by category, then each category's amount, share, payment count and budget"> | <img src="docs/screenshots/budgets.png" width="200" alt="Budgets: spent so far against the total budget, then each budget's progress, what's left and the month-end projection"> |
+| This month's money out against last month, money in, net and fees; each wallet's balance; spending by category, tips and recurring payments | Every payment, newest first, grouped by day with the day's total. "Processing" marks one the pipeline hasn't confirmed yet | Where the money went, by category, with budgets alongside. Trend, Habits, People and Fees are the other views | Each category's limit, what's left, and where this pace ends the month |
+
+The full prototype (every screen, linked as a clickable flow) is the
+[SikaTrack App Prototype](https://claude.ai/artifact/YHbxeLPBhLxfbWuPbE8aNT) design canvas.
+
 ## Running it
 
 ```bash

@@ -10,6 +10,16 @@ hand.
 
 It supports **MTN MoMo** and **GhanaPay** today.
 
+<p>
+<img src="mobile/docs/screenshots/home.png" width="190" alt="Home: money out this month, money in, net, fees, wallet balances and spending by category">
+<img src="mobile/docs/screenshots/transactions.png" width="190" alt="Transactions: payments grouped by day with category, time and fee">
+<img src="mobile/docs/screenshots/spending.png" width="190" alt="Spending: a donut of spending by category with each category's budget">
+<img src="mobile/docs/screenshots/budgets.png" width="190" alt="Budgets: each budget's progress, what's left and the month-end projection">
+</p>
+
+Home, Transactions, Spending and Budgets, from the app's design prototype (sample data). More
+in the [mobile README](mobile/README.md#what-it-looks-like).
+
 ## How it fits together
 
 ```text
