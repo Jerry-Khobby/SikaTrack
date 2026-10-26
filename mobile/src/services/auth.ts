@@ -129,11 +129,14 @@ export async function verifyOtp(otpRequestId: string, code: string): Promise<Otp
 
 /**
  * `POST /v1/auth/logout`: ends this phone's session and stops its push
- * notifications. The tokens go even if the call fails, so the phone is signed out.
+ * notifications. The phone is signed out even if the server can't be reached:
+ * the tokens are deleted here, and the server's session expires on its own.
  */
 export async function signOut() {
   try {
     await api.post<void>('/v1/auth/logout', { refresh_token: getRefreshToken() ?? '' });
+  } catch {
+    // Offline or the server away: signing out on the phone is what counts.
   } finally {
     await clearSession();
   }

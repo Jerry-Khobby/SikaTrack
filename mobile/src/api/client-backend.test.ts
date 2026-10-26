@@ -204,6 +204,16 @@ describe('sign-in against the backend', () => {
     expect(calls[0].init.body).toBe('{"refresh_token":"rt_1"}');
     expect(session.isSignedIn()).toBe(false);
   });
+
+  it("signs out on the phone without an error when the server can't be reached", async () => {
+    mockedFetch = jest.fn(async () => Promise.reject(new TypeError('Network request failed'))) as unknown as typeof fetch;
+    global.fetch = mockedFetch;
+    const { auth, session } = load();
+    await session.saveSession({ accessToken: 'at_1', refreshToken: 'rt_1' });
+
+    await expect(auth.signOut()).resolves.toBeUndefined();
+    expect(session.isSignedIn()).toBe(false);
+  });
 });
 
 describe('config and launch against the backend', () => {
