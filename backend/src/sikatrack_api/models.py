@@ -82,6 +82,11 @@ class OtpRequest(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     requested_ip: Mapped[str | None] = mapped_column(INET)
+    # sign_in, or wallet (proves the user holds a wallet's number): a code works only for its purpose
+    purpose: Mapped[str] = mapped_column(String(10), server_default="sign_in")
+    wallet_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("wallet.id", ondelete="CASCADE"), index=True
+    )
     created_at: Mapped[datetime] = _created_at()
 
 
@@ -139,6 +144,9 @@ class Wallet(Base):
     phone_number: Mapped[str] = mapped_column(String(16))
     account_name: Mapped[str | None] = mapped_column(String(200))  # upper-cased, as in the SMS
     label: Mapped[str | None] = mapped_column(String(60))
+    # When a code texted to this number was entered (or at once for the sign-in number). The
+    # pipeline only treats verified wallets as the user's own.
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _created_at()
 
 

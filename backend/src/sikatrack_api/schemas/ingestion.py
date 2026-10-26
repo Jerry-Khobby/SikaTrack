@@ -57,6 +57,10 @@ class WalletOut(BaseModel):
     phone_number: str
     account_name: str | None
     label: str | None
+    verified: bool = Field(
+        description="The user proved they hold this number (a texted code, or it's their sign-in number). "
+        "Only verified wallets count as the user's own in transfers."
+    )
     latest_balance: Money | None = None
     balance_as_of: datetime | None = None
     created_at: datetime
@@ -64,6 +68,15 @@ class WalletOut(BaseModel):
 
 class WalletList(BaseModel):
     items: list[WalletOut]
+
+
+class WalletCodeOut(BaseModel):
+    expires_in: int = Field(description="Seconds until the code expires")
+    resend_after: int = Field(description="Seconds before asking for another code")
+
+
+class WalletVerifyIn(BaseModel):
+    code: str = Field(pattern=r"^\d{6}$")
 
 
 # ---- SMS uploads ---------------------------------------------------------------------

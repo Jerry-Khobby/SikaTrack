@@ -310,15 +310,17 @@ def test_an_app_users_wallets_are_their_own_accounts(conn, test_db):
     with conn, conn.cursor() as cur:
         cur.execute("""
             CREATE SCHEMA app;
-            CREATE TABLE app.wallet (user_id uuid, account_name text, phone_number text);
+            CREATE TABLE app.wallet (user_id uuid, account_name text, phone_number text, verified_at timestamptz);
             INSERT INTO app.wallet VALUES
-                (%s, 'KWAME OWUSU', '+233240000001'),
-                (%s, NULL, '+233200000002'),
-                ('55555555-5555-5555-5555-555555555555', 'SOMEONE ELSE', '+233550000003');
-        """, (user, user))
+                (%s, 'KWAME OWUSU', '+233240000001', now()),
+                (%s, NULL, '+233200000002', now()),
+                (%s, 'NOT PROVED', '+233270000004', NULL),
+                ('55555555-5555-5555-5555-555555555555', 'SOMEONE ELSE', '+233550000003', now());
+        """, (user, user, user))
 
     owner = wallet_owner(user, _dsn(test_db))
 
+    # The wallet whose number wasn't proved with a code doesn't count as the user's own
     assert owner == Owner(names=frozenset({"KWAME OWUSU"}), numbers=frozenset({"0240000001", "0200000002"}))
 
 

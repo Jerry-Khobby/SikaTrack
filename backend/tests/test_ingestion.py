@@ -57,18 +57,104 @@ def test_config_is_public_and_comes_from_the_pipeline(api: TestClient) -> None:
 # ---- wallets ---------------------------------------------------------------------------
 
 
+def add_verified_wallet(api: TestClient, user: SignedIn, sender: CapturingSender, phone: str) -> str:
+    """Adds a wallet on another number and enters the code texted to it."""
+    wallet_id: str = api.post(
+        "/v1/wallets", headers=user.headers, json={"provider": "mtn_momo", "phone_number": phone}
+    ).json()["id"]
+    assert api.post(f"/v1/wallets/{wallet_id}/code", headers=user.headers).status_code == 202
+    verified = api.post(
+        f"/v1/wallets/{wallet_id}/verify", headers=user.headers, json={"code": sender.last_code()}
+    )
+    assert verified.status_code == 200, verified.text
+    return wallet_id
+
+
 def test_wallets_are_normalised_and_mark_onboarding(api: TestClient, user: SignedIn) -> None:
     response = api.post(
         "/v1/wallets",
         headers=user.headers,
-        json={"provider": "mtn_momo", "phone_number": "024 000 0001", "account_name": "kwame  owusu"},
+        json={"provider": "mtn_momo", "phone_number": "024 123 4567", "account_name": "kwame  owusu"},
     )
 
     body = response.json()
     assert response.status_code == 201
-    assert (body["phone_number"], body["account_name"]) == ("+233240000001", "KWAME OWUSU")
+    assert (body["phone_number"], body["account_name"]) == ("+233241234567", "KWAME OWUSU")
     assert body["id"].startswith("wal_")
+    # The sign-in number: signing in proved it, so no code is needed
+    assert body["verified"] is True
     assert api.get("/v1/me", headers=user.headers).json()["onboarding"]["wallets_added"] is True
+
+
+def test_a_wallet_on_another_number_needs_the_code_texted_to_it(
+    api: TestClient, user: SignedIn, sender: CapturingSender
+) -> None:
+    body = {"provider": "mtn_momo", "phone_number": "0240000001"}
+    wallet = api.post("/v1/wallets", headers=user.headers, json=body).json()
+    path = f"/v1/wallets/{wallet['id']}"
+
+    assert wallet["verified"] is False
+    assert api.get("/v1/me", headers=user.headers).json()["onboarding"]["wallets_added"] is False
+    # No code sent yet: nothing to match
+    assert api.post(f"{path}/verify", headers=user.headers, json={"code": "123456"}).json()["code"] == (
+        "otp_invalid"
+    )
+
+    sent = api.post(f"{path}/code", headers=user.headers)
+    assert sent.status_code == 202
+    assert sent.json() == {"expires_in": 300, "resend_after": 60}
+    phone, code = sender.sent[-1]
+    assert phone == "+233240000001"  # to the wallet's number, not the sign-in number
+    wrong = "000000" if code != "000000" else "111111"
+    assert (
+        api.post(f"{path}/verify", headers=user.headers, json={"code": wrong}).json()["code"] == "otp_invalid"
+    )
+
+    verified = api.post(f"{path}/verify", headers=user.headers, json={"code": code})
+    assert verified.status_code == 200
+    assert verified.json()["verified"] is True
+    assert api.get("/v1/me", headers=user.headers).json()["onboarding"]["wallets_added"] is True
+    assert api.post(f"{path}/code", headers=user.headers).status_code == 409
+    assert api.post(f"{path}/verify", headers=user.headers, json={"code": code}).status_code == 409
+
+
+def test_wallet_and_sign_in_codes_dont_stand_in_for_each_other(
+    api: TestClient, user: SignedIn, sender: CapturingSender, fake_clock: Clock
+) -> None:
+    wallet_id = api.post(
+        "/v1/wallets", headers=user.headers, json={"provider": "mtn_momo", "phone_number": "0240000001"}
+    ).json()["id"]
+    api.post(f"/v1/wallets/{wallet_id}/code", headers=user.headers)
+    wallet_code = sender.last_code()
+
+    # Someone signing in to the wallet's number can't use the wallet's code
+    fake_clock.advance(seconds=61)
+    otp = api.post("/v1/auth/otp/request", json={"phone_number": "0240000001"}).json()
+    sign_in_code = sender.last_code()
+    device = {"device_id": str(uuid.uuid4()), "platform": "android", "app_version": "1.0.0"}
+    if wallet_code != sign_in_code:
+        refused = api.post(
+            "/v1/auth/otp/verify",
+            json={"otp_request_id": otp["otp_request_id"], "code": wallet_code, "device": device},
+        )
+        assert refused.json()["code"] == "otp_invalid"
+        # ...and the sign-in code doesn't verify the wallet
+        wrong = api.post(f"/v1/wallets/{wallet_id}/verify", headers=user.headers, json={"code": sign_in_code})
+        assert wrong.json()["code"] == "otp_invalid"
+    # The wallet's own code still works
+    ok = api.post(f"/v1/wallets/{wallet_id}/verify", headers=user.headers, json={"code": wallet_code})
+    assert ok.status_code == 200
+
+
+def test_wallet_codes_share_the_sign_in_limits(api: TestClient, user: SignedIn) -> None:
+    wallet_id = api.post(
+        "/v1/wallets", headers=user.headers, json={"provider": "mtn_momo", "phone_number": "0240000001"}
+    ).json()["id"]
+
+    assert api.post(f"/v1/wallets/{wallet_id}/code", headers=user.headers).status_code == 202
+    again = api.post(f"/v1/wallets/{wallet_id}/code", headers=user.headers)
+    assert again.status_code == 429
+    assert again.json()["code"] == "rate_limited"
 
 
 def test_wallet_rules(api: TestClient, sender: CapturingSender) -> None:
@@ -84,6 +170,13 @@ def test_wallet_rules(api: TestClient, sender: CapturingSender) -> None:
         api.patch(f"/v1/wallets/{wallet_id}", headers=other.headers, json={"label": "x"}).status_code == 404
     )
     assert api.delete(f"/v1/wallets/{wallet_id}", headers=other.headers).status_code == 404
+    assert api.post(f"/v1/wallets/{wallet_id}/code", headers=other.headers).status_code == 404
+    assert (
+        api.post(
+            f"/v1/wallets/{wallet_id}/verify", headers=other.headers, json={"code": "123456"}
+        ).status_code
+        == 404
+    )
 
     renamed = api.patch(f"/v1/wallets/{wallet_id}", headers=owner.headers, json={"label": "Main"})
     assert renamed.json()["label"] == "Main"
@@ -205,17 +298,24 @@ def test_a_raw_zone_outage_records_nothing(
     assert asyncio.run(fetch(database_url, "SELECT count(*) FROM app.sms_batch")) == [(0,)]
 
 
-def test_transfers_to_your_own_wallet_are_recognised(
-    api: TestClient, user: SignedIn, database_url: str
+def test_transfers_to_your_own_wallet_are_recognised_once_its_verified(
+    api: TestClient, user: SignedIn, sender: CapturingSender, database_url: str
 ) -> None:
-    api.post("/v1/wallets", headers=user.headers, json={"provider": "mtn_momo", "phone_number": "0240000002"})
+    query = "SELECT is_own_transfer, category_name FROM app.provisional_transaction ORDER BY occurred_at"
+    wallet_id = api.post(
+        "/v1/wallets", headers=user.headers, json={"provider": "mtn_momo", "phone_number": "0240000002"}
+    ).json()["id"]
 
+    # Not verified: the number could be anyone's, so it's a transfer to someone else
     upload(api, user, [sms(s.WALLET_TRANSFER_OUT, sender=s.GHANAPAY)])
+    [unverified] = asyncio.run(fetch(database_url, query))
+    assert unverified[0] is False
 
-    rows = asyncio.run(
-        fetch(database_url, "SELECT is_own_transfer, category_name FROM app.provisional_transaction")
-    )
-    assert rows == [(True, "Own Transfers")]
+    api.post(f"/v1/wallets/{wallet_id}/code", headers=user.headers)
+    api.post(f"/v1/wallets/{wallet_id}/verify", headers=user.headers, json={"code": sender.last_code()})
+    upload(api, user, [sms(s.WALLET_TRANSFER_OUT, 10, sender=s.GHANAPAY)])
+
+    assert asyncio.run(fetch(database_url, query))[-1] == (True, "Own Transfers")
 
 
 def test_batch_status_and_sync_status(api: TestClient, user: SignedIn, sender: CapturingSender) -> None:

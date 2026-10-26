@@ -1,5 +1,12 @@
-"""The user's own mobile-money accounts."""
+"""The user's own mobile-money accounts.
 
+A wallet counts as the user's own (for telling own transfers from spending) only once they've
+proved they hold its number: at once for their sign-in number, otherwise with a code texted to
+the wallet's number. The account name can't be checked (MoMo SMS never show the owner's name);
+holding the SIM is what's verified.
+"""
+
+import logging
 import uuid
 
 from sqlalchemy import select
@@ -8,12 +15,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.transform.config import Owner
 from src.utils.constants import SENDER_TO_PROVIDER
 
-from sikatrack_api import ids
-from sikatrack_api.auth.phone import InvalidPhoneNumber, normalise_gh_mobile
+from sikatrack_api import clock, ids
+from sikatrack_api.auth.phone import InvalidPhoneNumber, mask, normalise_gh_mobile
+from sikatrack_api.auth.sms import OtpSender
+from sikatrack_api.config import Settings
 from sikatrack_api.errors import AppError
-from sikatrack_api.models import User, Wallet
-from sikatrack_api.schemas.ingestion import WalletIn, WalletOut, WalletPatch
-from sikatrack_api.services import pipeline
+from sikatrack_api.models import OtpRequest, User, Wallet
+from sikatrack_api.schemas.ingestion import WalletCodeOut, WalletIn, WalletOut, WalletPatch
+from sikatrack_api.services import pipeline, sign_in
+
+log = logging.getLogger(__name__)
 
 SUPPORTED_PROVIDERS = frozenset(SENDER_TO_PROVIDER.values())
 
@@ -30,13 +41,16 @@ def to_out(wallet: Wallet) -> WalletOut:
         phone_number=wallet.phone_number,
         account_name=wallet.account_name,
         label=wallet.label,
+        verified=wallet.verified_at is not None,
         created_at=wallet.created_at,
     )
 
 
 async def owner_of(session: AsyncSession, user_id: uuid.UUID) -> Owner:
-    """The user's own names and numbers, in the pipeline's format (numbers as 0XXXXXXXXX)."""
-    rows = (await session.execute(select(Wallet).where(Wallet.user_id == user_id))).scalars().all()
+    """The user's own names and numbers, in the pipeline's format (numbers as 0XXXXXXXXX).
+    Verified wallets only: an unproved number mustn't turn someone else's payments into own transfers."""
+    query = select(Wallet).where(Wallet.user_id == user_id, Wallet.verified_at.is_not(None))
+    rows = (await session.execute(query)).scalars().all()
     return Owner(
         names=frozenset(w.account_name for w in rows if w.account_name),
         numbers=frozenset("0" + w.phone_number.removeprefix("+233") for w in rows),
@@ -74,6 +88,8 @@ async def add_wallet(session: AsyncSession, user: User, body: WalletIn) -> Walle
         phone_number=phone,
         account_name=_clean_name(body.account_name),
         label=body.label,
+        # Signing in already proved the user holds their own number; any other needs a code
+        verified_at=clock.utcnow() if phone == user.phone_number else None,
     )
     session.add(wallet)
     try:
@@ -81,17 +97,60 @@ async def add_wallet(session: AsyncSession, user: User, body: WalletIn) -> Walle
     except IntegrityError:
         await session.rollback()
         raise AppError(409, "conflict", "This wallet is already on your account") from None
-    user.onboarding = {**user.onboarding, "wallets_added": True}
-    pipeline.mark_due(user)  # which transfers are "your own" changed: reprocess
+    if wallet.verified_at is not None:
+        _now_verified(user)
     await session.commit()
     await session.refresh(wallet)
+    return wallet
+
+
+def _now_verified(user: User) -> None:
+    user.onboarding = {**user.onboarding, "wallets_added": True}
+    pipeline.mark_due(user)  # which transfers are "your own" changed: reprocess
+
+
+def already_verified() -> AppError:
+    return AppError(409, "conflict", "This wallet is already verified")
+
+
+async def send_code(
+    session: AsyncSession, settings: Settings, sender: OtpSender, wallet: Wallet, ip: str | None
+) -> WalletCodeOut:
+    """Texts a code to the wallet's number. A new one replaces any before it."""
+    if wallet.verified_at is not None:
+        raise already_verified()
+    request_id = await sign_in.issue_code(
+        session, settings, sender, wallet.phone_number, ip, purpose="wallet", wallet_id=wallet.id
+    )
+    log.info(
+        "Wallet code sent", extra={"phone": mask(wallet.phone_number), "otp_request_id": str(request_id)}
+    )
+    return WalletCodeOut(expires_in=settings.otp_ttl_s, resend_after=settings.otp_resend_after_s)
+
+
+async def verify(session: AsyncSession, settings: Settings, user: User, wallet: Wallet, code: str) -> Wallet:
+    """Checks the latest code sent for this wallet; on a match the wallet is the user's own."""
+    if wallet.verified_at is not None:
+        raise already_verified()
+    otp = await session.scalar(
+        select(OtpRequest)
+        .where(OtpRequest.wallet_id == wallet.id, OtpRequest.purpose == "wallet")
+        .order_by(OtpRequest.created_at.desc())
+        .limit(1)
+        .with_for_update()
+    )
+    await sign_in.use_code(session, settings, otp, code)
+    wallet.verified_at = clock.utcnow()
+    _now_verified(user)
+    await session.commit()
     return wallet
 
 
 async def update_wallet(session: AsyncSession, user: User, wallet: Wallet, patch: WalletPatch) -> Wallet:
     if "account_name" in patch.model_fields_set:
         wallet.account_name = _clean_name(patch.account_name)
-        pipeline.mark_due(user)
+        if wallet.verified_at is not None:
+            pipeline.mark_due(user)
     if "label" in patch.model_fields_set:
         wallet.label = patch.label
     await session.commit()
@@ -101,5 +160,6 @@ async def update_wallet(session: AsyncSession, user: User, wallet: Wallet, patch
 async def remove_wallet(session: AsyncSession, user: User, wallet: Wallet) -> None:
     """The wallet's transactions stay; they're just no longer treated as your own transfers."""
     await session.delete(wallet)
-    pipeline.mark_due(user)
+    if wallet.verified_at is not None:
+        pipeline.mark_due(user)
     await session.commit()

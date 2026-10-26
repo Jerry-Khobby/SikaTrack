@@ -73,6 +73,27 @@ async def request_code(
             "The request is invalid",
             errors=[{"field": "phone_number", "message": str(exc)}],
         ) from None
+    request_id = await issue_code(session, settings, sender, phone, ip)
+    log.info("Sign-in code sent", extra={"phone": mask(phone), "otp_request_id": str(request_id)})
+    return OtpRequestOut(
+        otp_request_id=ids.encode("otp", request_id),
+        expires_in=settings.otp_ttl_s,
+        resend_after=settings.otp_resend_after_s,
+    )
+
+
+async def issue_code(
+    session: AsyncSession,
+    settings: Settings,
+    sender: OtpSender,
+    phone: str,
+    ip: str | None,
+    *,
+    purpose: str = "sign_in",
+    wallet_id: uuid.UUID | None = None,
+) -> uuid.UUID:
+    """Texts a new code to `phone` for `purpose`, within the rate limits. Sign-in and wallet
+    codes share the limits, so neither can be used to flood a number with SMS."""
     now = clock.utcnow()
 
     # Limits per phone (stops SMS bombing a number) and per IP (stops sweeping many numbers)
@@ -106,6 +127,8 @@ async def request_code(
             code_hash=credentials.hash_code(settings, request_id, code),
             expires_at=now + timedelta(seconds=settings.otp_ttl_s),
             requested_ip=ip,
+            purpose=purpose,
+            wallet_id=wallet_id,
             created_at=now,
         )
     )
@@ -116,12 +139,27 @@ async def request_code(
         raise AppError(
             503, "dependency_unavailable", "We couldn't send your code", "Please try again in a minute."
         ) from None
-    log.info("Sign-in code sent", extra={"phone": mask(phone), "otp_request_id": str(request_id)})
-    return OtpRequestOut(
-        otp_request_id=ids.encode("otp", request_id),
-        expires_in=settings.otp_ttl_s,
-        resend_after=settings.otp_resend_after_s,
-    )
+    return request_id
+
+
+async def use_code(
+    session: AsyncSession, settings: Settings, otp: OtpRequest | None, code: str
+) -> OtpRequest:
+    """Checks `code` against `otp` (locked FOR UPDATE by the caller) and marks it used. Every
+    way it can be wrong is the same `otp_invalid`; a wrong guess is committed before refusing."""
+    if (
+        otp is None
+        or otp.consumed_at is not None
+        or otp.expires_at <= clock.utcnow()
+        or otp.attempts >= settings.otp_max_attempts
+    ):
+        raise otp_invalid()
+    if not credentials.code_matches(settings, otp.id, code, otp.code_hash):
+        otp.attempts += 1
+        await session.commit()  # the failed attempt counts even though we refuse
+        raise otp_invalid()
+    otp.consumed_at = clock.utcnow()
+    return otp
 
 
 async def verify_code(session: AsyncSession, settings: Settings, body: OtpVerifyIn) -> SignInOut:
@@ -132,20 +170,18 @@ async def verify_code(session: AsyncSession, settings: Settings, body: OtpVerify
     except AppError:
         raise otp_invalid() from None
 
-    # FOR UPDATE: two verifies of the same code at once can't both succeed
-    otp = await session.scalar(select(OtpRequest).where(OtpRequest.id == request_id).with_for_update())
-    if (
-        otp is None
-        or otp.consumed_at is not None
-        or otp.expires_at <= now
-        or otp.attempts >= settings.otp_max_attempts
-    ):
-        raise otp_invalid()
-    if not credentials.code_matches(settings, request_id, body.code, otp.code_hash):
-        otp.attempts += 1
-        await session.commit()  # the failed attempt counts even though we refuse
-        raise otp_invalid()
-    otp.consumed_at = now
+    # FOR UPDATE: two verifies of the same code at once can't both succeed. Only sign-in codes:
+    # a code texted to verify a wallet must not sign anyone in to that number's account.
+    otp = await use_code(
+        session,
+        settings,
+        await session.scalar(
+            select(OtpRequest)
+            .where(OtpRequest.id == request_id, OtpRequest.purpose == "sign_in")
+            .with_for_update()
+        ),
+        body.code,
+    )
 
     user = await session.scalar(select(User).where(User.phone_number == otp.phone_number).with_for_update())
     is_new_user = user is None

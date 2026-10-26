@@ -262,8 +262,32 @@ transfers between your own accounts from real spending (what `OWNER_NAMES` and
 ```
 `201 Created`. `account_name` is the name exactly as it appears in your MoMo SMS; the app
 suggests names it finds in the first SMS scan. Errors: `conflict` (already added),
-`unsupported_provider`. Adding or changing a wallet marks the user for reprocessing, because it
-changes which transfers count as own transfers.
+`unsupported_provider`. Adding or changing a verified wallet marks the user for reprocessing,
+because it changes which transfers count as own transfers.
+
+Each wallet has `"verified": true|false`. Only verified wallets count as the user's own, so an
+unproved number can't turn someone else's payments into own transfers:
+
+- A wallet on the user's **sign-in number** is verified at once: signing in proved it.
+- Any **other number** starts unverified, and the user proves they hold that SIM with a code
+  texted to it (below). `onboarding.wallets_added` turns true with the first verified wallet.
+
+The account name itself can't be checked: MoMo SMS never show the owner's own name, only the
+other side's. Checking it would need a name lookup with the provider (e.g. MTN's account-holder
+API), which needs a business agreement.
+
+### `POST /v1/wallets/{wallet_id}/code` · `POST /v1/wallets/{wallet_id}/verify`
+
+`/code` texts a 6-digit code to the wallet's number: `202 Accepted`
+`{"expires_in": 300, "resend_after": 60}`. It shares the sign-in code limits for that number,
+and a new code replaces the one before.
+
+`/verify` takes `{"code": "482913"}` and returns the wallet with `"verified": true`.
+
+- A wallet code only verifies its own wallet: it can't sign anyone in, and a sign-in code can't
+  verify a wallet.
+- Errors: `otp_invalid` (wrong, expired, too many tries, or no code sent), `rate_limited`,
+  `conflict` (already verified).
 
 ### `PATCH /v1/wallets/{wallet_id}` · `DELETE /v1/wallets/{wallet_id}`
 
@@ -753,6 +777,7 @@ user gets a `sync_problem` notification. If a callback is ever lost, batches stu
 | GET | `/v1/config` | none | 3 |
 | GET, POST | `/v1/wallets` | user | 3 |
 | PATCH, DELETE | `/v1/wallets/{id}` | user | 3 |
+| POST | `/v1/wallets/{id}/code`, `/v1/wallets/{id}/verify` | user | 7 |
 | POST | `/v1/sms/batches` | user | 3 |
 | GET | `/v1/sms/batches/{id}` | user | 3 |
 | GET | `/v1/sync/status` | user | 3 |

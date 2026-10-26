@@ -22,7 +22,14 @@ def wallet_owner(user_id: str, dsn: str | None = None) -> Owner:
             if not cur.fetchone()[0]:
                 log.warning("No app.wallet table: user %s has no wallets to match", user_id)
                 return Owner()
-            cur.execute("SELECT account_name, phone_number FROM app.wallet WHERE user_id = %s", (user_id,))
+            # Only wallets the user proved they hold (a texted code): an unproved number mustn't turn
+            # someone else's payments into own transfers. Older backends have no verified_at: all count.
+            cur.execute("""SELECT 1 FROM information_schema.columns
+                           WHERE table_schema = 'app' AND table_name = 'wallet' AND column_name = 'verified_at'""")
+            verified_only = " AND verified_at IS NOT NULL" if cur.fetchone() else ""
+            cur.execute(
+                "SELECT account_name, phone_number FROM app.wallet WHERE user_id = %s" + verified_only, (user_id,)
+            )
             rows = cur.fetchall()
     finally:
         conn.close()

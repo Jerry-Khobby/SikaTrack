@@ -1,9 +1,21 @@
 """/v1/wallets: the user's own mobile-money accounts."""
 
-from fastapi import APIRouter, Response, status
+from typing import Annotated
 
-from sikatrack_api.auth.dependencies import CurrentUserDep, SessionDep
-from sikatrack_api.schemas.ingestion import WalletIn, WalletList, WalletOut, WalletPatch
+from fastapi import APIRouter, Depends, Request, Response, status
+
+from sikatrack_api.auth.dependencies import CurrentUserDep, SessionDep, SettingsDep
+from sikatrack_api.auth.sms import OtpSender
+from sikatrack_api.ratelimit import client_ip
+from sikatrack_api.routers.auth import get_otp_sender
+from sikatrack_api.schemas.ingestion import (
+    WalletCodeOut,
+    WalletIn,
+    WalletList,
+    WalletOut,
+    WalletPatch,
+    WalletVerifyIn,
+)
 from sikatrack_api.services import balances, wallets
 
 router = APIRouter(prefix="/v1/wallets", tags=["wallets"])
@@ -25,10 +37,38 @@ async def list_wallets(me: CurrentUserDep, session: SessionDep) -> WalletList:
     "",
     status_code=status.HTTP_201_CREATED,
     summary="Add a wallet",
-    description="Transfers between your wallets then count as your own money moving, not spending.",
+    description="Transfers between your wallets then count as your own money moving, not spending. "
+    "A wallet on your sign-in number is verified at once; any other needs a code texted to it "
+    "(`POST /v1/wallets/{id}/code`, then `/verify`).",
 )
 async def add_wallet(body: WalletIn, me: CurrentUserDep, session: SessionDep) -> WalletOut:
     return wallets.to_out(await wallets.add_wallet(session, me.user, body))
+
+
+@router.post(
+    "/{wallet_id}/code",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Text a code to the wallet's number",
+    description="Proves you hold that SIM. Shares the sign-in code limits per number.",
+)
+async def send_wallet_code(
+    wallet_id: str,
+    request: Request,
+    me: CurrentUserDep,
+    session: SessionDep,
+    settings: SettingsDep,
+    sender: Annotated[OtpSender, Depends(get_otp_sender)],
+) -> WalletCodeOut:
+    wallet = await wallets.get_wallet(session, me.id, wallet_id)
+    return await wallets.send_code(session, settings, sender, wallet, client_ip(request))
+
+
+@router.post("/{wallet_id}/verify", summary="Check the code; the wallet then counts as yours")
+async def verify_wallet(
+    wallet_id: str, body: WalletVerifyIn, me: CurrentUserDep, session: SessionDep, settings: SettingsDep
+) -> WalletOut:
+    wallet = await wallets.get_wallet(session, me.id, wallet_id)
+    return wallets.to_out(await wallets.verify(session, settings, me.user, wallet, body.code))
 
 
 @router.patch("/{wallet_id}", summary="Rename a wallet or fix its account name")
