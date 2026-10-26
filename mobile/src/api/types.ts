@@ -159,6 +159,8 @@ export type ApiWallet = {
   phone_number: string;
   account_name: string | null;
   label: string | null;
+  /** The user proved they hold this number: a texted code, or it's their sign-in number. */
+  verified: boolean;
   latest_balance: Money | null;
   balance_as_of: string | null;
   created_at: string;

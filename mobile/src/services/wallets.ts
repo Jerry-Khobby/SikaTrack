@@ -1,4 +1,5 @@
 import { ApiError, api, usesDevServer } from '@/api/client';
+import { OtpInvalidError, RateLimitedError } from '@/services/auth';
 import { resetWalletStore } from '@/api/dev-server/wallet-store';
 import type { ApiWallet } from '@/api/types';
 
@@ -10,9 +11,14 @@ export type Wallet = {
   /** Exactly as it appears on the MoMo SMS, e.g. `JERRY K MENSAH`. */
   accountName: string;
   label: string | null;
+  /**
+   * The user proved they hold this number: it's their sign-in number, or they entered the code
+   * texted to it. Only verified wallets count as theirs when telling own transfers from spending.
+   */
+  verified: boolean;
 };
 
-export type NewWallet = Omit<Wallet, 'id'>;
+export type NewWallet = Omit<Wallet, 'id' | 'verified'>;
 
 export type WalletChanges = Partial<Pick<Wallet, 'accountName' | 'label'>>;
 
@@ -36,6 +42,7 @@ const toWallet = (w: ApiWallet): Wallet => ({
   phoneNumber: w.phone_number,
   accountName: w.account_name ?? '',
   label: w.label,
+  verified: w.verified,
 });
 
 /** Turns the API's wallet errors into the two the screens explain. */
@@ -80,6 +87,34 @@ export async function updateWallet(id: string, changes: WalletChanges) {
       ...(changes.accountName !== undefined && { account_name: changes.accountName }),
     }),
   );
+}
+
+/** Code errors as the sign-in screens know them: a wrong code, or too many codes asked for. */
+function codeError(error: unknown) {
+  if (error instanceof ApiError && error.code === 'otp_invalid') return new OtpInvalidError();
+  if (error instanceof ApiError && error.code === 'rate_limited') {
+    return new RateLimitedError(Math.ceil((error.retryAfter ?? 60) / 60));
+  }
+  return error;
+}
+
+/** `POST /v1/wallets/{id}/code`: texts a code to the wallet's number. */
+export async function sendWalletCode(id: string) {
+  try {
+    const sent = await api.post<{ expires_in: number; resend_after: number }>(`/v1/wallets/${id}/code`);
+    return { expiresIn: sent.expires_in, resendAfter: sent.resend_after };
+  } catch (error) {
+    throw codeError(error);
+  }
+}
+
+/** `POST /v1/wallets/{id}/verify`: the code texted to the wallet's number. */
+export async function verifyWallet(id: string, code: string) {
+  try {
+    return toWallet(await api.post<ApiWallet>(`/v1/wallets/${id}/verify`, { code }));
+  } catch (error) {
+    throw codeError(error);
+  }
 }
 
 /** `DELETE /v1/wallets/{id}`. Its past transactions stay. */

@@ -1,7 +1,8 @@
 import { api } from '@/api/client';
 import { getBalanceHistory, getBalances } from '@/services/balances';
 import { deleteAccount, getMe, startSession, updateMe } from '@/services/me';
-import { addWallet } from '@/services/wallets';
+import { OtpInvalidError } from '@/services/auth';
+import { addWallet, resetWallets, sendWalletCode, verifyWallet } from '@/services/wallets';
 import { resetDevServer } from '@/test-utils';
 
 import { ApiError } from '../errors';
@@ -62,11 +63,25 @@ describe('dev server: onboarding, as the backend records it', () => {
   });
 
   it('marks wallets added when a wallet is added, and the first sync done on the first upload', async () => {
+    resetWallets(); // a new account: no wallets yet
     expect((await getMe()).onboarding).toMatchObject({ walletsAdded: false, firstSyncDone: false });
-    await addWallet({ provider: 'mtn_momo', phoneNumber: '+233245550000', accountName: 'AMA SERWAA', label: null });
+    // The sign-in number: verified at once
+    const wallet = await addWallet({ provider: 'mtn_momo', phoneNumber: '+233241234567', accountName: 'AMA SERWAA', label: null });
+    expect(wallet.verified).toBe(true);
     expect((await getMe()).onboarding.walletsAdded).toBe(true);
     await api.post('/v1/sms/batches', { source: 'initial_scan', messages: [] });
     expect((await getMe()).onboarding.firstSyncDone).toBe(true);
+  });
+
+  it('needs the code texted to a wallet on another number before it counts', async () => {
+    const wallet = await addWallet({ provider: 'mtn_momo', phoneNumber: '+233245550000', accountName: 'AMA SERWAA', label: null });
+    expect(wallet.verified).toBe(false);
+    expect((await getMe()).onboarding.walletsAdded).toBe(false);
+
+    expect(await sendWalletCode(wallet.id)).toEqual({ expiresIn: 300, resendAfter: 60 });
+    await expect(verifyWallet(wallet.id, '000000')).rejects.toBeInstanceOf(OtpInvalidError);
+    expect((await verifyWallet(wallet.id, '482913')).verified).toBe(true);
+    expect((await getMe()).onboarding.walletsAdded).toBe(true);
   });
 
   it('sends the account’s currency with its settings', async () => {

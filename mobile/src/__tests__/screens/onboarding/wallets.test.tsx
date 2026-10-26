@@ -7,7 +7,10 @@ import { renderWithQuery } from '@/test-utils';
 
 const mockRouter = { push: jest.fn() };
 
-jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
+jest.mock('expo-router', () => ({
+  useRouter: () => mockRouter,
+  useFocusEffect: (effect: () => void) => require('react').useEffect(effect, [effect]),
+}));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -62,6 +65,25 @@ describe('S08 · Add your wallets', () => {
 
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith('/onboarding/sync'));
     expect((await getMe()).onboarding.walletsAdded).toBe(true);
+  });
+
+  it('asks for the code texted to a wallet on another number, and keeps Continue off until then', async () => {
+    await renderScreen();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Add MTN MoMo' }));
+    await fireEvent.changeText(screen.getByLabelText('Phone number'), '0245550000');
+    await fireEvent.changeText(screen.getByLabelText('Name on the account'), 'JERRY K MENSAH');
+    await fireEvent.press(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText('024 555 0000 · Not confirmed: tap to enter the code')).toBeOnTheScreen();
+    await waitFor(() =>
+      expect(mockRouter.push).toHaveBeenCalledWith({
+        pathname: '/verify-wallet/[id]',
+        params: { id: expect.any(String), phoneNumber: '+233245550000' },
+      }),
+    );
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
+    expect((await getMe()).onboarding.walletsAdded).toBe(false);
   });
 
   it('says so when the wallet is already on the account', async () => {

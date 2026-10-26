@@ -1,6 +1,6 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import type { CountryCode } from 'libphonenumber-js/mobile';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { Button, ThemedText } from '@/components/atoms';
 import { WalletChooser, WalletSheet, type WalletFormValues } from '@/components/organisms';
@@ -30,10 +30,18 @@ export default function WalletsScreen() {
   const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
   const [sheet, setSheet] = useState<SheetState | null>(null);
 
+  // Again on coming back from confirming a wallet's number.
+  useFocusEffect(
+    useCallback(() => {
+      listWallets().then(setWallets);
+    }, []),
+  );
   useEffect(() => {
-    listWallets().then(setWallets);
     getAccountNameSuggestions().then(setNameSuggestions);
   }, []);
+
+  const confirmNumber = (wallet: Wallet) =>
+    router.push({ pathname: '/verify-wallet/[id]', params: { id: wallet.id, phoneNumber: wallet.phoneNumber } });
 
   const providers = config?.providers ?? [];
   const providerName = (code: string) => providers.find((p) => p.code === code)?.name ?? code;
@@ -41,11 +49,12 @@ export default function WalletsScreen() {
     config?.supportedCountries[0]) as CountryCode | undefined;
 
   const saveWallet = async (values: WalletFormValues) => {
+    let added: Wallet | undefined;
     try {
       if (sheet?.mode === 'edit') {
         await updateWallet(sheet.wallet.id, { accountName: values.accountName, label: values.label });
       } else {
-        await addWallet(values);
+        added = await addWallet(values);
       }
     } catch (e) {
       if (e instanceof WalletConflictError) throw new Error('This wallet is already on your account.');
@@ -54,9 +63,11 @@ export default function WalletsScreen() {
     }
     setWallets(await listWallets());
     setSheet(null);
+    // A number other than the sign-in one: prove it's theirs with the code texted to it.
+    if (added && !added.verified) confirmNumber(added);
   };
 
-  // Adding a wallet already marked this step done on the server.
+  // Confirming a wallet already marked this step done on the server.
   const proceed = () => router.push('/onboarding/sync');
 
   return (
@@ -67,7 +78,7 @@ export default function WalletsScreen() {
         <Button
           label="Continue"
           onPress={proceed}
-          disabled={wallets.length === 0}
+          disabled={!wallets.some((wallet) => wallet.verified)}
         />
       }>
       <ThemedText type="title" accessibilityRole="header" className="mb-2 mt-7">
@@ -82,13 +93,18 @@ export default function WalletsScreen() {
           providerCode: wallet.provider,
           providerName: providerName(wallet.provider),
           title: wallet.label ?? providerName(wallet.provider),
-          subtitle: `${formatNationalNumber(wallet.phoneNumber)} · ${wallet.accountName}`,
+          subtitle: wallet.verified
+            ? `${formatNationalNumber(wallet.phoneNumber)} · ${wallet.accountName}`
+            : `${formatNationalNumber(wallet.phoneNumber)} · Not confirmed: tap to enter the code`,
         }))}
         providers={providers}
         onAdd={(provider) => setSheet({ mode: 'add', provider })}
         onEdit={(id) => {
           const wallet = wallets.find((w) => w.id === id);
-          if (wallet) setSheet({ mode: 'edit', wallet });
+          if (wallet) {
+            if (wallet.verified) setSheet({ mode: 'edit', wallet });
+            else confirmNumber(wallet);
+          }
         }}
         onLearnMore={(code) => router.push({ pathname: '/providers/[code]', params: { code } })}
       />

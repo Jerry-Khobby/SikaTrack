@@ -43,7 +43,9 @@ import {
   addStoredWallet,
   allWallets,
   removeStoredWallet,
+  storedWalletCode,
   updateStoredWallet,
+  verifyStoredWallet,
   type StoredWallet,
 } from './wallet-store';
 
@@ -632,8 +634,22 @@ const handlers: { method: string; pattern: RegExp; handle: (match: string[], que
     method: 'POST',
     pattern: /^\/v1\/wallets$/,
     handle: async (_, __, body): Promise<ApiWallet> => {
-      const wallet = await addStoredWallet(body as Parameters<typeof addStoredWallet>[0]);
-      // As the backend does: adding a wallet completes that onboarding step.
+      const wallet = await addStoredWallet(body as Parameters<typeof addStoredWallet>[0], storedMe().phone_number);
+      // As the backend does: a verified wallet completes that onboarding step.
+      if (wallet.verified) markOnboarding('wallets_added');
+      return toApiWallet(wallet, (await getDataset()).transactions);
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/v1\/wallets\/([^/]+)\/code$/,
+    handle: async ([id]) => storedWalletCode(id),
+  },
+  {
+    method: 'POST',
+    pattern: /^\/v1\/wallets\/([^/]+)\/verify$/,
+    handle: async ([id], _, body): Promise<ApiWallet> => {
+      const wallet = verifyStoredWallet(id, (body as { code: string }).code);
       markOnboarding('wallets_added');
       return toApiWallet(wallet, (await getDataset()).transactions);
     },
@@ -940,6 +956,7 @@ function toApiWallet(wallet: StoredWallet, transactions: DevTransaction[]): ApiW
     phone_number: wallet.phoneNumber,
     account_name: wallet.accountName,
     label: wallet.label,
+    verified: wallet.verified,
     latest_balance: latest?.balance_after ?? null,
     balance_as_of: latest?.occurred_at ?? null,
     created_at: wallet.createdAt,

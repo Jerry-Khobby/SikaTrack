@@ -69,7 +69,11 @@ export default function WalletsScreen() {
     setRefreshing(false);
   };
 
+  const confirmNumber = (wallet: Pick<Wallet, 'id' | 'phoneNumber'>) =>
+    router.push({ pathname: '/verify-wallet/[id]', params: { id: wallet.id, phoneNumber: wallet.phoneNumber } });
+
   const saveWallet = async (values: WalletFormValues) => {
+    let added: Wallet | undefined;
     try {
       if (sheet?.mode === 'edit') {
         await updateWallet.mutateAsync({
@@ -77,7 +81,7 @@ export default function WalletsScreen() {
           changes: { accountName: values.accountName, label: values.label },
         });
       } else {
-        await addWallet.mutateAsync(values);
+        added = await addWallet.mutateAsync(values);
       }
     } catch (e) {
       if (e instanceof WalletConflictError) throw new Error('This wallet is already on your account.');
@@ -85,6 +89,8 @@ export default function WalletsScreen() {
       throw new Error("We couldn't save the wallet. Try again.");
     }
     setSheet(null);
+    // A number other than the sign-in one: prove it's theirs with the code texted to it.
+    if (added && !added.verified) confirmNumber(added);
   };
 
   const confirmRemove = async () => {
@@ -153,7 +159,11 @@ export default function WalletsScreen() {
                 providerCode={wallet.provider}
                 providerName={providerName(wallet.provider)}
                 title={titleOf(wallet)}
-                subtitle={`${formatNationalNumber(wallet.phoneNumber)} · ${wallet.accountName}`}
+                subtitle={
+                  wallet.verified
+                    ? `${formatNationalNumber(wallet.phoneNumber)} · ${wallet.accountName}`
+                    : `${formatNationalNumber(wallet.phoneNumber)} · Not confirmed yet`
+                }
                 balance={balance ? formatMoney(balance.balance, currency) : '—'}
                 asOf={balance ? `as of ${formatDateTime(balance.asOf)}` : 'No SMS yet'}
                 isLow={balance?.isLow ?? false}
@@ -194,6 +204,17 @@ export default function WalletsScreen() {
       {options && (
         <BottomSheet title={titleOf(options)} onClose={() => setOptions(null)}>
           <View className="-mx-4">
+            {!options.verified && (
+              <MenuRow
+                icon="check"
+                label="Confirm this number"
+                divider
+                onPress={() => {
+                  confirmNumber(options);
+                  setOptions(null);
+                }}
+              />
+            )}
             <MenuRow
               icon="edit"
               label="Edit wallet"
