@@ -8,6 +8,7 @@ import { SyncIllustration, SyncProgress } from '@/components/organisms';
 import { OnboardingStepTemplate } from '@/components/templates';
 import { useInitialScan } from '@/hooks/use-initial-scan';
 import { ONBOARDING_STEP_COUNT } from '@/services/onboarding';
+import { openAppSettings } from '@/services/permissions';
 import { startInitialScan } from '@/services/sms';
 
 /** S09 · First sync: read the MoMo SMS history once and show it turning into transactions. */
@@ -16,19 +17,22 @@ export default function FirstSyncScreen() {
   const scan = useInitialScan();
   const done = scan.status === 'done';
   const failed = scan.status === 'failed';
+  const noPermission = failed && scan.problem === 'permission';
   const empty = done && scan.total === 0;
 
   useEffect(() => {
     startInitialScan();
   }, []);
 
-  const title = failed
-    ? "We couldn't finish reading your messages"
-    : empty
-      ? 'No MoMo messages yet'
-      : done
-        ? 'Done! Your first transactions are ready.'
-        : 'Reading your MoMo history…';
+  const title = noPermission
+    ? "SikaTrack can't read your SMS yet"
+    : failed
+      ? "We couldn't finish reading your messages"
+      : empty
+        ? 'No MoMo messages yet'
+        : done
+          ? 'Done! Your first transactions are ready.'
+          : 'Reading your MoMo history…';
 
   return (
     <OnboardingStepTemplate
@@ -37,6 +41,7 @@ export default function FirstSyncScreen() {
       footer={
         <>
           {failed && <Button label="Try again" onPress={startInitialScan} />}
+          {noPermission && <Button variant="secondary" label="Open settings" onPress={openAppSettings} />}
           <Button
             variant={done ? 'primary' : failed ? 'link' : 'secondary'}
             label={done ? 'Continue' : 'Continue in the background'}
@@ -56,9 +61,11 @@ export default function FirstSyncScreen() {
       </ThemedText>
       {failed ? (
         <ThemedText type="bodySmall" themeColor="textSecondary" className="text-center">
-          {scan.found > 0
+          {noPermission
+            ? "Allow SMS for SikaTrack so it can read your MoMo messages. If Android doesn't ask again, turn on SMS in SikaTrack's settings."
+            : scan.found > 0
             ? `We sent ${scan.found} of ${scan.total} messages before the connection dropped. Try again to send the rest.`
-            : 'Check your internet connection, then try again.'}
+              : 'Check your internet connection, then try again.'}
         </ThemedText>
       ) : empty ? (
         <ThemedText type="bodySmall" themeColor="textSecondary" className="text-center">

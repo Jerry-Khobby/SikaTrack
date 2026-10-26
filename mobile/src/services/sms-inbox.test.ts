@@ -56,6 +56,8 @@ function load(native: ReturnType<typeof fakeNative> | null): Modules {
     };
   });
   if (mockedFetch) global.fetch = mockedFetch;
+  // SMS allowed unless a test says otherwise.
+  jest.spyOn(modules.rn.PermissionsAndroid, 'check').mockResolvedValue(true);
   return modules;
 }
 
@@ -190,6 +192,23 @@ describe('first sync on a phone', () => {
     const [first, second] = server.uploads();
     expect(second.headers['Idempotency-Key']).toBe(first.headers['Idempotency-Key']);
   }, 10_000);
+
+  it("asks for the SMS permission when it's missing, and stops without uploading if refused", async () => {
+    const server = backend();
+    const { sms, rn } = load(fakeNative(INBOX));
+    jest.spyOn(rn.PermissionsAndroid, 'check').mockResolvedValue(false);
+    const request = jest.spyOn(rn.PermissionsAndroid, 'request').mockResolvedValue('never_ask_again');
+
+    sms.startInitialScan();
+    expect(await settled(sms)).toMatchObject({ status: 'failed', problem: 'permission', found: 0 });
+    expect(request).toHaveBeenCalledWith('android.permission.READ_SMS');
+    expect(server.uploads()).toHaveLength(0);
+
+    // Allowed on the next try: the scan runs.
+    request.mockResolvedValue('granted');
+    sms.startInitialScan();
+    expect(await settled(sms)).toMatchObject({ status: 'done', found: 4, problem: null });
+  });
 
   it('finishes at once on a phone with no MoMo SMS', async () => {
     const server = backend();

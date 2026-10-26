@@ -8,11 +8,14 @@
 import { api, usesDevServer } from '@/api/client';
 
 import { getAppConfig } from './config';
+import { hasSmsPermission, requestSmsPermission } from './permissions';
 import { canReadSms, countInbox, readInbox, toBatches, uploadBatch, type InboxSms } from './sms-inbox';
 
 export type ScanState = {
-  /** `failed`: an upload didn't go through; starting again carries on from there. */
+  /** `failed`: see `problem`; starting again carries on from where it stopped. */
   status: 'idle' | 'running' | 'done' | 'failed';
+  /** Why it failed: Android refused to let the app read SMS, or an upload didn't go through. */
+  problem: 'permission' | 'upload' | null;
   /** MoMo SMS read so far. */
   found: number;
   /** Turned into transactions (`parsed`). */
@@ -36,6 +39,7 @@ const IDLE: ScanState = {
   ignored: 0,
   total: 0,
   firstTransactionAt: null,
+  problem: null,
 };
 
 let state = IDLE;
@@ -65,7 +69,7 @@ export function subscribeToScan(listener: () => void) {
 export function startInitialScan() {
   if (state.status === 'running' || state.status === 'done') return;
   if (canReadSms && !usesDevServer) {
-    scanInbox().catch(() => set({ ...state, status: 'failed' }));
+    scanInbox().catch(() => set({ ...state, status: 'failed', problem: 'upload' }));
     return;
   }
 
@@ -113,7 +117,12 @@ let uploadedUpTo: InboxSms | undefined;
 /** Reads every MoMo SMS on the phone and uploads them as `initial_scan`, counting as it goes. */
 async function scanInbox() {
   // Running from the first moment, so a second call while the config loads starts nothing.
-  set({ ...(uploadedUpTo ? state : IDLE), status: 'running' });
+  set({ ...(uploadedUpTo ? state : IDLE), status: 'running', problem: null });
+  // Asked here too: onboarding can say yes from another phone or Expo Go, and it can be turned off in settings.
+  if (!(await hasSmsPermission()) && (await requestSmsPermission()) !== 'granted') {
+    set({ ...state, status: 'failed', problem: 'permission' });
+    return;
+  }
   const config = await getAppConfig();
   const senders = config.momoSenders;
   const limits = { maxMessages: config.limits.smsBatchMaxMessages, maxBytes: config.limits.smsBatchMaxBytes };
