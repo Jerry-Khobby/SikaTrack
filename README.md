@@ -35,6 +35,9 @@ Android app ──SMS──► Backend API ──► Data pipeline ──► Pos
 4. The backend reads the results back to the app. The same warehouse also feeds a Metabase
    dashboard.
 
+To run the backend and pipeline on a server, see [DEPLOYMENT.md](DEPLOYMENT.md): one free
+Oracle Cloud ARM server, HTTPS through Caddy, and sign-in codes by SMS through Arkesel.
+
 ## Folder structure
 
 ```text
