@@ -42,7 +42,11 @@ class Settings(BaseSettings):
 
     # One-time sign-in codes
     otp_pepper: SecretStr = Field(min_length=32)  # server secret mixed into every code hash
-    otp_provider: Literal["console", "twilio", "disabled"] = "console"
+    otp_provider: Literal["console", "arkesel", "twilio", "disabled"] = "console"
+    # Arkesel (OTP_PROVIDER=arkesel), a Ghanaian SMS gateway topped up with mobile money: the
+    # API key from its dashboard, and the sender ID registered there (at most 11 characters)
+    arkesel_api_key: SecretStr | None = None
+    arkesel_sender: str | None = Field(default=None, max_length=11)
     # Twilio (OTP_PROVIDER=twilio): the account, and who the SMS comes from: an approved
     # alphanumeric sender ID or a Twilio number (TWILIO_FROM), or a messaging service
     twilio_account_sid: str | None = None
@@ -94,6 +98,8 @@ class Settings(BaseSettings):
     def _no_console_codes_in_production(self) -> "Settings":
         if self.environment == "production" and self.otp_provider == "console":
             raise ValueError("OTP_PROVIDER=console prints sign-in codes; choose a real SMS provider")
+        if self.otp_provider == "arkesel" and not (self.arkesel_api_key and self.arkesel_sender):
+            raise ValueError("OTP_PROVIDER=arkesel needs ARKESEL_API_KEY and ARKESEL_SENDER")
         if self.otp_provider == "twilio" and not (
             self.twilio_account_sid
             and self.twilio_auth_token

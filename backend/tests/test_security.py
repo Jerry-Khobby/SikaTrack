@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+import json
 import urllib.parse
 from dataclasses import dataclass, field
 from typing import Any
@@ -27,6 +28,13 @@ def _twilio(settings: Settings, **overrides: Any) -> Settings:
     return Settings.model_validate({**settings.model_dump(), **TWILIO, **overrides})
 
 
+ARKESEL = {"otp_provider": "arkesel", "arkesel_api_key": "ark-key", "arkesel_sender": "SikaTrack"}
+
+
+def _arkesel(settings: Settings, **overrides: Any) -> Settings:
+    return Settings.model_validate({**settings.model_dump(), **ARKESEL, **overrides})
+
+
 # ---- the SMS provider ----------------------------------------------------------------
 
 
@@ -37,6 +45,15 @@ def test_twilio_needs_its_credentials(settings: Settings) -> None:
         _twilio(settings, twilio_from=None)
     with pytest.raises(ValidationError, match="must contain"):
         _twilio(settings, otp_message="Your code")
+
+
+def test_arkesel_needs_its_key_and_a_short_sender(settings: Settings) -> None:
+    with pytest.raises(ValidationError, match="ARKESEL_API_KEY"):
+        _arkesel(settings, arkesel_api_key=None)
+    with pytest.raises(ValidationError, match="ARKESEL_SENDER"):
+        _arkesel(settings, arkesel_sender=None)
+    with pytest.raises(ValidationError, match="11 characters"):
+        _arkesel(settings, arkesel_sender="SikaTrackApp1")
 
 
 def test_production_refuses_printed_codes(settings: Settings) -> None:
@@ -86,6 +103,59 @@ def test_a_refused_sms_is_a_delivery_error(settings: Settings, twilio: FakeTwili
 
     with pytest.raises(sms.OtpDeliveryError):
         asyncio.run(sms.create_otp_sender(_twilio(settings)).send("+233241234567", "482913"))
+
+
+@dataclass
+class FakeArkesel:
+    """Arkesel, faked at the HTTP layer: records each request and answers with `status` and `body`."""
+
+    status: int = 200
+    body: dict[str, Any] = field(default_factory=lambda: {"status": "success", "data": [{"id": "1"}]})
+    requests: list[httpx2.Request] = field(default_factory=list)
+
+    def handle(self, request: httpx2.Request) -> httpx2.Response:
+        self.requests.append(request)
+        return httpx2.Response(self.status, json=self.body)
+
+
+@pytest.fixture
+def arkesel(monkeypatch: pytest.MonkeyPatch) -> FakeArkesel:
+    fake = FakeArkesel()
+    real = httpx2.AsyncClient
+    monkeypatch.setattr(
+        sms.httpx2, "AsyncClient", lambda **kw: real(transport=httpx2.MockTransport(fake.handle), **kw)
+    )
+    return fake
+
+
+def test_arkesel_sends_the_code_to_the_number(settings: Settings, arkesel: FakeArkesel) -> None:
+    sender = sms.create_otp_sender(_arkesel(settings))
+
+    asyncio.run(sender.send("+233241234567", "482913"))
+
+    [request] = arkesel.requests
+    assert str(request.url) == "https://sms.arkesel.com/api/v2/sms/send"
+    assert request.headers["api-key"] == "ark-key"
+    body = json.loads(request.content)
+    assert body["recipients"] == ["233241234567"]  # Arkesel's format: no leading +
+    assert body["sender"] == "SikaTrack"
+    assert "482913" in body["message"]
+
+
+@pytest.mark.parametrize(
+    ("status", "body"),
+    [
+        (401, {"status": "error", "message": "Invalid API key"}),
+        (200, {"status": "error", "message": "Insufficient balance"}),  # refused with a 200
+    ],
+)
+def test_an_sms_arkesel_refuses_is_a_delivery_error(
+    settings: Settings, arkesel: FakeArkesel, status: int, body: dict[str, Any]
+) -> None:
+    arkesel.status, arkesel.body = status, body
+
+    with pytest.raises(sms.OtpDeliveryError):
+        asyncio.run(sms.create_otp_sender(_arkesel(settings)).send("+233241234567", "482913"))
 
 
 # ---- response headers ----------------------------------------------------------------

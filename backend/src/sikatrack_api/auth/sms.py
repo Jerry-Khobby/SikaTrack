@@ -38,6 +38,43 @@ class DisabledOtpSender:
         log.warning("OTP sending is disabled; code not sent", extra={"phone": mask(phone_e164)})
 
 
+class ArkeselOtpSender:
+    """Arkesel's SMS API (v2): one JSON POST per code, the API key in an `api-key` header,
+    numbers as 233XXXXXXXXX. The sender ID must be registered in the Arkesel dashboard."""
+
+    API = "https://sms.arkesel.com/api/v2/sms/send"
+
+    def __init__(self, settings: Settings) -> None:
+        assert settings.arkesel_api_key  # Settings refuses to start without them
+        assert settings.arkesel_sender
+        self.headers = {"api-key": settings.arkesel_api_key.get_secret_value()}
+        self.sender = settings.arkesel_sender
+        self.template = settings.otp_message
+
+    async def send(self, phone_e164: str, code: str) -> None:
+        body = {
+            "sender": self.sender,
+            "message": self.template.format(code=code),
+            "recipients": [phone_e164.removeprefix("+")],
+        }
+        try:
+            async with httpx2.AsyncClient(timeout=10) as client:
+                response = await client.post(self.API, json=body, headers=self.headers)
+        except httpx2.HTTPError as exc:
+            raise OtpDeliveryError(type(exc).__name__) from exc
+        answer = (
+            response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
+        )
+        # A refusal can come as an HTTP error or as 200 with a status other than "success"
+        # (e.g. out of credit, sender ID not approved); logged without the number or the code
+        if response.status_code >= 400 or answer.get("status", "success") != "success":
+            log.warning(
+                "Arkesel refused a sign-in SMS",
+                extra={"status": response.status_code, "arkesel_message": answer.get("message")},
+            )
+            raise OtpDeliveryError(f"arkesel {response.status_code}")
+
+
 class TwilioOtpSender:
     """Twilio's Messages API: one POST per code, Basic auth with the account SID and auth token."""
 
@@ -77,6 +114,8 @@ class TwilioOtpSender:
 
 
 def create_otp_sender(settings: Settings) -> OtpSender:
+    if settings.otp_provider == "arkesel":
+        return ArkeselOtpSender(settings)
     if settings.otp_provider == "twilio":
         return TwilioOtpSender(settings)
     return ConsoleOtpSender() if settings.otp_provider == "console" else DisabledOtpSender()

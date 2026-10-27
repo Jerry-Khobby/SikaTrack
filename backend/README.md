@@ -33,7 +33,7 @@ bound to 127.0.0.1, so from outside the proxy is the only way in.
 |---|---|
 | `ENVIRONMENT` | `production` (turns off /docs; refuses printed sign-in codes) |
 | `API_DOMAIN` | Your domain, e.g. `api.sikatrack.app`. Point its DNS here and open ports 80 and 443; Caddy gets and renews the Let's Encrypt certificate |
-| `OTP_PROVIDER` | `twilio`, with `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_FROM` (an approved sender ID such as `SikaTrack`, or a Twilio number). Another provider (e.g. a Ghanaian SMS gateway) is one more class in `auth/sms.py` |
+| `OTP_PROVIDER` | `arkesel` (recommended in Ghana: a few pesewas per SMS, topped up with mobile money), with `ARKESEL_API_KEY` from its dashboard and `ARKESEL_SENDER` (a sender ID registered there, at most 11 characters, e.g. `SikaTrack`). Or `twilio`, with `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` and `TWILIO_FROM`. Another provider is one more class in `auth/sms.py` |
 | `RATE_LIMIT_PER_USER`, `RATE_LIMIT_PER_IP` | Requests per minute per signed-in user (120) and per IP before sign-in (30) |
 
 The proxy blocks `/internal` (only the pipeline, on the Docker network, may call it), caps
