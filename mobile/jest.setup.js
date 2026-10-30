@@ -23,3 +23,23 @@ jest.mock('expo-secure-store', () => {
     }),
   };
 });
+
+// Google sign-in's native module: a signed-in Google account unless a test says otherwise.
+jest.mock('@react-native-google-signin/google-signin', () => {
+  const statusCodes = {
+    SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED',
+    IN_PROGRESS: 'IN_PROGRESS',
+    PLAY_SERVICES_NOT_AVAILABLE: 'PLAY_SERVICES_NOT_AVAILABLE',
+  };
+  return {
+    GoogleSignin: {
+      configure: jest.fn(),
+      hasPlayServices: jest.fn().mockResolvedValue(true),
+      signIn: jest.fn().mockResolvedValue({ type: 'success', data: { idToken: 'google-id-token', user: {} } }),
+      signOut: jest.fn().mockResolvedValue(null),
+    },
+    isSuccessResponse: (response) => response.type === 'success',
+    isErrorWithCode: (error) => error != null && typeof error.code === 'string',
+    statusCodes,
+  };
+});

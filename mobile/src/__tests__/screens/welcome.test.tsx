@@ -1,9 +1,9 @@
-import { fireEvent, screen } from '@testing-library/react-native';
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 
 import WelcomeScreen from '@/app/welcome';
 import { renderWithQuery } from '@/test-utils';
 
-const mockRouter = { push: jest.fn() };
+const mockRouter = { push: jest.fn(), replace: jest.fn() };
 
 jest.mock('expo-router', () => ({ useRouter: () => mockRouter }));
 
@@ -17,11 +17,20 @@ describe('S03 · Welcome', () => {
     expect(screen.queryByText(/Telecel Cash/)).toBeNull();
   });
 
-  it('starts sign-in from Get started', async () => {
+  it('signs in with Google and starts onboarding', async () => {
     await renderWithQuery(<WelcomeScreen />);
     await screen.findByText(/Works with/);
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Get started' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Continue with Google' }));
+
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/onboarding/name'));
+  });
+
+  it('offers a phone number instead', async () => {
+    await renderWithQuery(<WelcomeScreen />);
+    await screen.findByText(/Works with/);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Use your phone number instead' }));
 
     expect(mockRouter.push).toHaveBeenCalledWith('/sign-in/phone');
   });

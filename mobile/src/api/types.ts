@@ -40,6 +40,8 @@ export type ApiConfig = {
   providers: { code: string; name: string; senders: string[]; supported: boolean }[];
   /** ISO 3166 codes whose numbers can sign in, e.g. `GH`. */
   supported_countries: string[];
+  /** `google` and/or `phone`, in the order to offer them. */
+  sign_in_methods?: string[];
   limits: { sms_batch_max_messages: number; sms_batch_max_bytes: number };
   features: Record<string, boolean>;
 };
@@ -47,7 +49,10 @@ export type ApiConfig = {
 /** `GET /v1/me` */
 export type ApiMe = {
   id: string;
+  /** None when signed in with Google. */
   phone_number: string | null;
+  /** From Google sign-in, when Google has verified it. */
+  email?: string | null;
   display_name: string | null;
   created_at: string;
   /** The server sets `wallets_added` and `first_sync_done` itself; `sms_permission` is `unknown` until asked. */

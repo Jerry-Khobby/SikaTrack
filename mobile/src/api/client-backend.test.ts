@@ -22,6 +22,7 @@ function load(): Modules {
   let modules!: Modules;
   jest.isolateModules(() => {
     process.env.EXPO_PUBLIC_API_URL = 'https://api.example.test/';
+    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = 'web-client.apps.googleusercontent.com';
     modules = {
       client: require('./client'),
       session: require('./session'),
@@ -73,6 +74,7 @@ afterEach(() => {
   mockedFetch = undefined;
   global.fetch = realFetch;
   delete process.env.EXPO_PUBLIC_API_URL;
+  delete process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   jest.useRealTimers();
 });
 
@@ -213,6 +215,49 @@ describe('sign-in against the backend', () => {
 
     await expect(auth.signOut()).resolves.toBeUndefined();
     expect(session.isSignedIn()).toBe(false);
+  });
+});
+
+describe('Google sign-in against the backend', () => {
+  const google = () => jest.requireMock('@react-native-google-signin/google-signin').GoogleSignin;
+  const tokens = { access_token: 'at_g', refresh_token: 'rt_g', token_type: 'Bearer', expires_in: 900, is_new_user: true };
+  const me = { onboarding: { wallets_added: false, sms_permission: 'unknown', first_sync_done: false } };
+
+  it("sends Google's ID token and this phone, and keeps the tokens", async () => {
+    const calls = backend({ 'POST /v1/auth/google': [json({ ...tokens, user: me })] });
+    const { auth, session } = load();
+
+    const result = await auth.signInWithGoogle();
+
+    expect(google().configure).toHaveBeenCalledWith({ webClientId: 'web-client.apps.googleusercontent.com' });
+    const body = JSON.parse(String(calls[0].init.body));
+    expect(body.id_token).toBe('google-id-token');
+    expect(body.device).toMatchObject({ platform: 'android' });
+    expect(result).toEqual({ isNewUser: true, onboardingFinished: false });
+    expect(session.isSignedIn()).toBe(true);
+  });
+
+  it('does nothing when the person closes Google’s account picker', async () => {
+    const calls = backend({});
+    google().signIn.mockResolvedValueOnce({ type: 'cancelled', data: null });
+    const { auth } = load();
+
+    expect(await auth.signInWithGoogle()).toBeNull();
+    expect(calls).toHaveLength(0);
+  });
+
+  it('says so when the server can’t confirm the Google account', async () => {
+    backend({ 'POST /v1/auth/google': [json({ status: 401, code: 'google_token_invalid', title: 'x' }, 401)] });
+    const { auth } = load();
+
+    await expect(auth.signInWithGoogle()).rejects.toBeInstanceOf(auth.GoogleSignInFailedError);
+  });
+
+  it('reads which ways to sign in from the config', async () => {
+    backend({ 'GET /v1/config': [json({ ...require('@/api/dev-server/catalog').DEV_CONFIG, sign_in_methods: ['google'] })] });
+    const { config } = load();
+
+    expect((await config.getAppConfig()).signInMethods).toEqual(['google']);
   });
 });
 

@@ -208,6 +208,7 @@ export const DEV_CONFIG: ApiConfig = {
     { code: 'telecel_cash', name: 'Telecel Cash', senders: [], supported: false },
   ],
   supported_countries: ['GH'],
+  sign_in_methods: ['google', 'phone'],
   limits: { sms_batch_max_messages: 500, sms_batch_max_bytes: 1_000_000 },
   features: { budgets: true, export: false },
 };
