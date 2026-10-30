@@ -172,6 +172,16 @@ Without `EXPO_PUBLIC_API_URL`, requests go to the in-app dev server in
 5. To see your existing MoMo history, link it to the new account (backend README, "Link your
    existing data to your account") before uploading any SMS from the app.
 
+### Sign in with Google
+
+The first screen offers what `GET /v1/config → sign_in_methods` lists: **Continue with Google**,
+and/or a phone number with a texted code. Google sign-in uses the native
+`@react-native-google-signin/google-signin` module (a development or release build; in Expo Go
+it says it isn't available) and needs `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`: the **Web** OAuth client
+ID from [DEPLOYMENT.md](../DEPLOYMENT.md#0-set-up-sign-in-with-google-once). Google's picker gives
+the app an ID token; `POST /v1/auth/google` checks it and signs in. On the dev server it starts a
+new account, like the phone stand-in.
+
 ### Reading SMS: a development build
 
 Expo Go can't read SMS. The app reads them with its own native module,

@@ -19,20 +19,38 @@ server itself (`127.0.0.1`), and you reach their admin pages through an SSH tunn
 | Server: Oracle Cloud Always Free, ARM, 4 CPUs, 24 GB memory, up to 200 GB disk | Free |
 | Domain: a DuckDNS name such as `sikatrack.duckdns.org` | Free |
 | HTTPS certificate: Let's Encrypt, through Caddy | Free |
-| Sign-in SMS: Arkesel, topped up with mobile money | A few pesewas per code |
+| Sign-in: Google accounts (Sign in with Google) | Free |
 
 Every image in the stack has an ARM (`arm64`) build, so all of it runs on Oracle's ARM server.
 
 ## Before you start
 
-- **Arkesel:** an API key, SMS credit, and the sender ID (`SikaTrack`) showing **Approved**.
-  Without the approval, sign-in codes are refused.
+- **Google sign-in set up** (below): the OAuth client IDs the app and the backend use.
 - **Oracle Cloud account:** sign up for Always Free at cloud.oracle.com. The card is for identity
   only. Pick the **home region** carefully, as it can't change later: one near Ghana with Always
   Free ARM capacity, such as UK South (London) or Germany Central (Frankfurt).
 - **DuckDNS account:** at duckdns.org (sign in with GitHub or Google), claim a name.
 - **An SSH key on your laptop:** `ssh-keygen -t ed25519` in PowerShell if you have none
   (`C:\Users\<you>\.ssh\id_ed25519.pub` is the public half you give Oracle).
+
+## 0. Set up Sign in with Google (once)
+
+People sign in with their Google account, so no SMS is needed. In
+[console.cloud.google.com](https://console.cloud.google.com):
+
+1. **Create a project**, e.g. "SikaTrack".
+2. **APIs & Services → OAuth consent screen:** user type **External**, app name **SikaTrack**,
+   your email as support and developer contact. The app only asks for the basic profile and
+   email, so Google doesn't need to review it. Click **Publish app** so anyone can sign in (while
+   it's "Testing", only the test users you list can).
+3. **Credentials → Create credentials → OAuth client ID → Web application**, named "SikaTrack
+   backend". Copy its **client ID** (`…apps.googleusercontent.com`): it goes in the backend's
+   `GOOGLE_CLIENT_IDS` and the app's `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`. Google issues sign-in
+   tokens for this ID, and the backend accepts only tokens issued for it.
+4. **Create credentials → OAuth client ID → Android:** package name `app.sikatrack`, and the
+   **SHA-1** of the key the app is signed with. For EAS builds, get it with
+   `npx eas-cli@latest credentials -p android` (the "SHA1 Fingerprint" of the keystore). This
+   client has no secret; it only tells Google that this app may sign people in.
 
 ## 1. Create the server
 
@@ -136,8 +154,9 @@ cd ~/SikaTrack/backend && cp .env.example .env && nano .env
 | `JWT_SECRET`, `OTP_PEPPER` | New, each (at least 32 characters) |
 | `INTERNAL_API_TOKEN` | **The same value** as in `data-engineering/.env` |
 | `AIRFLOW_USERNAME`, `AIRFLOW_PASSWORD` | `AIRFLOW_ADMIN_USER` and `AIRFLOW_ADMIN_PASSWORD` from `data-engineering/.env` |
-| `OTP_PROVIDER` | `arkesel` |
-| `ARKESEL_API_KEY`, `ARKESEL_SENDER` | Your key, and the sender ID exactly as approved (`SikaTrack`) |
+| `GOOGLE_CLIENT_IDS` | The **Web** client ID from step 0 |
+| `OTP_PROVIDER` | `disabled`: sign-in is with Google (phone sign-in needs an approved SMS sender ID; `arkesel` with `ARKESEL_API_KEY` and `ARKESEL_SENDER` once you have one) |
+| `WALLET_VERIFICATION` | `trust`: with no SMS, a wallet's number can't be confirmed by a code, so wallets count as soon as they're added |
 | `PUSH_PROVIDER` | `disabled` until the app registers for push |
 
 The server's addresses (`DATABASE_HOST`, `S3_ENDPOINT`, `AIRFLOW_URL`) are set by
@@ -180,8 +199,9 @@ The first request may take a few seconds while Caddy gets the certificate.
 
 **End to end, with the app** (a development build, as in [mobile/README.md](mobile/README.md)):
 
-1. Start the app pointed at the server: `EXPO_PUBLIC_API_URL=https://sikatrack.duckdns.org`.
-2. Sign in: the code now arrives by SMS from **SikaTrack**.
+1. Start the app pointed at the server: `EXPO_PUBLIC_API_URL=https://sikatrack.duckdns.org`
+   and `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<the Web client ID>`.
+2. Tap **Continue with Google** and pick your account.
 3. Add your wallet and let the first sync upload your MoMo SMS.
 4. About two minutes later the backend triggers the pipeline: watch the run in Airflow (tunnel).
 5. When it succeeds, payments turn from **Processing** to confirmed, and balances fill in.
@@ -222,8 +242,10 @@ cd ../backend && docker compose up -d --build   # database migrations run on the
 |---|---|
 | `curl https://…` times out | Ports 80/443 closed: the Security List (step 1) **and** the server's iptables (step 3) |
 | Certificate errors | DuckDNS doesn't point at the server yet, or port 80 is closed (Let's Encrypt checks through it) |
-| API won't start: "OTP_PROVIDER=console prints sign-in codes" | `ENVIRONMENT=production` with `OTP_PROVIDER=console`: set `arkesel` |
-| "We couldn't send your code" in the app | Arkesel refused: credit, the sender ID's approval, or the key. `docker compose logs api` shows Arkesel's reason |
+| API won't start: "OTP_PROVIDER=console prints sign-in codes" | `ENVIRONMENT=production` with `OTP_PROVIDER=console`: set `disabled` (and `GOOGLE_CLIENT_IDS`) |
+| "Google sign-in isn't available on this phone" | The app build has no `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, or the phone has no Google Play services |
+| Google's picker closes with an error (`DEVELOPER_ERROR`) | The Android client in step 0 doesn't match the app: package `app.sikatrack` and the build's SHA-1 |
+| "We couldn't sign you in with Google" | The backend refused the token: `GOOGLE_CLIENT_IDS` isn't the Web client ID the app uses |
 | Uploads stay **Processing** | `sikatrack_pipeline` is paused in Airflow, or `AIRFLOW_PASSWORD` doesn't match `AIRFLOW_ADMIN_PASSWORD` |
 | Runs succeed but the batches never load | `INTERNAL_API_TOKEN` differs between the two `.env` files |
 | Containers keep restarting | `docker compose logs <service>`; usually a missing or mistyped `.env` value |
