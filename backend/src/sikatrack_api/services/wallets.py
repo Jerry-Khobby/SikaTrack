@@ -69,7 +69,7 @@ async def get_wallet(session: AsyncSession, user_id: uuid.UUID, public_id: str) 
     return wallet
 
 
-async def add_wallet(session: AsyncSession, user: User, body: WalletIn) -> Wallet:
+async def add_wallet(session: AsyncSession, settings: Settings, user: User, body: WalletIn) -> Wallet:
     if body.provider not in SUPPORTED_PROVIDERS:
         raise AppError(
             422, "unsupported_provider", "We can't read this provider's SMS yet",
@@ -88,8 +88,11 @@ async def add_wallet(session: AsyncSession, user: User, body: WalletIn) -> Walle
         phone_number=phone,
         account_name=_clean_name(body.account_name),
         label=body.label,
-        # Signing in already proved the user holds their own number; any other needs a code
-        verified_at=clock.utcnow() if phone == user.phone_number else None,
+        # Signing in already proved the user holds their own number; any other needs a code,
+        # unless codes can't be sent (WALLET_VERIFICATION=trust)
+        verified_at=(
+            clock.utcnow() if phone == user.phone_number or settings.wallet_verification == "trust" else None
+        ),
     )
     session.add(wallet)
     try:

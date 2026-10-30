@@ -17,13 +17,20 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sikatrack_api import clock, ids
-from sikatrack_api.auth import credentials
+from sikatrack_api.auth import credentials, google
 from sikatrack_api.auth.phone import InvalidPhoneNumber, mask, normalise_gh_mobile
 from sikatrack_api.auth.sms import OtpDeliveryError, OtpSender
 from sikatrack_api.config import Settings
 from sikatrack_api.errors import AppError
 from sikatrack_api.models import Device, OtpRequest, Session, User
-from sikatrack_api.schemas.auth import OtpRequestOut, OtpVerifyIn, SignInOut, TokenPair
+from sikatrack_api.schemas.auth import (
+    DeviceIn,
+    GoogleSignInIn,
+    OtpRequestOut,
+    OtpVerifyIn,
+    SignInOut,
+    TokenPair,
+)
 from sikatrack_api.schemas.common import version_tuple
 from sikatrack_api.services import audit
 from sikatrack_api.services.users import to_me
@@ -190,20 +197,69 @@ async def verify_code(session: AsyncSession, settings: Settings, body: OtpVerify
         session.add(user)
         await session.flush()
         audit.record(session, "account_created", user.id)
-    elif user.status == "deleting":
+    return await _finish_sign_in(session, settings, user, is_new_user, body.device, now, method="phone")
+
+
+GOOGLE_KEYS = google.GoogleKeys()  # Google's signing keys, shared by every request
+
+
+def google_token_invalid() -> AppError:
+    return AppError(401, "google_token_invalid", "We couldn't confirm your Google account", "Try again.")
+
+
+async def sign_in_with_google(
+    session: AsyncSession, settings: Settings, body: GoogleSignInIn, keys: google.GoogleKeys | None = None
+) -> SignInOut:
+    """Signs in with a Google ID token, creating the account the first time (keyed on Google's
+    account ID, so a changed email or name doesn't make a new account)."""
+    if not settings.google_audiences:
+        raise AppError(404, "not_found", "Google sign-in isn't available")
+    check_app_version(settings, body.device.app_version)
+    try:
+        identity = await google.verify_id_token(body.id_token, settings.google_audiences, keys or GOOGLE_KEYS)
+    except google.InvalidGoogleToken:
+        raise google_token_invalid() from None
+    except google.GoogleKeysUnavailable:
+        raise AppError(
+            503, "dependency_unavailable", "We couldn't reach Google", "Please try again in a minute."
+        ) from None
+    now = clock.utcnow()
+    user = await session.scalar(select(User).where(User.google_sub == identity.sub).with_for_update())
+    is_new_user = user is None
+    if user is None:
+        user = User(id=uuid.uuid4(), google_sub=identity.sub, settings={}, onboarding={})
+        session.add(user)
+        await session.flush()
+        audit.record(session, "account_created", user.id)
+    if identity.email:
+        user.email = identity.email
+    return await _finish_sign_in(session, settings, user, is_new_user, body.device, now, method="google")
+
+
+async def _finish_sign_in(
+    session: AsyncSession,
+    settings: Settings,
+    user: User,
+    is_new_user: bool,
+    device_info: DeviceIn,
+    now: datetime,
+    *,
+    method: str,
+) -> SignInOut:
+    """What every sign-in does once the person is known: undo a pending deletion, attach this
+    phone, start its session."""
+    if user.status == "deleting":
         user.status, user.delete_after = "active", None  # signing in again cancels a pending deletion
         audit.record(session, "account_deletion_cancelled", user.id)
-
-    device = await _attach_device(session, user, body, now)
+    device = await _attach_device(session, user, device_info, now)
     tokens = await _start_session(session, settings, user.id, device.id, now)
-    audit.record(session, "signed_in", user.id, device_id=str(device.id), new_user=is_new_user)
+    audit.record(session, "signed_in", user.id, device_id=str(device.id), new_user=is_new_user, method=method)
     await session.commit()
     await session.refresh(user)
     return SignInOut(**tokens.model_dump(), is_new_user=is_new_user, user=to_me(user))
 
 
-async def _attach_device(session: AsyncSession, user: User, body: OtpVerifyIn, now: datetime) -> Device:
-    info = body.device
+async def _attach_device(session: AsyncSession, user: User, info: DeviceIn, now: datetime) -> Device:
     device = await session.get(Device, info.device_id, with_for_update=True)
     if device is None:
         device = Device(id=info.device_id, user_id=user.id, platform=info.platform)

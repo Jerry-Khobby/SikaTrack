@@ -54,7 +54,10 @@ class User(Base):
     __table_args__ = (CheckConstraint("status IN ('active', 'deleting')", name="status"),)
 
     id: Mapped[uuid.UUID] = _uuid_pk()
-    phone_number: Mapped[str] = mapped_column(String(16), unique=True)  # +233241234567
+    # How the user signs in: a phone number (+233241234567) and/or a Google account
+    phone_number: Mapped[str | None] = mapped_column(String(16), unique=True)
+    google_sub: Mapped[str | None] = mapped_column(String(64), unique=True)  # Google's account ID
+    email: Mapped[str | None] = mapped_column(String(254))  # from Google, when verified there
     display_name: Mapped[str | None] = mapped_column(String(80))
     status: Mapped[str] = mapped_column(String(12), server_default="active")  # active | deleting
     delete_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

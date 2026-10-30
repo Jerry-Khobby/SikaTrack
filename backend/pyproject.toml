@@ -16,7 +16,7 @@ dependencies = [
     "asyncpg>=0.32,<1",
     "alembic>=1.20,<2",
     "boto3>=1.43,<2",
-    "pyjwt>=2.15,<3",
+    "pyjwt[crypto]>=2.15,<3",  # crypto: checking Google's RS256 sign-in tokens
     "httpx2>=2.13,<3",  # outgoing HTTP: push notifications, Airflow
     # The pipeline's SMS parser, message IDs and category rules (../data-engineering), shared so
     # the instant view and the warehouse agree. Install with: pip install -e ../data-engineering

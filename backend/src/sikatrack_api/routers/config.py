@@ -47,4 +47,5 @@ async def get_config(response: Response, settings: SettingsDep) -> ConfigOut:
         features={"budgets": True, "export": False},
         # The parser reads Ghanaian MoMo SMS only; add a country once its providers parse
         supported_countries=["GH"],
+        sign_in_methods=settings.sign_in_methods,
     )

@@ -30,6 +30,7 @@ class ConfigOut(BaseModel):
     supported_countries: list[str] = Field(
         description="ISO 3166 codes whose phone numbers can sign in; the app's country picker offers these"
     )
+    sign_in_methods: list[str] = Field(description="`google` and/or `phone`, in the order to offer them")
 
 
 # ---- wallets -------------------------------------------------------------------------

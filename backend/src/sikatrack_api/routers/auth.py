@@ -8,6 +8,7 @@ from sikatrack_api.auth.dependencies import SessionDep, SettingsDep
 from sikatrack_api.auth.sms import OtpSender
 from sikatrack_api.ratelimit import client_ip, limit_public
 from sikatrack_api.schemas.auth import (
+    GoogleSignInIn,
     OtpRequestIn,
     OtpRequestOut,
     OtpVerifyIn,
@@ -44,6 +45,16 @@ async def request_otp(
 @router.post("/otp/verify", summary="Check the code; sign in (creating the account the first time)")
 async def verify_otp(body: OtpVerifyIn, session: SessionDep, settings: SettingsDep) -> SignInOut:
     return await sign_in.verify_code(session, settings, body)
+
+
+@router.post(
+    "/google",
+    summary="Sign in with a Google ID token (creating the account the first time)",
+    description="The app signs in with Google on the phone and sends the ID token Google gave it. "
+    "Available when GOOGLE_CLIENT_IDS is set (see `sign_in_methods` in /v1/config).",
+)
+async def google_sign_in(body: GoogleSignInIn, session: SessionDep, settings: SettingsDep) -> SignInOut:
+    return await sign_in.sign_in_with_google(session, settings, body)
 
 
 @router.post("/refresh", summary="Swap a refresh token for new tokens (the old one stops working)")

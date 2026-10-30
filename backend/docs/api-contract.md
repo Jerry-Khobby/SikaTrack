@@ -129,6 +129,21 @@ Checks the code; signs in, creating the account on first sign-in.
 - Refresh token: random, 30 days, stored hashed, one session per device.
 - Errors: `otp_invalid` (wrong, expired or too many attempts), `rate_limited`.
 
+### `POST /v1/auth/google`
+
+Signs in with Google, creating the account the first time. The app signs in with Google on the
+phone and sends the ID token Google gave it:
+
+```json
+{"id_token": "eyJ...", "device": {"device_id": "b3f1c2e0-...", "platform": "android", "app_version": "1.0.0"}}
+```
+
+`200 OK`: the same body as `/otp/verify`. The token must be signed by Google, issued for one of
+`GOOGLE_CLIENT_IDS`, and unexpired; the account is keyed on Google's account ID (`sub`), so a new
+email or name keeps the same account. `user.phone_number` is `null` and `user.email` is the Google
+email when Google has verified it. Errors: `google_token_invalid` (401), `not_found` when Google
+sign-in is off, `dependency_unavailable` when Google's keys can't be fetched.
+
 ### `POST /v1/auth/refresh`
 
 ```json
@@ -225,7 +240,8 @@ What the app needs before and after sign-in; cache for an hour.
   ],
   "limits": {"sms_batch_max_messages": 500, "sms_batch_max_bytes": 1048576},
   "features": {"budgets": true, "export": false},
-  "supported_countries": ["GH"]
+  "supported_countries": ["GH"],
+  "sign_in_methods": ["google", "phone"]
 }
 ```
 `momo_senders` comes from the pipeline's `MOMO_SENDERS`, so adding a provider on the server
@@ -769,6 +785,7 @@ user gets a `sync_problem` notification. If a callback is ever lost, batches stu
 |---|---|---|---|
 | POST | `/v1/auth/otp/request` | none | 2 |
 | POST | `/v1/auth/otp/verify` | none | 2 |
+| POST | `/v1/auth/google` | none | 7 |
 | POST | `/v1/auth/refresh` | none | 2 |
 | POST | `/v1/auth/logout` | none | 2 |
 | GET, PATCH, DELETE | `/v1/me` | user | 2, 7 |

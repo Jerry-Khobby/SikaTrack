@@ -20,6 +20,7 @@ def to_me(user: User, data: DataSummary | None = None) -> MeOut:
     return MeOut(
         id=ids.encode("usr", user.id),
         phone_number=user.phone_number,
+        email=user.email,
         display_name=user.display_name,
         created_at=user.created_at,
         onboarding=Onboarding.model_validate(user.onboarding),

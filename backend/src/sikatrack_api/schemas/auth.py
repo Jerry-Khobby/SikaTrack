@@ -32,6 +32,11 @@ class OtpVerifyIn(BaseModel):
     device: DeviceIn
 
 
+class GoogleSignInIn(BaseModel):
+    id_token: str = Field(min_length=20, max_length=4096, description="The ID token Google gave the app")
+    device: DeviceIn
+
+
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str

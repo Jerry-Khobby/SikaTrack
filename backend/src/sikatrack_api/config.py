@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     access_token_ttl_s: int = Field(default=900, ge=60)
     refresh_token_ttl_days: int = Field(default=30, ge=1)
 
+    # Sign in with Google: the OAuth client IDs (comma-separated) whose ID tokens are accepted,
+    # i.e. the Web client ID the app passes to Google. Empty: Google sign-in is off.
+    google_client_ids: str = ""
+    # Wallets: "code" = a number other than the sign-in one needs a code texted to it; "trust" =
+    # every wallet counts at once (when no SMS can be sent, e.g. Google sign-in and no SMS sender)
+    wallet_verification: Literal["code", "trust"] = "code"
+
     # One-time sign-in codes
     otp_pepper: SecretStr = Field(min_length=32)  # server secret mixed into every code hash
     otp_provider: Literal["console", "arkesel", "twilio", "disabled"] = "console"
@@ -97,7 +104,12 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _no_console_codes_in_production(self) -> "Settings":
         if self.environment == "production" and self.otp_provider == "console":
-            raise ValueError("OTP_PROVIDER=console prints sign-in codes; choose a real SMS provider")
+            raise ValueError(
+                "OTP_PROVIDER=console prints sign-in codes; choose a real SMS provider, or "
+                "OTP_PROVIDER=disabled with Google sign-in (GOOGLE_CLIENT_IDS)"
+            )
+        if self.otp_provider == "disabled" and not self.google_audiences:
+            raise ValueError("No way to sign in: set GOOGLE_CLIENT_IDS or an OTP_PROVIDER")
         if self.otp_provider == "arkesel" and not (self.arkesel_api_key and self.arkesel_sender):
             raise ValueError("OTP_PROVIDER=arkesel needs ARKESEL_API_KEY and ARKESEL_SENDER")
         if self.otp_provider == "twilio" and not (
@@ -124,6 +136,18 @@ class Settings(BaseSettings):
             port=self.database_port,
             database=self.database_name,
         )
+
+    @property
+    def google_audiences(self) -> tuple[str, ...]:
+        return tuple(i.strip() for i in self.google_client_ids.split(",") if i.strip())
+
+    @property
+    def sign_in_methods(self) -> list[str]:
+        """What the app offers on its first screen."""
+        return [
+            *(["google"] if self.google_audiences else []),
+            *(["phone"] if self.otp_provider != "disabled" else []),
+        ]
 
     @property
     def docs_enabled(self) -> bool:

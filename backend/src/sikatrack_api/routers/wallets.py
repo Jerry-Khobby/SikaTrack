@@ -41,8 +41,10 @@ async def list_wallets(me: CurrentUserDep, session: SessionDep) -> WalletList:
     "A wallet on your sign-in number is verified at once; any other needs a code texted to it "
     "(`POST /v1/wallets/{id}/code`, then `/verify`).",
 )
-async def add_wallet(body: WalletIn, me: CurrentUserDep, session: SessionDep) -> WalletOut:
-    return wallets.to_out(await wallets.add_wallet(session, me.user, body))
+async def add_wallet(
+    body: WalletIn, me: CurrentUserDep, session: SessionDep, settings: SettingsDep
+) -> WalletOut:
+    return wallets.to_out(await wallets.add_wallet(session, settings, me.user, body))
 
 
 @router.post(

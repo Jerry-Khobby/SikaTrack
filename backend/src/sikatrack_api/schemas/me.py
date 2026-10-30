@@ -38,7 +38,10 @@ class DataSummary(BaseModel):
 
 class MeOut(BaseModel):
     id: str = Field(examples=["usr_3f2a9c0e1b7d4c55a1e2f3a4b5c6d7e8"])
-    phone_number: str = Field(examples=["+233241234567"])
+    phone_number: str | None = Field(
+        examples=["+233241234567"], description="None when signed in with Google"
+    )
+    email: str | None = Field(default=None, description="From Google sign-in")
     display_name: str | None
     created_at: datetime
     onboarding: Onboarding
